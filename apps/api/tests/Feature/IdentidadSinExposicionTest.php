@@ -19,14 +19,22 @@ class IdentidadSinExposicionTest extends TestCase
         $this->assertArrayNotHasKey('password', $usuario->toArray());
     }
 
-    public function test_api_no_expone_rutas_de_identidad_en_esta_etapa(): void
+    public function test_solo_se_exponen_las_rutas_aprobadas_de_la_api_y_autenticacion(): void
     {
         $rutasApi = collect(app('router')->getRoutes()->getRoutes())
-            ->filter(fn ($ruta) => str_starts_with($ruta->uri(), 'api/'))
+            ->reject(fn ($ruta) => str_starts_with($ruta->uri(), 'storage/'))
             ->map(fn ($ruta) => [$ruta->uri(), $ruta->methods()])
             ->values()
             ->all();
 
-        $this->assertSame([['api/salud', ['GET', 'HEAD']]], $rutasApi);
+        $this->assertEqualsCanonicalizing([
+            ['api/salud', ['GET', 'HEAD']],
+            ['api/mi-sesion', ['GET', 'HEAD']],
+            ['sanctum/csrf-cookie', ['GET', 'HEAD']],
+            ['login', ['POST']],
+            ['logout', ['POST']],
+        ], $rutasApi);
+
+        $this->postJson('/register')->assertNotFound();
     }
 }

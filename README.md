@@ -43,9 +43,11 @@ php artisan serve --host=127.0.0.1 --port=8000
 
 Si Composer informa que falta soporte para descomprimir paquetes en Windows, use una herramienta de extracción ya disponible o cargue la extensión ZIP de PHP para esa ejecución. Con Composer Setup y `php_zip.dll` disponibles, el equivalente es `php -d extension=zip (Join-Path (Split-Path (Get-Command composer.bat).Source) 'composer.phar') install`.
 
-Desde otra terminal, ejecute `curl.exe -i http://127.0.0.1:8000/api/salud`. La respuesta esperada es HTTP 200 con `{"estado":"correcto","servicio":"masterexpress-api"}`. La ruta verifica que Laravel responde. El servidor se inicia con `APP_DEBUG=false` en la plantilla y la API aún no autoriza orígenes cruzados.
+Desde otra terminal, ejecute `curl.exe -i http://127.0.0.1:8000/api/salud`. La respuesta esperada es HTTP 200 con `{"estado":"correcto","servicio":"masterexpress-api"}`. La plantilla usa `APP_DEBUG=false` y habilita CORS para los endpoints de sesión desde `http://127.0.0.1:5173`.
 
 El entorno de desarrollo usa `masterexpress_control_dev` en MySQL local. En `apps/api/.env`, configure `DB_CONNECTION=mysql`, `DB_HOST=127.0.0.1`, `DB_PORT`, `DB_DATABASE=masterexpress_control_dev`, `DB_USERNAME` y `DB_PASSWORD`. Guarde las credenciales locales únicamente en el entorno excluido de Git. La instalación con Composer y la ruta de salud funcionan sin MySQL. React conserva su integración con Base44.
+
+Desde `apps/api/`, ejecute `php artisan auth:crear-cuenta-prueba` para aprovisionar una cuenta ficticia interactiva. Consulte la [configuración y el contrato de autenticación](docs/engineering/AUTENTICACION.md).
 
 Para preparar una instalación nueva, un aprovisionador autorizado verifica que los dos esquemas estén libres, los crea y asigna cuentas locales distintas con permisos por esquema. Aplique las migraciones desde `apps/api/` con permisos DDL temporales y solo tras confirmar servidor y esquema. Retire esos permisos al finalizar.
 

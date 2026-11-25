@@ -17,6 +17,8 @@ return [
 
     'default' => env('CACHE_STORE', 'database'),
 
+    'limiter' => env('APP_ENV') === 'testing' ? 'array' : env('CACHE_LIMITER', 'database'),
+
     /*
     |--------------------------------------------------------------------------
     | Cache Stores
