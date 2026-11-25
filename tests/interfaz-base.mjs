@@ -248,7 +248,7 @@ try {
       document.querySelector("#correo").value = email;
       document.querySelector("#contrasena").value = clave;
     }, { email: correo, clave: claveFicticia });
-    await clicTexto("Ingresar");
+    await clic('form button[type="submit"]');
   };
   const indicadores = () => leer(() => Object.fromEntries([...document.querySelectorAll("main dl dt")]
     .map(etiqueta => [etiqueta.textContent, Number(etiqueta.nextElementSibling.textContent.replace(/\D/g, ""))])));
@@ -259,9 +259,11 @@ try {
       return canales[0] * 0.2126 + canales[1] * 0.7152 + canales[2] * 0.0722;
     };
     const muestras = [
-      ["main > section, main section:has(#correo)", "label[for='correo']"],
+      [".acceso__panel", "label[for='correo']"],
       ["#correo", "#correo"], ["button[type='submit']", "button[type='submit']"],
-      ["main section:has(#correo)", "h1 + p"], ["#mensaje-acceso", "#mensaje-acceso"],
+      [".acceso__panel", "h1 + p"], ["#mensaje-acceso", "#mensaje-acceso"],
+      [".acceso header", ".acceso header p"], [".acceso header", ".acceso header p + p"],
+      [".acceso header", ".acceso header .text-primary"],
       ["[role='menu']", "[role='menuitemradio']"],
       ["[role='menuitemradio'][data-highlighted]", "[role='menuitemradio'][data-highlighted]"],
       ["[role='dialog']", "[role='dialog'] h2"],
@@ -303,6 +305,35 @@ try {
     await hasta(() => leer(() => !document.querySelector('[role="dialog"]')), "Cancelar no cerró el diálogo.");
     await clicTexto("Panel Principal", "aside button");
   };
+  const comprobarIngreso = async (tema) => {
+    await comprobarContraste(`Contraste de las muestras de acceso en ${tema} ≥ 4.5:1`);
+    for (const [width, height] of [[320, 568], [390, 660], [768, 1024], [1024, 768], [1440, 1050], [1920, 1080]]) {
+      await ajustar(width, height);
+      await hasta(() => ancho(width), `Ingreso desbordado a ${width} px.`);
+      const composicion = await leer((modo) => {
+        const marco = document.querySelector('.acceso__panel');
+        const cabecera = marco.querySelector('header');
+        const logo = cabecera.querySelector('img');
+        const boton = marco.querySelector('button[type="submit"]');
+        const luminanciaMedia = (elemento, propiedad) =>
+          getComputedStyle(elemento)[propiedad].match(/[\d.]+/g).slice(0, 3)
+            .reduce((suma, canal) => suma + Number(canal) / 3, 0);
+        const superficies = [document.querySelector('.acceso'), marco, cabecera, marco.querySelector('#correo')];
+        const rect = marco.getBoundingClientRect();
+        return {
+          alineado: Math.abs(rect.left + rect.width / 2 - innerWidth / 2) < 3,
+          superficie: superficies.every(elemento => modo === 'claro'
+            ? luminanciaMedia(elemento, 'backgroundColor') > 200
+            : luminanciaMedia(elemento, 'backgroundColor') < 70),
+          marca: logo.naturalWidth > 0 && new URL(logo.currentSrc).pathname === '/master-express.png',
+          formulario: boton.getBoundingClientRect().bottom < innerHeight && boton.offsetHeight >= 44,
+        };
+      }, tema);
+      assert.deepEqual(composicion, { alineado: true, superficie: true, marca: true, formulario: true });
+      console.log(`PASS Ingreso ${tema} centrado, coherente y visible a ${width} × ${height}`);
+      await pantalla(`login-${tema}-${width}`);
+    }
+  };
 
   await enviar("Runtime.enable");
   await enviar("Page.bringToFront");
@@ -315,11 +346,9 @@ try {
   await tecla("Tab", 9);
   verificar(await leer(() => document.activeElement?.matches('button[aria-label^="Tema visual:"]:focus-visible')
     && getComputedStyle(document.activeElement).outlineWidth === "2px"), "El primer Tab enfoca el selector con contorno visible");
-  await comprobarContraste("Ingreso claro alcanza 4.5:1 en las muestras principales");
-  await pantalla("01-login-claro");
+  await comprobarIngreso("claro");
   await cambiarTema("Oscuro", "dark");
-  await comprobarContraste("Ingreso oscuro alcanza 4.5:1 en las muestras principales");
-  await pantalla("02-login-oscuro");
+  await comprobarIngreso("oscuro");
   await ir("/?sin-react");
   await hasta(() => leer(() => location.search === "?sin-react" && document.readyState === "complete"),
     "La comprobación previa al render no cargó el documento.");
@@ -340,10 +369,7 @@ try {
   await hasta(() => texto("Iniciar sesión"), "La recarga en Sistema no mostró el ingreso.");
   verificar(await leer(() => localStorage.getItem("theme") === "system"
     && Boolean(document.querySelector('[aria-label="Tema visual: Sistema"]'))), "Sistema persiste al recargar");
-  for (const anchoActual of [320, 390, 768, 1440]) {
-    await ajustar(anchoActual, 1050);
-    verificar(await ancho(anchoActual), `Ingreso sin desbordamiento a ${anchoActual} px`);
-  }
+  await ajustar(1440, 1050);
   await iniciar("qa-admin@example.invalid");
   await hasta(() => texto("Panel de administración", "main"), "No abrió el panel de administrador.");
   await hasta(() => leer(() => document.querySelector("aside img")?.naturalWidth > 0),

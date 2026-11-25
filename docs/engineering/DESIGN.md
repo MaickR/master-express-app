@@ -25,6 +25,14 @@ Los tokens se aplican en `html`. Menús, selectores y diálogos de Radix heredan
 - Claro y Oscuro fijan la apariencia. Sistema es el valor inicial y sigue los cambios de `prefers-color-scheme` en vivo. La clave visual `theme` conserva `light`, `dark` o `system`, incluidos los dos valores del control previo.
 - El inicio de `index.html` establece la clase `dark` y `color-scheme` antes de cargar React. Si el servidor entrega una política CSP restrictiva, debe autorizar ese script por hash o nonce. El tema se aplica sin remontar el proveedor de sesión.
 
+## Acceso unificado
+
+El ingreso usa una sola superficie centrada de hasta 576 px. La cabecera integra el logotipo original, el nombre del producto y el selector de tema. La placa del logotipo conserva el fondo claro corporativo para mantener legible el archivo original en ambos modos. El fondo, la cabecera, el formulario y su menú se derivan de los tokens del tema.
+
+El formulario mantiene etiquetas persistentes, controles de 48 a 56 px, foco visible y avisos asociados a los campos. En pantallas estrechas, la cabecera y el formulario siguen el mismo orden y el selector mantiene su nombre accesible.
+
+Cuando existan los servicios correspondientes, «¿Olvidaste tu contraseña?» se ubicará junto a la etiqueta Contraseña y «Mantener sesión iniciada» irá debajo del campo, antes de la acción principal. Las acciones de institución y graduando podrán agruparse debajo del formulario como accesos externos, con un separador y espacio para apilarse en móvil. Estas ubicaciones quedan reservadas en el diseño sin mostrar controles inactivos.
+
 ## Estructura y componentes
 
 - `PanelOperativo` comparte el encabezado, el perfil y la navegación. El Administrador conserva sus vistas internas y el Colaborador mantiene las rutas `/ColaboradorDashboard` y `/RegistroGraduando`.

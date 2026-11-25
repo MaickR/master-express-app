@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config apps/web/vite.config.js",
+    "dev:local": "node scripts/dev-local.mjs",
     "build": "vite build --config apps/web/vite.config.js",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",

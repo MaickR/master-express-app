@@ -136,6 +136,25 @@
 }
 
 @layer components {
+  .acceso {
+    background: radial-gradient(ellipse at 50% 35%, hsl(var(--primary-suave) / .65), transparent 68%),
+      hsl(var(--background));
+  }
+  .acceso__panel {
+    position: relative;
+    box-shadow: 0 1.25rem 3rem hsl(var(--foreground) / .08);
+  }
+  .acceso__panel::before {
+    position: absolute;
+    inset-inline: 1.25rem;
+    top: -1px;
+    height: 2px;
+    background: linear-gradient(90deg, hsl(var(--ring)), hsl(var(--ring) / .2) 42%, transparent 85%);
+    content: "";
+    pointer-events: none;
+  }
+  .dark .acceso__panel { box-shadow: 0 1.25rem 3rem rgb(0 0 0 / .30); }
+
   .panel-operativo { @apply flex min-h-screen bg-background text-foreground; }
   .panel-lateral {
     @apply sticky top-0 h-dvh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground;

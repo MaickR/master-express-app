@@ -17,20 +17,22 @@ Ejecute los comandos desde la raíz, con las dependencias del proyecto disponibl
 | Comando | Propósito |
 | --- | --- |
 | `npm run dev` | Iniciar Vite con recarga en caliente. |
+| `npm run dev:local` | Iniciar Laravel y Vite para trabajar con cuentas y datos ficticios locales. |
 | `npm run build` | Compilar el frontend en `dist/` en la raíz del repositorio. |
 | `npm run preview` | Servir la compilación localmente. |
 | `npm run lint` | Ejecutar ESLint. |
 | `npm run typecheck` | Comprobar en modo estricto los archivos TS y TSX bajo `apps/web/src`. |
 | `npm run typecheck:legacy` | Ejecutar la revisión heredada con `checkJs` y su alcance original. |
 
-Para el acceso integrado, inicie Laravel en `127.0.0.1:8000` y Vite en `127.0.0.1:5173`. En otra terminal, desde la raíz:
+Para el acceso integrado, ejecute desde la raíz con PHP disponible en el PATH y con el entorno local de Laravel preparado:
 
 ```powershell
-$env:VITE_BASE44_DATOS_LOCALES = 'true'
-npm.cmd run dev -- --host 127.0.0.1 --port 5173 --strictPort
+npm run dev:local
 ```
 
-Abra [MasterExpress Control](http://127.0.0.1:5173/). Use cuentas ficticias de Laravel. El modo local de Base44 conserva únicamente los datos operativos ficticios del navegador. Vite limita las variables públicas a la configuración de Base44. Consulte el [contrato de autenticación](docs/engineering/AUTENTICACION.md) para conocer el alcance de la operación de Colaborador.
+Abra [MasterExpress Control](http://127.0.0.1:5173/) cuando la terminal confirme que ambos servicios están listos. Laravel responde en `127.0.0.1:8000`. El comando avisa si alguno de estos puertos está ocupado. Presione Ctrl+C en la misma terminal para detener los dos procesos. Si cambia la configuración de Laravel, reinicie el comando.
+
+Use cuentas ficticias de Laravel. El modo local de Base44 conserva únicamente los datos operativos ficticios del navegador. Vite limita las variables públicas a la configuración de Base44. Consulte el [contrato de autenticación](docs/engineering/AUTENTICACION.md) para conocer el alcance de la operación de Colaborador.
 
 ### Backend Laravel
 

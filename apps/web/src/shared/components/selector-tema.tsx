@@ -16,7 +16,7 @@ const modos = {
   system: { etiqueta: 'Sistema', Icono: Monitor },
 };
 
-export default function SelectorTema({ className }: { className?: string }) {
+export default function SelectorTema({ className, mostrarEtiqueta }: { className?: string; mostrarEtiqueta?: boolean }) {
   const { theme, setTheme } = useTheme();
   const modo = theme === 'light' || theme === 'dark' ? theme : 'system';
   const { etiqueta, Icono } = modos[modo];
@@ -26,8 +26,10 @@ export default function SelectorTema({ className }: { className?: string }) {
       <DropdownMenuTrigger
         aria-label={`Tema visual: ${etiqueta}`}
         title={`Tema visual: ${etiqueta}`}
-        className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'size-11 shrink-0', className)}>
+        className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'size-11 shrink-0',
+          mostrarEtiqueta && 'sm:w-auto sm:px-3', className)}>
         <Icono aria-hidden="true" />
+        {mostrarEtiqueta && <span className="hidden sm:inline">{etiqueta}</span>}
       </DropdownMenuTrigger>
       <Menu align="end" sideOffset={6} collisionPadding={8} aria-label="Tema visual" className="min-w-40">
         <DropdownMenuRadioGroup value={modo} onValueChange={setTheme}>
