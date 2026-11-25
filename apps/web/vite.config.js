@@ -12,6 +12,7 @@ const base44Dist = normalizePath(dirname(createRequire(import.meta.url).resolve(
 export default defineConfig({
   logLevel: 'error',
   envDir: repositorio,
+  envPrefix: ['VITE_BASE44_'],
   build: {
     outDir: fileURLToPath(new URL('../../dist', import.meta.url)),
     emptyOutDir: true,

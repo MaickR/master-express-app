@@ -2,6 +2,8 @@ import { createClient } from '@base44/sdk';
 import { appParams } from '@/integrations/base44/app-params';
 import { createLocalEntities, useLocalEntities } from './localEntities';
 
+export { useLocalEntities };
+
 const { appId, serverUrl, token, functionsVersion } = appParams;
 
 //Create a client with authentication required

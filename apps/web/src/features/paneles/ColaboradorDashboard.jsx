@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/integrations/base44/base44Client";
-import { useNavigate } from "react-router-dom";
 import {
   GraduationCap, UserPlus, DollarSign, CheckCircle,
   AlertCircle, Loader2
@@ -9,10 +8,8 @@ import IndicadoresPanel from "@/shared/components/IndicadoresPanel";
 import { Link } from "react-router-dom";
 import MisGraduandos from "@/features/graduandos/MisGraduandos";
 
-export default function ColaboradorDashboard() {
-  const navigate = useNavigate();
-  const [colaborador, setColaborador] = useState(null);
-  const [colaboradorId, setColaboradorId] = useState(null);
+/** @param {{ colaboradorId: string, nombre: string }} props */
+export default function ColaboradorDashboard({ colaboradorId, nombre }) {
   const [misGraduandos, setMisGraduandos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorRegistros, setErrorRegistros] = useState(false);
@@ -27,8 +24,7 @@ export default function ColaboradorDashboard() {
           setMisGraduandos(prev => prev.filter(g => g.id !== event.data.id));
         } else if (event.data.eliminado === false) {
           // Fue restaurado — recargar si pertenece a este colaborador
-          const storedId = localStorage.getItem("colaborador_id");
-          if (event.data.colaborador_id === storedId) {
+          if (event.data.colaborador_id === colaboradorId) {
             setMisGraduandos(prev => {
               const existe = prev.find(g => g.id === event.data.id);
               return existe ? prev.map(g => g.id === event.data.id ? event.data : g) : [...prev, event.data];
@@ -40,42 +36,19 @@ export default function ColaboradorDashboard() {
         setMisGraduandos(prev => prev.filter(g => g.id !== event.id));
       }
       if (event.type === "create" && event.data && !event.data.eliminado) {
-        const storedId = localStorage.getItem("colaborador_id");
-        if (event.data.colaborador_id === storedId) {
+        if (event.data.colaborador_id === colaboradorId) {
           setMisGraduandos(prev => [...prev, event.data]);
         }
       }
     });
     return () => unsub();
-  }, []);
+  }, [colaboradorId]);
 
   const init = async () => {
-    const storedId = localStorage.getItem("colaborador_id");
-    if (!storedId) {
-      navigate('/');
-      return;
-    }
-
     setLoading(true);
     setErrorRegistros(false);
     try {
-      const colData = await base44.entities.Colaborador.get(storedId);
-      if (!colData || colData.activo === false) {
-        localStorage.removeItem("colaborador_id");
-        navigate('/');
-        return;
-      }
-      setColaborador(colData);
-      setColaboradorId(storedId);
-
-    } catch (error) {
-      console.error("Error iniciando dashboard:", error);
-      navigate('/');
-      return;
-    }
-
-    try {
-      const graduandos = await base44.entities.Graduando.filter({ colaborador_id: storedId });
+      const graduandos = await base44.entities.Graduando.filter({ colaborador_id: colaboradorId });
       setMisGraduandos(graduandos.filter(g => !g.eliminado));
     } catch (error) {
       console.error("Error consultando los registros del colaborador:", error);
@@ -106,7 +79,7 @@ export default function ColaboradorDashboard() {
       <div className="panel-portada">
         <div className="min-w-0">
           <h1>Mi panel</h1>
-          <p>Bienvenido, {colaborador?.nombre_completo || colaborador?.username || "Colaborador"}.</p>
+          <p>Bienvenido, {nombre}.</p>
         </div>
         <Link to="/RegistroGraduando" className="panel-accion shrink-0 md:self-center">
           <UserPlus aria-hidden="true" className="size-[18px]" />

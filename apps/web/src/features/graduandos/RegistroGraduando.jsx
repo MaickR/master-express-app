@@ -28,7 +28,8 @@ const MEDIO_PAGO_LABELS = {
 const EtiquetaVinculo = /** @type {React.ComponentType<React.ComponentProps<"label">>} */ (Label);
 const SelectorVinculo = /** @type {React.ComponentType<React.ComponentProps<"button">>} */ (SelectTrigger);
 
-export default function RegistroGraduando() {
+/** @param {{ colaboradorId: string }} props */
+export default function RegistroGraduando({ colaboradorId }) {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
@@ -36,7 +37,6 @@ export default function RegistroGraduando() {
   const consultaCeremonias = useRef(0);
   const envioEnCurso = useRef(false);
 
-  const [colaboradorId, setColaboradorId] = useState(null);
   const [eventos, setEventos] = useState([]);
   const [ceremonias, setCeremonias] = useState([]);
   const [estadoCeremonias, setEstadoCeremonias] = useState("inicial");
@@ -83,10 +83,6 @@ export default function RegistroGraduando() {
   }, [form.paquete, precios]);
 
   const loadData = async () => {
-    const storedId = localStorage.getItem("colaborador_id");
-    if (!storedId) { navigate('/'); return; }
-    setColaboradorId(storedId);
-
     try {
       const [eventosData, preciosData] = await Promise.all([
         base44.entities.Evento.filter({ activo: true }).catch(() => {
