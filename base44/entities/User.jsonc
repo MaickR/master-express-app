@@ -1,0 +1,44 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "colaborador"
+      ],
+      "default": "colaborador",
+      "description": "Rol del usuario en el sistema"
+    },
+    "activo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Estado activo del colaborador"
+    },
+    "documento": {
+      "type": "string",
+      "description": "N\u00famero de documento de identidad"
+    },
+    "telefono_principal": {
+      "type": "string",
+      "description": "Tel\u00e9fono principal (obligatorio)"
+    },
+    "telefono_secundario": {
+      "type": "string",
+      "description": "Tel\u00e9fono secundario (opcional)"
+    },
+    "direccion": {
+      "type": "string",
+      "description": "Direcci\u00f3n de residencia"
+    },
+    "username": {
+      "type": "string",
+      "description": "Usuario para acceso del colaborador"
+    },
+    "password": {
+      "type": "string",
+      "description": "Contrase\u00f1a para acceso del colaborador"
+    }
+  }
+}

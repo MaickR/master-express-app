@@ -1,0 +1,113 @@
+{
+  "name": "Graduando",
+  "type": "object",
+  "properties": {
+    "nombre_completo": {
+      "type": "string",
+      "description": "Nombre completo del graduando"
+    },
+    "telefono": {
+      "type": "string",
+      "description": "N\u00famero de tel\u00e9fono"
+    },
+    "correo": {
+      "type": "string",
+      "description": "Correo electr\u00f3nico"
+    },
+    "direccion": {
+      "type": "string",
+      "description": "Direcci\u00f3n de residencia"
+    },
+    "barrio": {
+      "type": "string",
+      "description": "Barrio de residencia"
+    },
+    "ciudad": {
+      "type": "string",
+      "description": "Ciudad de residencia"
+    },
+    "programa_academico": {
+      "type": "string",
+      "description": "Programa acad\u00e9mico o carrera"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha del registro"
+    },
+    "ceremonia_id": {
+      "type": "string",
+      "description": "ID de la ceremonia asignada"
+    },
+    "evento_id": {
+      "type": "string",
+      "description": "ID del evento de graduaci\u00f3n"
+    },
+    "paquete": {
+      "type": "string",
+      "enum": [
+        "digital",
+        "fisico",
+        "fisico_digital"
+      ],
+      "description": "Paquete fotogr\u00e1fico seleccionado"
+    },
+    "medio_pago": {
+      "type": "string",
+      "enum": [
+        "efectivo",
+        "transferencia",
+        "nequi",
+        "daviplata",
+        "tarjeta",
+        "otro"
+      ],
+      "description": "Medio de pago utilizado"
+    },
+    "valor_total": {
+      "type": "number",
+      "description": "Valor total del paquete seleccionado"
+    },
+    "abono": {
+      "type": "number",
+      "default": 0,
+      "description": "Abono recibido del graduando"
+    },
+    "saldo": {
+      "type": "number",
+      "description": "Saldo pendiente (valor_total - abono)"
+    },
+    "estado_pago": {
+      "type": "string",
+      "enum": [
+        "completo",
+        "pendiente"
+      ],
+      "description": "Estado del pago"
+    },
+    "comprobante_urls": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "URLs de los comprobantes de pago"
+    },
+    "colaborador_id": {
+      "type": "string",
+      "description": "ID del colaborador que registr\u00f3 al graduando"
+    },
+    "eliminado": {
+      "type": "boolean",
+      "default": false,
+      "description": "Si el registro est\u00e1 en la papelera"
+    },
+    "fecha_eliminacion": {
+      "type": "string",
+      "description": "Fecha ISO en que fue enviado a la papelera"
+    }
+  },
+  "required": [
+    "nombre_completo",
+    "paquete"
+  ]
+}

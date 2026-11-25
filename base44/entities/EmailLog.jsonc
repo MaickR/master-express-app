@@ -1,0 +1,44 @@
+{
+  "name": "EmailLog",
+  "type": "object",
+  "properties": {
+    "destinatario": {
+      "type": "string",
+      "description": "Correo electr\u00f3nico del destinatario"
+    },
+    "nombre_destinatario": {
+      "type": "string",
+      "description": "Nombre del destinatario"
+    },
+    "tipo": {
+      "type": "string",
+      "description": "Tipo de correo enviado"
+    },
+    "asunto": {
+      "type": "string",
+      "description": "Asunto del correo"
+    },
+    "estado": {
+      "type": "string",
+      "enum": [
+        "enviado",
+        "error"
+      ],
+      "default": "enviado",
+      "description": "Estado del env\u00edo"
+    },
+    "error": {
+      "type": "string",
+      "description": "Mensaje de error si fall\u00f3"
+    },
+    "graduando_id": {
+      "type": "string",
+      "description": "ID del graduando relacionado (si aplica)"
+    }
+  },
+  "required": [
+    "destinatario",
+    "tipo",
+    "asunto"
+  ]
+}

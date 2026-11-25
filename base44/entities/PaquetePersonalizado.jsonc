@@ -1,0 +1,22 @@
+{
+  "name": "PaquetePersonalizado",
+  "type": "object",
+  "properties": {
+    "nombre": {
+      "type": "string",
+      "description": "Nombre del paquete"
+    },
+    "descripcion": {
+      "type": "string",
+      "description": "Descripci\u00f3n del paquete"
+    },
+    "precio": {
+      "type": "number",
+      "description": "Precio del paquete en COP"
+    }
+  },
+  "required": [
+    "nombre",
+    "precio"
+  ]
+}

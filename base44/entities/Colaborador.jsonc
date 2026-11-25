@@ -1,0 +1,44 @@
+{
+  "name": "Colaborador",
+  "type": "object",
+  "properties": {
+    "nombre_completo": {
+      "type": "string",
+      "description": "Nombre completo del colaborador"
+    },
+    "telefono_principal": {
+      "type": "string",
+      "description": "Tel\u00e9fono principal"
+    },
+    "telefono_secundario": {
+      "type": "string",
+      "description": "Tel\u00e9fono secundario (opcional)"
+    },
+    "email": {
+      "type": "string",
+      "description": "Correo electr\u00f3nico"
+    },
+    "direccion": {
+      "type": "string",
+      "description": "Direcci\u00f3n de residencia"
+    },
+    "username": {
+      "type": "string",
+      "description": "Usuario para acceso"
+    },
+    "password": {
+      "type": "string",
+      "description": "Contrase\u00f1a para acceso"
+    },
+    "activo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Estado activo del colaborador"
+    }
+  },
+  "required": [
+    "nombre_completo",
+    "username",
+    "password"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "EmailJSConfig",
+  "type": "object",
+  "properties": {
+    "service_id": {
+      "type": "string",
+      "description": "EmailJS Service ID"
+    },
+    "template_id": {
+      "type": "string",
+      "description": "EmailJS Template ID"
+    },
+    "public_key": {
+      "type": "string",
+      "description": "EmailJS Public Key"
+    },
+    "correo_remitente": {
+      "type": "string",
+      "description": "Correo electr\u00f3nico del remitente"
+    },
+    "nombre_remitente": {
+      "type": "string",
+      "default": "Master Express Eventos",
+      "description": "Nombre del remitente"
+    }
+  },
+  "required": []
+}

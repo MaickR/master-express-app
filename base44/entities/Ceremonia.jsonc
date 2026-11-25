@@ -1,0 +1,27 @@
+{
+  "name": "Ceremonia",
+  "type": "object",
+  "properties": {
+    "evento_id": {
+      "type": "string",
+      "description": "ID del evento al que pertenece esta ceremonia"
+    },
+    "nombre": {
+      "type": "string",
+      "description": "Nombre de la ceremonia (ej. Ceremonia 1, Ceremonia 2)"
+    },
+    "hora": {
+      "type": "string",
+      "description": "Hora programada de la ceremonia"
+    },
+    "orden": {
+      "type": "integer",
+      "default": 1,
+      "description": "Orden de la ceremonia dentro del evento"
+    }
+  },
+  "required": [
+    "evento_id",
+    "nombre"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Configuracion",
+  "type": "object",
+  "properties": {
+    "precio_digital": {
+      "type": "number",
+      "default": 50000,
+      "description": "Precio del paquete digital"
+    },
+    "precio_fisico": {
+      "type": "number",
+      "default": 100000,
+      "description": "Precio del paquete f\u00edsico"
+    },
+    "precio_fisico_digital": {
+      "type": "number",
+      "default": 120000,
+      "description": "Precio del paquete f\u00edsico + digital"
+    }
+  }
+}

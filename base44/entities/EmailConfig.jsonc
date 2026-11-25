@@ -1,0 +1,45 @@
+{
+  "name": "EmailConfig",
+  "type": "object",
+  "properties": {
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "registro_graduando",
+        "recordatorio_evento",
+        "entrega_fotografias",
+        "saldo_pendiente",
+        "manual"
+      ],
+      "description": "Tipo de correo"
+    },
+    "activo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Si este tipo de correo est\u00e1 activo"
+    },
+    "asunto": {
+      "type": "string",
+      "description": "Asunto del correo"
+    },
+    "saludo": {
+      "type": "string",
+      "description": "Texto del saludo / cuerpo principal del correo"
+    },
+    "mensaje_final": {
+      "type": "string",
+      "description": "Mensaje final / aviso que aparece al pie del contenido"
+    },
+    "texto_adicional": {
+      "type": "string",
+      "description": "Texto adicional personalizado para este tipo de correo"
+    },
+    "firma": {
+      "type": "string",
+      "description": "Firma personalizada para este tipo de correo"
+    }
+  },
+  "required": [
+    "tipo"
+  ]
+}

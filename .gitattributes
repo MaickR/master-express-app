@@ -1,0 +1,13 @@
+* text=auto eol=lf
+
+*.png binary !eol
+*.jpg binary !eol
+*.jpeg binary !eol
+*.gif binary !eol
+*.webp binary !eol
+*.ico binary !eol
+*.pdf binary !eol
+*.zip binary !eol
+*.xlsx binary !eol
+*.woff binary !eol
+*.woff2 binary !eol

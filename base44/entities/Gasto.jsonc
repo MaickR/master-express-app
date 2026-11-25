@@ -1,0 +1,27 @@
+{
+  "name": "Gasto",
+  "type": "object",
+  "properties": {
+    "tipo_gasto": {
+      "type": "string",
+      "description": "Tipo de gasto (ej. Transporte, Alimentaci\u00f3n, Papeler\u00eda)"
+    },
+    "descripcion": {
+      "type": "string",
+      "description": "Descripci\u00f3n del gasto"
+    },
+    "valor": {
+      "type": "number",
+      "description": "Valor del gasto en COP"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha del gasto"
+    }
+  },
+  "required": [
+    "tipo_gasto",
+    "valor"
+  ]
+}

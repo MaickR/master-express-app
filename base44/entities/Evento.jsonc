@@ -1,0 +1,42 @@
+{
+  "name": "Evento",
+  "type": "object",
+  "properties": {
+    "nombre_institucion": {
+      "type": "string",
+      "description": "Nombre de la instituci\u00f3n educativa"
+    },
+    "tipo_institucion": {
+      "type": "string",
+      "enum": [
+        "universidad",
+        "colegio"
+      ],
+      "description": "Tipo de instituci\u00f3n"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha del evento de graduaci\u00f3n"
+    },
+    "lugar": {
+      "type": "string",
+      "description": "Lugar donde se realiza la ceremonia"
+    },
+    "numero_ceremonias": {
+      "type": "integer",
+      "default": 1,
+      "description": "N\u00famero de ceremonias del evento"
+    },
+    "activo": {
+      "type": "boolean",
+      "default": true,
+      "description": "Estado activo del evento"
+    }
+  },
+  "required": [
+    "nombre_institucion",
+    "tipo_institucion",
+    "fecha"
+  ]
+}

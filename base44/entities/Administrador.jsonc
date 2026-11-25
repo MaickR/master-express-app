@@ -1,0 +1,36 @@
+{
+  "name": "Administrador",
+  "type": "object",
+  "properties": {
+    "nombre_completo": {
+      "type": "string",
+      "description": "Nombre completo del administrador"
+    },
+    "username": {
+      "type": "string",
+      "description": "Usuario para acceso"
+    },
+    "password": {
+      "type": "string",
+      "description": "Contrase\u00f1a para acceso"
+    },
+    "rol": {
+      "type": "string",
+      "enum": [
+        "presidente",
+        "vicepresidente"
+      ],
+      "description": "Rol del administrador"
+    },
+    "foto_perfil": {
+      "type": "string",
+      "description": "URL de la foto de perfil del administrador"
+    }
+  },
+  "required": [
+    "nombre_completo",
+    "username",
+    "password",
+    "rol"
+  ]
+}
