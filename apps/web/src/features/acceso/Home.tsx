@@ -16,7 +16,7 @@ export function MarcoAcceso({ children }: { children: ReactNode }) {
   return (
     <main className="acceso grid min-h-dvh place-items-center px-3 py-5 sm:px-8 sm:py-10">
       <div className="acceso__panel w-full max-w-xl rounded-2xl border border-border bg-card text-card-foreground">
-        <header className="flex items-center justify-between gap-2 rounded-t-2xl border-b border-border bg-muted px-4 py-4 sm:gap-5 sm:px-12 sm:py-6">
+        <header className="acceso__marca flex items-center justify-between gap-2 rounded-t-2xl border-b border-border bg-muted px-4 py-4 sm:gap-5 sm:px-12 sm:py-6">
           <div className="flex min-w-0 items-center gap-3 sm:gap-5">
             <img src="/master-express.png" alt="" width={72} height={72}
               className="size-12 shrink-0 rounded-xl border border-border bg-marca-placa object-contain p-1.5 sm:size-[72px] sm:p-2" />

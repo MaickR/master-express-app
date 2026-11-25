@@ -24,7 +24,17 @@ Ejecute los comandos desde la raíz, con las dependencias del proyecto disponibl
 | `npm run typecheck` | Comprobar en modo estricto los archivos TS y TSX bajo `apps/web/src`. |
 | `npm run typecheck:legacy` | Ejecutar la revisión heredada con `checkJs` y su alcance original. |
 
-Para el acceso integrado, ejecute desde la raíz con PHP disponible en el PATH y con el entorno local de Laravel preparado:
+### Lanzador en Windows
+
+Haga doble clic en [Iniciar MasterExpress.cmd](./Iniciar%20MasterExpress.cmd) desde el Explorador. Con Node.js, npm y PHP en el PATH y el entorno local preparado, el lanzador abre el navegador predeterminado en [MasterExpress Control](http://127.0.0.1:5173/) cuando Vite y la API ya responden.
+
+Para usarlo desde el escritorio, haga clic derecho en el archivo y elija **Mostrar más opciones → Enviar a → Escritorio (crear acceso directo)**. Para detener ambos servicios, presione **Enter en la consola que abrió el lanzador**.
+
+Si MasterExpress ya está activo, use la consola de la primera instancia. Si otro programa ocupa el puerto 5173 u 8000, el lanzador indica cuál está ocupado. Revise ese programa y libere el puerto antes de volver a iniciar.
+
+### Arranque desde terminal
+
+También puede ejecutar desde la raíz con PHP disponible en el PATH y con el entorno local de Laravel preparado:
 
 ```powershell
 npm run dev:local

@@ -137,23 +137,38 @@
 
 @layer components {
   .acceso {
-    background: radial-gradient(ellipse at 50% 35%, hsl(var(--primary-suave) / .65), transparent 68%),
-      hsl(var(--background));
+    --acceso-luz: var(--primary-suave);
+    --acceso-resplandor: .9;
+    --acceso-textura: .045;
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(hsl(var(--foreground) / var(--acceso-textura)) .55px, transparent .9px),
+      radial-gradient(ellipse 40rem 32rem at 32% 20%, hsl(var(--acceso-luz) / var(--acceso-resplandor)), transparent 100%),
+      radial-gradient(ellipse 35rem 28rem at 76% 76%, hsl(var(--primary-suave) / .56), transparent 100%);
+    background-size: 7px 7px, auto, auto;
+  }
+  .dark .acceso {
+    --acceso-luz: var(--primary);
+    --acceso-resplandor: .14;
+    --acceso-textura: .06;
   }
   .acceso__panel {
     position: relative;
-    box-shadow: 0 1.25rem 3rem hsl(var(--foreground) / .08);
+    box-shadow: 0 .25rem .75rem hsl(var(--foreground) / .04), 0 2rem 4rem hsl(var(--foreground) / .10);
   }
   .acceso__panel::before {
     position: absolute;
     inset-inline: 1.25rem;
     top: -1px;
     height: 2px;
-    background: linear-gradient(90deg, hsl(var(--ring)), hsl(var(--ring) / .2) 42%, transparent 85%);
+    background: linear-gradient(90deg, transparent, hsl(var(--ring) / .8) 14%, hsl(var(--ring) / .27) 55%, transparent 88%);
     content: "";
     pointer-events: none;
   }
-  .dark .acceso__panel { box-shadow: 0 1.25rem 3rem rgb(0 0 0 / .30); }
+  .acceso__marca {
+    background-image: linear-gradient(115deg, hsl(var(--primary-suave) / .5), transparent 68%);
+  }
+  .dark .acceso__panel { box-shadow: 0 .25rem 1rem rgb(0 0 0 / .24), 0 2rem 4.5rem rgb(0 0 0 / .40); }
 
   .panel-operativo { @apply flex min-h-screen bg-background text-foreground; }
   .panel-lateral {

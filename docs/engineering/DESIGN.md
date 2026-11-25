@@ -29,6 +29,8 @@ Los tokens se aplican en `html`. Menús, selectores y diálogos de Radix heredan
 
 El ingreso usa una sola superficie centrada de hasta 576 px. La cabecera integra el logotipo original, el nombre del producto y el selector de tema. La placa del logotipo conserva el fondo claro corporativo para mantener legible el archivo original en ambos modos. El fondo, la cabecera, el formulario y su menú se derivan de los tokens del tema.
 
+La iluminación del fondo usa dos gradientes radiales estáticos, cálidos sobre marfil en Claro y dorados sobre carbón en Oscuro. Una trama de puntos de muy baja opacidad queda por detrás de la tarjeta. Un degradado tenue en la cabecera, una línea dorada y sombras en dos niveles definen la superficie. Las capas decorativas son CSS estático y las transiciones de los controles respetan la preferencia de movimiento reducido.
+
 El formulario mantiene etiquetas persistentes, controles de 48 a 56 px, foco visible y avisos asociados a los campos. En pantallas estrechas, la cabecera y el formulario siguen el mismo orden y el selector mantiene su nombre accesible.
 
 Cuando existan los servicios correspondientes, «¿Olvidaste tu contraseña?» se ubicará junto a la etiqueta Contraseña y «Mantener sesión iniciada» irá debajo del campo, antes de la acción principal. Las acciones de institución y graduando podrán agruparse debajo del formulario como accesos externos, con un separador y espacio para apilarse en móvil. Estas ubicaciones quedan reservadas en el diseño sin mostrar controles inactivos.

@@ -206,8 +206,8 @@ try {
     width, height, deviceScaleFactor: 1, mobile: false,
   });
   const enfoque = (selector) => leer(s => document.querySelector(s)?.focus(), selector);
-  const emularSistema = (tema) => enviar("Emulation.setEmulatedMedia", { features: [
-    { name: "prefers-reduced-motion", value: "reduce" },
+  const emularSistema = (tema, movimiento = "reduce") => enviar("Emulation.setEmulatedMedia", { features: [
+    { name: "prefers-reduced-motion", value: movimiento },
     { name: "prefers-color-scheme", value: tema },
   ] });
   const tecla = async (key, windowsVirtualKeyCode) => {
@@ -333,6 +333,27 @@ try {
       console.log(`PASS Ingreso ${tema} centrado, coherente y visible a ${width} × ${height}`);
       await pantalla(`login-${tema}-${width}`);
     }
+    const ambientacion = () => leer(() => {
+      const acceso = document.querySelector('.acceso');
+      const fondo = getComputedStyle(acceso);
+      const controles = ['#correo', '#contrasena', 'button[type="submit"]'].map(selector => {
+        const { x, y, width, height } = acceso.querySelector(selector).getBoundingClientRect();
+        return Boolean(document.elementFromPoint(x + width / 2, y + height / 2)?.closest(selector));
+      });
+      return {
+        capas: (fondo.backgroundImage.match(/radial-gradient/g) || []).length,
+        animaciones: acceso.getAnimations({ subtree: true }).filter(animacion => {
+          return animacion.effect.getComputedTiming().iterations === Infinity;
+        }).length,
+        transicion: getComputedStyle(acceso.querySelector('#correo')).transitionDuration,
+        controles: controles.every(Boolean),
+      };
+    });
+    assert.deepEqual(await ambientacion(), { capas: 3, animaciones: 0, transicion: '0s', controles: true });
+    await emularSistema("light", "no-preference");
+    verificar((await ambientacion()).animaciones === 0,
+      `La ambientación ${tema} no ejecuta animaciones continuas con movimiento habilitado`);
+    await emularSistema("light");
   };
 
   await enviar("Runtime.enable");
