@@ -24,15 +24,24 @@ const MEDIO_PAGO_LABELS = {
   otro: "Otro"
 };
 
+// Los wrappers JSX reenvían los atributos nativos, aunque checkJs solo infiere la referencia.
+const EtiquetaVinculo = /** @type {React.ComponentType<React.ComponentProps<"label">>} */ (Label);
+const SelectorVinculo = /** @type {React.ComponentType<React.ComponentProps<"button">>} */ (SelectTrigger);
+
 export default function RegistroGraduando() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const consultaCeremonias = useRef(0);
+  const envioEnCurso = useRef(false);
 
   const [colaboradorId, setColaboradorId] = useState(null);
   const [eventos, setEventos] = useState([]);
   const [ceremonias, setCeremonias] = useState([]);
+  const [estadoCeremonias, setEstadoCeremonias] = useState("inicial");
+  const [errorEventos, setErrorEventos] = useState("");
+  const [errorVinculo, setErrorVinculo] = useState("");
   const [precios, setPrecios] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,11 +68,8 @@ export default function RegistroGraduando() {
 
   useEffect(() => {
     loadData();
+    return () => { consultaCeremonias.current += 1; };
   }, []);
-
-  useEffect(() => {
-    if (form.evento_id) loadCeremonias(form.evento_id);
-  }, [form.evento_id]);
 
   useEffect(() => {
     if (form.paquete && precios) {
@@ -83,7 +89,10 @@ export default function RegistroGraduando() {
 
     try {
       const [eventosData, preciosData] = await Promise.all([
-        base44.entities.Evento.filter({ activo: true }),
+        base44.entities.Evento.filter({ activo: true }).catch(() => {
+          setErrorEventos("No se pudieron consultar los eventos. Recarga la página e inténtalo de nuevo.");
+          return [];
+        }),
         base44.entities.Configuracion.list()
       ]);
       setEventos(eventosData);
@@ -94,14 +103,35 @@ export default function RegistroGraduando() {
     setLoading(false);
   };
 
-  const loadCeremonias = async (eventoId) => {
+  const cambiarEvento = async (eventoId) => {
+    if (envioEnCurso.current || eventoId === form.evento_id) return;
+    const consulta = ++consultaCeremonias.current;
+    setForm(prev => ({ ...prev, evento_id: eventoId, ceremonia_id: "" }));
+    setCeremonias([]);
+    setErrorVinculo("");
+    setEstadoCeremonias("cargando");
     try {
       const data = await base44.entities.Ceremonia.filter({ evento_id: eventoId });
-      setCeremonias(data);
-      setForm(prev => ({ ...prev, ceremonia_id: "" }));
-    } catch (error) {
-      console.error("Error cargando ceremonias:", error);
+      if (consulta !== consultaCeremonias.current) return;
+      setCeremonias(data.filter(cer => cer.evento_id === eventoId));
+      setEstadoCeremonias("listo");
+    } catch {
+      if (consulta !== consultaCeremonias.current) return;
+      setEstadoCeremonias("error");
     }
+  };
+
+  const eventoSeleccionado = eventos.find(ev => ev.id === form.evento_id);
+  const ceremoniaSeleccionada = ceremonias.find(cer =>
+    cer.id === form.ceremonia_id && cer.evento_id === form.evento_id
+  );
+  const vinculoListo = estadoCeremonias === "listo" && eventoSeleccionado && ceremoniaSeleccionada;
+
+  const cambiarCeremonia = (ceremoniaId) => {
+    if (envioEnCurso.current || estadoCeremonias !== "listo") return;
+    if (!ceremonias.some(cer => cer.id === ceremoniaId && cer.evento_id === form.evento_id)) return;
+    setForm(prev => ({ ...prev, ceremonia_id: ceremoniaId }));
+    setErrorVinculo("");
   };
 
   const activarCamara = async () => {
@@ -154,12 +184,31 @@ export default function RegistroGraduando() {
   };
 
   const handleSubmit = async () => {
+    if (envioEnCurso.current || !vinculoListo) return;
     if (!form.nombre_completo.trim()) { alert("El nombre completo es obligatorio"); return; }
     if (!form.paquete) { alert("Seleccione un paquete"); return; }
     if (!form.medio_pago) { alert("Seleccione el medio de pago"); return; }
 
+    envioEnCurso.current = true;
     setSaving(true);
+    setErrorVinculo("");
     try {
+      let eventoObj, ceremoniaObj;
+      try {
+        [eventoObj, ceremoniaObj] = await Promise.all([
+          base44.entities.Evento.get(form.evento_id),
+          base44.entities.Ceremonia.get(form.ceremonia_id)
+        ]);
+      } catch {
+        setErrorVinculo("No se pudo verificar el evento y la ceremonia. Recarga la página e inténtalo de nuevo.");
+        return;
+      }
+      if (eventoObj?.id !== form.evento_id || eventoObj.activo !== true ||
+          ceremoniaObj?.id !== form.ceremonia_id || ceremoniaObj.evento_id !== form.evento_id) {
+        setErrorVinculo("El evento o la ceremonia ya no está disponible para esta venta. Vuelve a seleccionarlos.");
+        return;
+      }
+
       const comprobanteUrls = await subirComprobantes();
       const saldo = form.valor_total - (form.abono || 0);
       const estado_pago = saldo <= 0 ? 'completo' : 'pendiente';
@@ -177,8 +226,6 @@ export default function RegistroGraduando() {
       // Envío automático del correo de confirmación al graduando
       try {
         // Obtener nombres de evento, ceremonia y colaborador para el correo
-        const eventoObj = eventos.find(e => e.id === form.evento_id);
-        const ceremoniaObj = ceremonias.find(c => c.id === form.ceremonia_id);
         let colaboradorNombre = "";
         try {
           const col = await base44.entities.Colaborador.get(colaboradorId);
@@ -202,8 +249,10 @@ export default function RegistroGraduando() {
     } catch (error) {
       console.error("Error guardando graduando:", error);
       alert("Error al guardar el registro: " + (error?.message || "intente de nuevo"));
+    } finally {
+      envioEnCurso.current = false;
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const formatCurrency = (value) => {
@@ -298,11 +347,11 @@ export default function RegistroGraduando() {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Evento de graduación</Label>
-                  <Select value={form.evento_id} onValueChange={v => setForm({ ...form, evento_id: v })}>
-                    <SelectTrigger>
+                  <EtiquetaVinculo htmlFor="registro-evento">Evento de graduación *</EtiquetaVinculo>
+                  <Select value={form.evento_id} onValueChange={cambiarEvento} disabled={saving || Boolean(errorEventos)}>
+                    <SelectorVinculo id="registro-evento" aria-required="true">
                       <SelectValue placeholder="Seleccionar institución / evento" />
-                    </SelectTrigger>
+                    </SelectorVinculo>
                     <SelectContent>
                       {eventos.length === 0 && <SelectItem value="_none" disabled>No hay eventos activos</SelectItem>}
                       {eventos.map(ev => (
@@ -312,15 +361,17 @@ export default function RegistroGraduando() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {errorEventos && <p role="alert" className="text-sm text-destructive">{errorEventos}</p>}
                 </div>
 
                 {form.evento_id && (
                   <div className="space-y-2">
-                    <Label>Ceremonia</Label>
-                    <Select value={form.ceremonia_id} onValueChange={v => setForm({ ...form, ceremonia_id: v })}>
-                      <SelectTrigger>
+                    <EtiquetaVinculo htmlFor="registro-ceremonia">Ceremonia *</EtiquetaVinculo>
+                    <Select value={form.ceremonia_id} onValueChange={cambiarCeremonia}
+                      disabled={saving || estadoCeremonias !== "listo" || ceremonias.length === 0}>
+                      <SelectorVinculo id="registro-ceremonia" aria-required="true" aria-describedby="estado-ceremonias">
                         <SelectValue placeholder="Seleccionar ceremonia" />
-                      </SelectTrigger>
+                      </SelectorVinculo>
                       <SelectContent>
                         {ceremonias.map(cer => (
                           <SelectItem key={cer.id} value={cer.id}>
@@ -329,6 +380,15 @@ export default function RegistroGraduando() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <div id="estado-ceremonias" aria-live="polite" className="text-sm text-muted-foreground">
+                      {estadoCeremonias === "cargando" && "Cargando ceremonias…"}
+                      {estadoCeremonias === "listo" && !ceremonias.length && "Este evento no tiene ceremonias disponibles."}
+                      {estadoCeremonias === "error" && (
+                        <p role="alert" className="text-destructive">
+                          No se pudieron cargar las ceremonias. Selecciona otro evento o recarga la página.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -482,11 +542,12 @@ export default function RegistroGraduando() {
             </div>
 
             {/* Submit */}
+            {errorVinculo && <p role="alert" className="text-sm text-destructive">{errorVinculo}</p>}
             <div className="pt-6 border-t border-border flex justify-end gap-3">
               <Link to="/ColaboradorDashboard">
                 <Button variant="outline">Cancelar</Button>
               </Link>
-              <Button onClick={handleSubmit} disabled={saving}
+              <Button onClick={handleSubmit} disabled={saving || !vinculoListo}
                 className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg font-medium">
                 {saving ? (
                   <><div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2"></div> Guardando...</>

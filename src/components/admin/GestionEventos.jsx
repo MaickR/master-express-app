@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { CalendarDays, Plus, Trash2, GraduationCap, MapPin, ArrowUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +17,7 @@ export default function GestionEventos({ onUpdate }) {
   const [ceremonias, setCeremonias] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const creandoEvento = useRef(false);
   const [showNew, setShowNew] = useState(false);
   const [ordenEvento, setOrdenEvento] = useState("proximo"); // proximo | lejano | cronologico
   const [newEvento, setNewEvento] = useState({
@@ -50,13 +51,15 @@ export default function GestionEventos({ onUpdate }) {
   };
 
   const crearEvento = async () => {
+    if (creandoEvento.current) return;
     if (!newEvento.nombre_institucion.trim() || !newEvento.fecha) {
       toast.error("Nombre de institución y fecha son obligatorios");
       return;
     }
+    creandoEvento.current = true;
     setSaving(true);
     try {
-      const evento = await base44.entities.Evento.create(newEvento);
+      const evento = await base44.entities.Evento.create({ ...newEvento, activo: true });
       await Promise.all(
         Array.from({ length: newEvento.numero_ceremonias }, (_, i) =>
           base44.entities.Ceremonia.create({ evento_id: evento.id, nombre: `Ceremonia ${i + 1}`, orden: i + 1 })
@@ -69,8 +72,10 @@ export default function GestionEventos({ onUpdate }) {
       if (onUpdate) onUpdate();
     } catch (error) {
       toast.error("Error al crear evento");
+    } finally {
+      creandoEvento.current = false;
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const eliminarEvento = async (eventoId) => {
