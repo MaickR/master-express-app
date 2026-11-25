@@ -45,11 +45,20 @@ Si Composer informa que falta soporte para descomprimir paquetes en Windows, use
 
 Desde otra terminal, ejecute `curl.exe -i http://127.0.0.1:8000/api/salud`. La respuesta esperada es HTTP 200 con `{"estado":"correcto","servicio":"masterexpress-api"}`. La ruta verifica que Laravel responde. El servidor se inicia con `APP_DEBUG=false` en la plantilla y la API aún no autoriza orígenes cruzados.
 
-MySQL es el motor objetivo. Cuando haya una base local aislada y autorizada, configure `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME` y `DB_PASSWORD` en `apps/api/.env`, y mantenga `DB_CONNECTION=mysql`. La salud y las pruebas básicas funcionan sin credenciales. El servicio local MySQL está activo y su conexión desde Laravel queda pendiente. La instalación no ejecuta migraciones. React conserva su integración actual con Base44. La conexión React–Laravel, la autenticación empresarial y los modelos Eloquent de negocio quedan para fases posteriores.
+El entorno de desarrollo usa `masterexpress_control_dev` en MySQL local. En `apps/api/.env`, configure `DB_CONNECTION=mysql`, `DB_HOST=127.0.0.1`, `DB_PORT`, `DB_DATABASE=masterexpress_control_dev`, `DB_USERNAME` y `DB_PASSWORD`. Guarde las credenciales locales únicamente en el entorno excluido de Git. La instalación con Composer y la ruta de salud funcionan sin MySQL. React conserva su integración con Base44.
+
+Para preparar una instalación nueva, un aprovisionador autorizado verifica que los dos esquemas estén libres, los crea y asigna cuentas locales distintas con permisos por esquema. Aplique las migraciones desde `apps/api/` con permisos DDL temporales y solo tras confirmar servidor y esquema. Retire esos permisos al finalizar.
+
+```powershell
+php artisan migrate --database=mysql --env=local --seed
+php artisan migrate --database=mysql_pruebas --env=testing --seed
+```
 
 ## Pruebas
 
-Para el backend, ejecute `composer test` desde `apps/api/`. La suite fuerza el entorno `testing`, usa servicios locales en memoria y configura SQLite en memoria como destino aislado. Las pruebas actuales no abren una conexión SQL y funcionan con `pdo_sqlite` desactivado. La validación de la conexión y las migraciones en MySQL corresponde a una base autorizada en ME-D0.
+Desde `apps/api/`, ejecute `composer test` para las pruebas sin SQL. Para la integración use `composer test:mysql` con `masterexpress_control_test` ya migrada y reservada para QA. En el archivo local excluido `apps/api/.env.testing`, configure `APP_ENV=testing`, `APP_DEBUG=false`, `DB_CONNECTION=mysql_pruebas`, `ME_MYSQL_TEST_PORT`, `ME_MYSQL_TEST_USERNAME` y `ME_MYSQL_TEST_PASSWORD`. La conexión de pruebas apunta a `127.0.0.1` y usa una cuenta distinta de desarrollo. Las pruebas verifican el esquema, sus tablas transaccionales y la falta de acceso a desarrollo antes de abrir una transacción. Cada caso revierte sus cambios ficticios.
+
+Consulte el [contrato de identidad y roles](docs/engineering/IDENTIDAD.md) para las reglas de asignación y los pendientes de ME-AUTH1.
 
 Ejecute cada comando con la ruta al ejecutable de Chrome o Edge. Las tres suites usan datos ficticios y aíslan Base44.
 
