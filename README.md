@@ -1,6 +1,6 @@
 # MasterExpress Control
 
-Aplicación web para apoyar la operación de ceremonias de grado. El frontend usa React 18 con JSX, Vite 6 y Tailwind CSS 3. Incluye paneles de administración y colaboración, gestión de ceremonias y eventos, registro de graduandos, precios, gastos, reportes y exportación.
+Aplicación web para apoyar la operación de ceremonias de grado. El frontend usa React 18, TypeScript estricto para el código TS/TSX, JSX para los módulos heredados, Vite 6 y Tailwind CSS 3. Incluye paneles de administración y colaboración, gestión de ceremonias y eventos, registro de graduandos, precios, gastos, reportes y exportación.
 
 ```text
 apps/web/  Frontend, configuración web y recursos públicos
@@ -19,7 +19,8 @@ Ejecute los comandos desde la raíz, con las dependencias del proyecto disponibl
 | `npm run build` | Compilar el frontend en `dist/` en la raíz del repositorio. |
 | `npm run preview` | Servir la compilación localmente. |
 | `npm run lint` | Ejecutar ESLint. |
-| `npm run typecheck` | Revisar los diagnósticos de TypeScript con `checkJs`. |
+| `npm run typecheck` | Comprobar en modo estricto los archivos TS y TSX bajo `apps/web/src`. |
+| `npm run typecheck:legacy` | Ejecutar la revisión heredada con `checkJs` y su alcance original. |
 
 Para probar la demostración con datos ficticios, defina `VITE_LOCAL_ADMIN_PASSWORD` y `VITE_LOCAL_COLABORADOR_PASSWORD` con contraseñas de prueba en la sesión de terminal o en `.env.development.local` en la raíz. Abra la URL de loopback que indica Vite. Use `admin` para Administrador y `xd` para Colaborador, con su contraseña de prueba respectiva. La demostración guarda las entidades en el navegador y requiere el servidor de desarrollo. Use un perfil limpio y datos ficticios.
 

@@ -15,6 +15,7 @@ const navegacionColaborador = [{
   ],
 }];
 
+/** @param {{ children: React.ReactNode, currentPageName: string }} props */
 export default function Layout({ children, currentPageName }) {
   const [colaboradorName, setColaboradorName] = useState(localStorage.getItem("colaborador_nombre") || "");
   const location = useLocation();
