@@ -17,12 +17,21 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    public const array ROLES_DE_ACCESO = ['administrador', 'colaborador'];
+
     /**
      * @return BelongsToMany<Rol, $this>
      */
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Rol::class, 'rol_user')->withTimestamps();
+    }
+
+    /** @return list<string> */
+    public function codigosDeAcceso(): array
+    {
+        return $this->roles()->whereIn('codigo', self::ROLES_DE_ACCESO)
+            ->orderBy('codigo')->pluck('codigo')->all();
     }
 
     /**

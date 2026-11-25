@@ -7,9 +7,13 @@
 - `User::roles()` y `Rol::usuarios()` son relaciones Eloquent de muchos a muchos. `rol_user` registra las fechas de la asignación y usa una clave primaria compuesta por `user_id` y `rol_id` para impedir duplicados. Borrar una cuenta elimina sus vínculos. Borrar un rol asignado se rechaza.
 - `RolSeeder` agrega los códigos ausentes y conserva los identificadores y las fechas de los ya existentes. La asignación de roles se reserva al servidor. El modelo excluye los roles de la asignación masiva y la API carece de rutas que puedan concederlos.
 
-## Pendiente para ME-AUTH1 y etapas posteriores
+## Sesiones internas desde ME-AUTH1A
 
-- Definir el alta, la verificación de correo y el acceso por contraseña del personal interno, junto con la expiración y el cierre de sesión.
+- Administrador y Colaborador usan la identidad existente para ingresar por contraseña. La sesión autoriza los códigos vigentes de `rol_user` para el hito. Consulte el [contrato de autenticación](AUTENTICACION.md).
+
+## Pendiente para etapas posteriores
+
+- Definir el alta productiva y la verificación de correo del personal interno.
 - Definir cómo se verifica a un representante institucional y cómo se vincula su identidad a las instituciones autorizadas. El rol `institucion` por sí solo carece de alcance global.
 - Acordar el identificador y canal OTP del graduando antes de cambiar los campos obligatorios de la cuenta. El perfil de graduando y la relación con el comprador requieren definiciones separadas.
 - Acordar la matriz de permisos, el actor que puede asignar o revocar roles y las relaciones que determinan acceso por institución y ceremonia. Las Policies deben validar la operación y el registro con esos vínculos, aunque la cuenta ya tenga un rol.

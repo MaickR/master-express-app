@@ -6,15 +6,15 @@
 
 Se crearon y migraron `masterexpress_control_dev` y `masterexpress_control_test` en MySQL 9.1.0 local con cuentas separadas. Los permisos DDL se retiraron después de migrar. Las pruebas de integración verifican la conexión y el aislamiento de la base de pruebas, y revierten los cambios ficticios en transacciones. Consulte los [comandos de pruebas](../../README.md#pruebas).
 
-**Pendiente.** ME-AUTH1 debe establecer el mecanismo de acceso y la gestión de sesiones. La autorización por operación y por ámbito requiere Policies y relaciones de dominio aprobadas. Consulte el [contrato de identidad](IDENTIDAD.md).
+**ME-AUTH1A.** Administrador y Colaborador ingresan con Fortify y el guard `web`. Sanctum integra la sesión SPA y `/api/mi-sesion` consulta los roles vigentes. El esquema de ME-D0 sigue vigente. La autorización por operación y por ámbito requiere Policies y relaciones de dominio aprobadas. Consulte el [contrato de autenticación](AUTENTICACION.md).
 
 ## Fundamento Laravel desde ME-L0R
 
 `apps/api/` contiene Laravel 13.44.1, instalado con PHP 8.3.14 y Composer 2.8.4. `composer.lock` fija las dependencias. El arranque registra `routes/api.php` con el prefijo oficial `/api`. `GET /api/salud` devuelve HTTP 200 en JSON. La API negocia sus errores como JSON y el entorno local recomendado mantiene la depuración desactivada y CORS cerrado.
 
-El esqueleto conserva Eloquent y las migraciones iniciales de Laravel. Composer instala las dependencias sin ejecutar migraciones. Las pruebas básicas de salud y exposición de la API usan el entorno `testing` con un destino SQLite en memoria y no abren conexiones SQL.
+El esqueleto conserva Eloquent y las migraciones iniciales de Laravel. Composer instala las dependencias sin ejecutar migraciones. Las pruebas básicas de salud y exposición de la API usan el entorno `testing` con un destino SQLite en memoria y no abren conexiones SQL. Las pruebas de sesión se ejecutan con MySQL aislado.
 
-El frontend sigue usando Base44. La conexión de React con Laravel, los modelos de negocio, las sesiones empresariales, Form Requests y Policies quedan para fases posteriores. Consulte los [comandos de desarrollo](../../README.md#backend-laravel).
+El frontend sigue usando Base44. La conexión de React con la sesión de Laravel, los modelos de negocio y las Policies quedan para fases posteriores. Consulte los [comandos de desarrollo](../../README.md#backend-laravel).
 
 ## Fundamento TypeScript desde ME-TS1
 
