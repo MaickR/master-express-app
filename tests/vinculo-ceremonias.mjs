@@ -24,7 +24,7 @@ async function verificarCircuito({ React, act, createRoot, MemoryRouter, base44,
   const contenedor = document.getElementById("aplicacion");
   const raiz = createRoot(contenedor);
   const montar = (Pantalla) => act(async () => raiz.render(
-    React.createElement(MemoryRouter, null, React.createElement(Pantalla))
+    React.createElement(MemoryRouter, null, React.createElement(Pantalla, { colaboradorId: 'colaborador-ficticio' }))
   ));
   const boton = (texto) => [...document.querySelectorAll("button")]
     .find(elemento => elemento.textContent.trim().startsWith(texto));
@@ -48,7 +48,6 @@ async function verificarCircuito({ React, act, createRoot, MemoryRouter, base44,
   };
 
   try {
-    localStorage.setItem("colaborador_id", "colaborador-ficticio");
     const alterno = await Evento.create({ nombre_institucion: "Evento alterno", activo: true, fecha: "2099-03-01" });
     const fallido = await Evento.create({ nombre_institucion: "Evento con falla", activo: true, fecha: "2099-04-01" });
     await Evento.create({ nombre_institucion: "Evento inactivo", activo: false, fecha: "2099-05-01" });

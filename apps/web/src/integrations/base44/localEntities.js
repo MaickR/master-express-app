@@ -1,10 +1,6 @@
-const { DEV, VITE_LOCAL_ADMIN_PASSWORD, VITE_LOCAL_COLABORADOR_PASSWORD } = import.meta.env;
-
 export const useLocalEntities = Boolean(
-  DEV &&
-  ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) &&
-  VITE_LOCAL_ADMIN_PASSWORD &&
-  VITE_LOCAL_COLABORADOR_PASSWORD
+  import.meta.env.DEV && window.location.hostname === '127.0.0.1' &&
+  import.meta.env.VITE_BASE44_DATOS_LOCALES === 'true'
 );
 
 function createEntity(name, initialRows = []) {
@@ -62,16 +58,7 @@ function createEntity(name, initialRows = []) {
 }
 
 export function createLocalEntities() {
-  const entities = new Map([
-    ['Administrador', createEntity('Administrador', [{
-      id: 'local-admin', username: 'admin', password: VITE_LOCAL_ADMIN_PASSWORD,
-      nombre_completo: 'Administrador', rol: 'presidente'
-    }])],
-    ['Colaborador', createEntity('Colaborador', [{
-      id: 'local-colaborador', username: 'xd', password: VITE_LOCAL_COLABORADOR_PASSWORD,
-      nombre_completo: 'Colaborador', activo: true
-    }])]
-  ]);
+  const entities = new Map();
 
   return new Proxy({}, {
     get(_target, name) {

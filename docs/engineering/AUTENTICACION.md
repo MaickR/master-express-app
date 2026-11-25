@@ -32,8 +32,22 @@ La base preexistente incluye `sessions` y `cache`. El limitador usa caché `data
 
 Desde `apps/api/`, ejecute `php artisan auth:crear-cuenta-prueba`. El comando requiere una terminal interactiva, `APP_ENV=local` y confirma que MySQL abrió `masterexpress_control_dev` en `127.0.0.1`. Solicita nombre ficticio, un correo bajo `example.invalid`, uno o ambos roles internos y una contraseña oculta. Laravel aplica el hash y una transacción conserva la cuenta y sus roles juntos. Un correo existente se rechaza. Las pruebas automatizadas crean sus propias cuentas ficticias dentro de transacciones revertidas en `masterexpress_control_test`.
 
-## Integración de React en ME-AUTH1B
+## Integración React desde ME-AUTH1B
 
-Inicialice CSRF antes del ingreso. En Axios use `withCredentials: true` y `withXSRFToken: true`. Con Fetch use `credentials: 'include'` y envíe el valor decodificado de `XSRF-TOKEN` en `X-XSRF-TOKEN` para las operaciones mutables. Consulte `/api/mi-sesion` después del ingreso y al recuperar la aplicación. Gestione `401` y `403` limpiando la identidad en memoria, `419` obteniendo una nueva protección CSRF y `429` respetando `Retry-After`. Guarde la sesión en la cookie que administra Laravel.
+La pantalla única está en `/`. `/Home` redirige al mismo acceso. El proveedor mantiene la identidad en memoria y verifica `/api/mi-sesion` al arrancar, al navegar, al volver a la pestaña y cada 30 segundos mientras está visible. Durante la comprobación inicial se ocultan los paneles. Una respuesta `401` o `403` retira el acceso y vuelve al ingreso. Cerrar sesión invalida la cookie mediante Laravel.
 
-El alta productiva, verificación de correo, recuperación de contraseña y bloqueo administrativo quedan pendientes. Retirar todos los roles habilitados revoca el acceso actual. La extensión a Vendedor, Finanzas e Inventario reutiliza el mismo ingreso tras aprobar el acceso. Las Policies futuras deberán validar cada operación y sus vínculos por institución, ceremonia u otro recurso. El rol institucional requiere su propio alcance de recursos aprobado.
+| Ruta | Rol de Laravel |
+| --- | --- |
+| `/AdminDashboard` | Administrador |
+| `/ColaboradorDashboard` | Colaborador |
+| `/RegistroGraduando` | Colaborador. La operación requiere además un perfil de datos vinculado. |
+
+Si una cuenta tiene los dos roles, el selector permite cambiar entre sus paneles. Las peticiones usan Fetch con credenciales. Antes de iniciar o cerrar se obtiene CSRF y se envía el valor decodificado de `XSRF-TOKEN` en `X-XSRF-TOKEN`. React reconcilia `409` consultando el servidor, informa `419` y solicita una nueva protección en el siguiente intento manual, y respeta `Retry-After` en `429`. `422` conserva un mensaje común. Los errores de red o del servidor se muestran sin detalles internos. La compilación espera que los endpoints de sesión estén publicados bajo el mismo origen HTTPS del frontend.
+
+### Datos locales y servicios pendientes
+
+Para habilitar las entidades ficticias de Base44, defina `VITE_BASE44_DATOS_LOCALES=true` antes de iniciar Vite. Use una sesión local de Laravel aprovisionada con el comando de cuentas ficticias. El modo local vincula al colaborador con un único perfil ficticio activo que tenga el mismo correo. El ID del registro de Base44 se conserva en las operaciones de graduandos. La prueba de navegador prepara sus datos y los aísla de servicios remotos.
+
+Las entidades de personal, eventos, ceremonias, graduandos, precios, gastos, reportes y archivos siguen usando Base44. Sus políticas de lectura y escritura están pendientes de migración y verificación. Fuera del modo ficticio, la sesión permite abrir el panel y la ruta del colaborador, pero la consulta y el registro de graduandos esperan un vínculo de identidad aprobado en servidor. El avatar administrativo usa iniciales de Laravel hasta que exista un vínculo equivalente. El envío a papelera desde Registros de Graduandos queda fuera del flujo hasta contar con autorización en servidor para esa operación. La pantalla de Papelera conserva su comportamiento existente. Los formularios de gestión de personal de Base44 siguen siendo deuda heredada y no aprovisionan cuentas Laravel.
+
+Vendedor, Finanzas, Inventario, Graduando e Institución requieren fases de implementación propias. Para ME-UI2 quedan la revisión visual y de accesibilidad de paneles y el contrato de perfiles operativos antes de conectar datos reales. El alta productiva, la recuperación de cuenta y las Policies por operación y recurso siguen pendientes.

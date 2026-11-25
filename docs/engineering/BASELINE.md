@@ -1,5 +1,9 @@
 # Línea base técnica de MasterExpress Control
 
+## Acceso React desde ME-AUTH1B
+
+React usa una sesión Fortify y Sanctum para abrir las rutas de Administrador y Colaborador. La autorización de la navegación se deriva de `/api/mi-sesion`. El acceso anterior basado en cuentas Base44 y claves de rol en el navegador salió del flujo. Las operaciones heredadas aún necesitan migración de sus políticas y un vínculo de identidad en servidor para los perfiles de Colaborador. Consulte el [contrato de autenticación](AUTENTICACION.md).
+
 ## MySQL e identidad central desde ME-D0
 
 **Implementado.** Laravel usa una identidad central en `users`. `roles` almacena los siete códigos aprobados y `rol_user` registra las asignaciones con una clave primaria compuesta y dos claves foráneas. El seeder del catálogo es idempotente. La API pública sigue sirviendo la ruta de salud.
@@ -14,7 +18,7 @@ Se crearon y migraron `masterexpress_control_dev` y `masterexpress_control_test`
 
 El esqueleto conserva Eloquent y las migraciones iniciales de Laravel. Composer instala las dependencias sin ejecutar migraciones. Las pruebas básicas de salud y exposición de la API usan el entorno `testing` con un destino SQLite en memoria y no abren conexiones SQL. Las pruebas de sesión se ejecutan con MySQL aislado.
 
-El frontend sigue usando Base44. La conexión de React con la sesión de Laravel, los modelos de negocio y las Policies quedan para fases posteriores. Consulte los [comandos de desarrollo](../../README.md#backend-laravel).
+El frontend usa Base44 para los módulos operativos heredados. La migración de los modelos de negocio y las Policies quedan para fases posteriores. Consulte los [comandos de desarrollo](../../README.md#backend-laravel).
 
 ## Fundamento TypeScript desde ME-TS1
 

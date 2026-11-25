@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, LogOut, Menu } from "lucide-react";
+import { ArrowLeftRight, ChevronRight, LogOut, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/shared/ui/sheet";
+import { useSesion } from "@/features/acceso/contexto-sesion";
 
 /**
  * @typedef {{ id: string, label: string, icon: import("lucide-react").LucideIcon, url?: string }} Destino
@@ -58,12 +59,13 @@ function MarcaPanel() {
 
 /**
  * @param {{
- *   grupos: Grupo[], activo: string, rol: string, nombre: string, alSalir: () => void,
+ *   grupos: Grupo[], activo: string, rol: string, nombre: string,
  *   alSeleccionar?: (id: string) => void, avatar?: React.ReactNode, herramientas?: React.ReactNode,
  *   children: React.ReactNode
  * }} props
  */
-export default function PanelOperativo({ grupos, activo, rol, nombre, alSalir, alSeleccionar, avatar, herramientas, children }) {
+export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccionar, avatar, herramientas, children }) {
+  const { estado, cerrar } = useSesion();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const seccion = grupos.flatMap(grupo => grupo.destinos).find(destino => destino.id === activo)?.label || rol;
   const iniciales = (nombre || rol).trim().split(/\s+/).slice(0, 2).map(parte => parte.charAt(0)).join("").toUpperCase();
@@ -115,7 +117,12 @@ export default function PanelOperativo({ grupos, activo, rol, nombre, alSalir, a
                 <p className="text-xs text-muted-foreground">{rol}</p>
               </div>
             </div>
-            <button type="button" onClick={alSalir} className="panel-icono-boton" aria-label="Cerrar sesión" title="Cerrar sesión">
+            {estado.tipo === 'autenticado' && new Set(estado.identidad.roles).size > 1 && (
+              <Link to="/" className="panel-icono-boton" aria-label="Cambiar de panel" title="Cambiar de panel">
+                <ArrowLeftRight aria-hidden="true" className="size-[18px]" />
+              </Link>
+            )}
+            <button type="button" onClick={() => void cerrar()} className="panel-icono-boton" aria-label="Cerrar sesión" title="Cerrar sesión">
               <LogOut aria-hidden="true" className="size-[18px]" />
             </button>
           </div>

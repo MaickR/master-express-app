@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/integrations/base44/base44Client";
-import { ClipboardList, Search, GraduationCap, CheckCircle, AlertCircle, Image, User, ChevronDown, ChevronUp, Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { ClipboardList, Search, GraduationCap, CheckCircle, AlertCircle, Image, User, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { Badge } from "@/shared/ui/badge";
@@ -9,76 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const paqueteLabels = { digital: 'Digital', fisico: 'Físico', fisico_digital: 'Físico + Digital' };
 const medioPagoLabels = { efectivo: 'Efectivo', transferencia: 'Transferencia', nequi: 'Nequi', daviplata: 'Daviplata', tarjeta: 'Tarjeta', otro: 'Otro' };
-
-// ─── Diálogo de confirmación de eliminación con credenciales ─────────────────
-function EliminarDialog({ graduando, onConfirm, onCancel }) {
-  const [usuario, setUsuario] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleConfirm = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      const admins = await base44.entities.Administrador.filter({ username: usuario });
-      const admin = admins.find(a => a.password === password);
-      if (!admin) {
-        setError("Credenciales incorrectas. Inténtalo de nuevo.");
-        setLoading(false);
-        return;
-      }
-    } catch (e) {
-      setError("Error al verificar credenciales.");
-      setLoading(false);
-      return;
-    }
-    setLoading(false);
-    onConfirm();
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <Card className="w-full max-w-md shadow-2xl border-border">
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-destructive/10 rounded-xl flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-5 h-5 text-destructive" />
-            </div>
-            <div>
-              <h3 className="font-bold text-foreground text-lg">¿Eliminar este graduando?</h3>
-              <p className="text-sm text-muted-foreground">El registro se enviará a la papelera por 5 días.</p>
-            </div>
-          </div>
-          <p className="text-sm text-foreground font-medium bg-muted/40 rounded-lg px-3 py-2">
-            {graduando.nombre_completo}
-          </p>
-          <div className="space-y-3 pt-1 border-t border-border">
-            <p className="text-sm font-medium text-foreground">Ingresa tus credenciales de administrador:</p>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Usuario</label>
-              <Input value={usuario} onChange={e => setUsuario(e.target.value)} placeholder="usuario" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Contraseña</label>
-              <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
-                onKeyDown={e => e.key === 'Enter' && handleConfirm()} />
-            </div>
-            {error && <p className="text-xs text-destructive">{error}</p>}
-          </div>
-          <div className="flex gap-3 pt-1">
-            <Button variant="outline" onClick={onCancel} className="flex-1">Cancelar</Button>
-            <Button variant="destructive" onClick={handleConfirm} disabled={loading || !usuario || !password}
-              className="flex-1 gap-2">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-              Enviar a papelera
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value || 0);
@@ -94,7 +24,7 @@ function ReportRow({ label, value, valueCls = "" }) {
   );
 }
 
-function GraduandoCard({ g, col, index, onEliminar }) {
+function GraduandoCard({ g, col, index }) {
   const [expanded, setExpanded] = useState(false);
   const isEven = index % 2 === 0;
 
@@ -120,14 +50,6 @@ function GraduandoCard({ g, col, index, onEliminar }) {
               className="text-xs text-primary hover:text-primary/80 hover:bg-primary/5 gap-1"
             >
               {expanded ? <><ChevronUp className="w-3.5 h-3.5" />Ocultar</> : <><ChevronDown className="w-3.5 h-3.5" />Ver más</>}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onEliminar(g)}
-              className="text-destructive/60 hover:text-destructive hover:bg-destructive/5 h-8 w-8 p-0"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
             </Button>
           </div>
         </div>
@@ -237,7 +159,6 @@ export default function TodosRegistros() {
   const [filtroColaborador, setFiltroColaborador] = useState("todos");
   const [filtroEvento, setFiltroEvento] = useState("todos");
   const [filtroCeremonia, setFiltroCeremonia] = useState("todos");
-  const [pendienteEliminar, setPendienteEliminar] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -263,18 +184,6 @@ export default function TodosRegistros() {
     });
     return () => unsub();
   }, []);
-
-  const handleEliminar = (g) => setPendienteEliminar(g);
-
-  const confirmarEliminar = async () => {
-    if (!pendienteEliminar) return;
-    await base44.entities.Graduando.update(pendienteEliminar.id, {
-      eliminado: true,
-      fecha_eliminacion: new Date().toISOString(),
-    });
-    setGraduandos(prev => prev.filter(x => x.id !== pendienteEliminar.id));
-    setPendienteEliminar(null);
-  };
 
   const loadData = async () => {
     try {
@@ -394,18 +303,11 @@ export default function TodosRegistros() {
       ) : (
         <div className="space-y-2">
           {filtrados.map((g, i) => (
-            <GraduandoCard key={g.id} g={g} col={colaboradoresMap[g.colaborador_id]} index={i} onEliminar={handleEliminar} />
+            <GraduandoCard key={g.id} g={g} col={colaboradoresMap[g.colaborador_id]} index={i} />
           ))}
         </div>
       )}
 
-      {pendienteEliminar && (
-        <EliminarDialog
-          graduando={pendienteEliminar}
-          onConfirm={confirmarEliminar}
-          onCancel={() => setPendienteEliminar(null)}
-        />
-      )}
     </div>
   );
 }

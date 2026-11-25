@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/integrations/base44/base44Client";
-import { useNavigate } from "react-router-dom";
 import {
   Users, CalendarDays, DollarSign, GraduationCap,
   TrendingUp, CheckCircle, AlertCircle, Shield,
   ClipboardList, BarChart3, Wallet, PiggyBank, Home, Mail, Trash2,
-  Camera, Loader2, ArrowUpRight
+  Loader2, ArrowUpRight
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/ui/card";
 import PanelOperativo from "@/shared/components/PanelOperativo";
@@ -50,9 +49,8 @@ const gruposNavegacion = GROUPS.map(grupo => ({
   ...grupo, destinos: TABS.filter(tab => tab.group === grupo.id),
 }));
 
-export default function AdminDashboard() {
-  const navigate = useNavigate();
-  const fileInputRef = useRef(null);
+/** @param {{ identidad: import('@/features/acceso/cliente-sesion').Identidad }} props */
+export default function AdminDashboard({ identidad }) {
   const [activeTab, setActiveTab] = useState("panel");
   const [stats, setStats] = useState({
     totalGraduandos: 0, colaboradoresActivos: 0, eventosActivos: 0,
@@ -60,46 +58,7 @@ export default function AdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [errorIndicadores, setErrorIndicadores] = useState(false);
-  const [adminFoto, setAdminFoto] = useState(null);
-  const [adminNombre, setAdminNombre] = useState("");
-  const [uploadingFoto, setUploadingFoto] = useState(false);
-
-  useEffect(() => {
-    checkAccess();
-    // Solo carga stats al iniciar — no en cada cambio de tab
-    loadStats();
-    // Cargar foto de perfil del admin
-    const adminId = localStorage.getItem("admin_id");
-    const nombre = localStorage.getItem("admin_nombre") || "Administrador";
-    setAdminNombre(nombre);
-    if (adminId) {
-      base44.entities.Administrador.get(adminId)
-        .then(admin => { if (admin?.foto_perfil) setAdminFoto(admin.foto_perfil); })
-        .catch(() => {});
-    }
-  }, []);
-
-  const handleFotoChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const adminId = localStorage.getItem("admin_id");
-    if (!adminId) return;
-    setUploadingFoto(true);
-    try {
-      const result = await base44.integrations.Core.UploadFile({ file });
-      await base44.entities.Administrador.update(adminId, { foto_perfil: result.file_url });
-      setAdminFoto(result.file_url);
-    } catch (err) {
-      console.error("Error subiendo foto:", err);
-    }
-    setUploadingFoto(false);
-  };
-
-  const checkAccess = () => {
-    // Admin access is validated via localStorage (custom Administrador entity)
-    const adminId = localStorage.getItem("admin_id");
-    if (!adminId) { navigate('/'); }
-  };
+  useEffect(() => { void loadStats(); }, []);
 
   const loadStats = async () => {
     setLoading(true);
@@ -153,29 +112,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const cerrarSesion = () => {
-    localStorage.removeItem("admin_id");
-    localStorage.removeItem("admin_nombre");
-    localStorage.removeItem("admin_rol");
-    navigate('/');
-  };
-
   return (
-    <PanelOperativo grupos={gruposNavegacion} activo={activeTab} rol="Administrador" nombre={adminNombre}
-      alSeleccionar={setActiveTab} alSalir={cerrarSesion} herramientas={<DarkModeToggle className="!size-11" />}
-      avatar={
-        <button type="button" className="panel-avatar" aria-label="Cambiar foto de perfil"
-          title="Cambiar foto de perfil" disabled={uploadingFoto} onClick={() => fileInputRef.current?.click()}>
-          {uploadingFoto ? (
-            <Loader2 aria-hidden="true" className="size-5 animate-spin" />
-          ) : adminFoto ? (
-            <img src={adminFoto} alt="" className="size-full object-cover" />
-          ) : (
-            <Camera aria-hidden="true" className="size-[18px]" />
-          )}
-        </button>
-      }>
-      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFotoChange} />
+    <PanelOperativo grupos={gruposNavegacion} activo={activeTab} rol="Administrador" nombre={identidad.nombre}
+      alSeleccionar={setActiveTab} herramientas={<DarkModeToggle className="!size-11" />}>
       <div className="panel-pagina">
         {activeTab !== "panel" && <h1 className="sr-only">{activeTabDef?.label}</h1>}
         {activeTab === "panel" && loading ? (

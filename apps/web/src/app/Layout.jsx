@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useLocation } from "react-router-dom";
-import { base44 } from "@/integrations/base44/base44Client";
 import { GraduationCap, UserPlus } from "lucide-react";
 import PanelOperativo from "@/shared/components/PanelOperativo";
 import DarkModeToggle from "@/shared/components/DarkModeToggle";
-
-const NO_LAYOUT_PAGES = ["Home", "AdminDashboard"];
+import { base44, useLocalEntities } from "@/integrations/base44/base44Client";
+import { useQuery } from "@tanstack/react-query";
 
 const navegacionColaborador = [{
   id: "operacion",
@@ -15,39 +14,46 @@ const navegacionColaborador = [{
   ],
 }];
 
-/** @param {{ children: React.ReactNode, currentPageName: string }} props */
-export default function Layout({ children, currentPageName }) {
-  const [colaboradorName, setColaboradorName] = useState(localStorage.getItem("colaborador_nombre") || "");
-  const location = useLocation();
-
-  useEffect(() => {
-    const colabId = localStorage.getItem("colaborador_id");
-    if (colabId && !colaboradorName) {
-      base44.entities.Colaborador.get(colabId)
-        .then(c => { if (c) setColaboradorName(c.nombre_completo || c.username || ""); })
-        .catch(() => {});
-    }
-  }, []);
-
-  if (NO_LAYOUT_PAGES.includes(currentPageName) || !localStorage.getItem("colaborador_id")) {
-    return <>{children}</>;
-  }
-
-  const cerrarSesion = () => {
-    localStorage.removeItem("colaborador_id");
-    localStorage.removeItem("colaborador_nombre");
-    window.location.href = '/';
-  };
-
+/** @param {{ identidad: import('@/features/acceso/cliente-sesion').Identidad,
+ * Pantalla: React.ComponentType<{ colaboradorId: string; nombre: string }> }} props */
+export default function Layout({ identidad, Pantalla }) {
+  const { pathname } = useLocation();
+  const { data: colaboradorId, isPending, isError, refetch } = useQuery({
+    queryKey: ["perfil-operativo-local", identidad.id, identidad.correo],
+    enabled: useLocalEntities,
+    retry: false,
+    queryFn: async () => {
+      // Este vínculo solo usa datos ficticios del adaptador local y nunca otorga un rol.
+      const perfiles = await base44.entities.Colaborador.filter({ email: identidad.correo });
+      return perfiles.length === 1 && perfiles[0].activo !== false ? perfiles[0].id : null;
+    },
+  });
   const activo = navegacionColaborador[0].destinos.find(destino =>
-    destino.url.toLowerCase() === location.pathname.toLowerCase()
-  )?.id;
+    destino.url.toLowerCase() === pathname.toLowerCase()
+  )?.id || "ColaboradorDashboard";
 
   return (
-    <PanelOperativo grupos={navegacionColaborador} activo={activo || currentPageName}
-      rol="Colaborador" nombre={colaboradorName} alSalir={cerrarSesion}
+    <PanelOperativo grupos={navegacionColaborador} activo={activo}
+      rol="Colaborador" nombre={identidad.nombre}
       herramientas={<DarkModeToggle className="!size-11" />}>
-      {children}
+      {colaboradorId ? <Pantalla key={colaboradorId} colaboradorId={colaboradorId} nombre={identidad.nombre} /> : (
+        <div className="panel-pagina">
+          <div className="panel-portada">
+            <div>
+              <h1>{activo === "RegistroGraduando" ? "Registrar graduando" : "Mi panel"}</h1>
+              <p>Bienvenido, {identidad.nombre}.</p>
+            </div>
+          </div>
+          <div className="panel-estado">
+            {useLocalEntities && isPending ? <p role="status">Buscando el perfil operativo…</p> : isError ? (
+              <>
+                <p role="alert">No se pudo consultar el perfil operativo.</p>
+                <button type="button" className="panel-accion mx-auto" onClick={() => void refetch()}>Volver a intentar</button>
+              </>
+            ) : <p>Los registros requieren un perfil operativo vinculado a esta cuenta.</p>}
+          </div>
+        </div>
+      )}
     </PanelOperativo>
   );
 }

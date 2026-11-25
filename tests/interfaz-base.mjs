@@ -1,6 +1,7 @@
 // node tests/interfaz-base.mjs "ruta al ejecutable de Chrome o Edge" ["carpeta de capturas"]
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -30,11 +31,9 @@ const clienteLocal = `
   const fecha = new Date().toISOString().slice(0, 10);
   const eliminacion = new Date(Date.now() - 12 * 86400000).toISOString();
   const datos = {
-    Administrador: [{ id: "admin-qa", username: "qa-admin", password: "solo-qa",
-      nombre_completo: "Laura Moreno", rol: "presidente" }],
     Colaborador: [
-      { id: "col-qa", username: "qa-colaborador", password: "solo-qa", nombre_completo: "Camila Ruiz", activo: true },
-      { id: "col-vacio", nombre_completo: "Daniel Ortiz", activo: true },
+      { id: "col-qa", email: "qa-colaborador@example.invalid", nombre_completo: "Camila Ruiz", activo: true },
+      { id: "col-vacio", email: "qa-vacio@example.invalid", nombre_completo: "Daniel Ortiz", activo: true },
     ],
     Evento: [{ id: "evento-qa", nombre_institucion: "Institución de prueba", tipo_institucion: "universidad",
       fecha, activo: true }],
@@ -69,7 +68,7 @@ const clienteLocal = `
     ? Promise.reject(new Error("Fallo ficticio de indicadores")) : listar(...args);
   entidades.Graduando.filter = (...args) => falla("colaborador")
     ? Promise.reject(new Error("Fallo ficticio de registros")) : filtrar(...args);
-  export const base44 = { entities: entidades };
+  export const base44 = { entities: entidades }; export const useLocalEntities = true;
 `;
 
 const { outputFiles: [bundle] } = await build({
@@ -79,14 +78,11 @@ const { outputFiles: [bundle] } = await build({
   plugins: [{
     name: "aislamiento-base44",
     setup(contexto) {
-      contexto.onResolve({ filter: /base44Client$|AuthContext$/ }, ({ path }) => ({
+      contexto.onResolve({ filter: /base44Client$/ }, ({ path }) => ({
         path, namespace: "prueba",
       }));
       contexto.onLoad({ filter: /base44Client$/, namespace: "prueba" }, () => ({
         resolveDir: proyecto, contents: clienteLocal,
-      }));
-      contexto.onLoad({ filter: /AuthContext$/, namespace: "prueba" }, () => ({
-        contents: "export const AuthProvider = ({ children }) => children; export const useAuth = () => ({});",
       }));
       contexto.onResolve({ filter: /^@\// }, ({ path }) =>
         contexto.resolve("./apps/web/src/" + path.slice(2), { resolveDir: proyecto, kind: "import-statement" }));
@@ -101,7 +97,34 @@ const recursos = {
   "/prueba.css": ["text/css", estilos.css],
   "/master-express.png": ["image/png", logo],
 };
-const servidor = createServer((peticion, respuesta) => {
+const claveFicticia = randomBytes(16).toString("hex");
+const cuentas = {
+  "qa-admin@example.invalid": { id: 1, nombre: "Laura Moreno", roles: ["administrador"] },
+  "qa-colaborador@example.invalid": { id: 2, nombre: "Camila Ruiz", roles: ["colaborador"] },
+  "qa-vacio@example.invalid": { id: 3, nombre: "Daniel Ortiz", roles: ["colaborador"] },
+};
+const servidor = createServer(async (peticion, respuesta) => {
+  const cookie = (peticion.headers.cookie || "").split("; ").find(valor => valor.startsWith("sesion-qa="));
+  const correo = cookie?.slice("sesion-qa=".length);
+  if (peticion.url === "/api/mi-sesion") {
+    respuesta.setHeader("Content-Type", "application/json");
+    if (!cuentas[correo]) return respuesta.writeHead(401).end("{}");
+    return respuesta.end(JSON.stringify({ data: { ...cuentas[correo], correo } }));
+  }
+  if (peticion.url === "/sanctum/csrf-cookie") {
+    return respuesta.writeHead(204, { "Set-Cookie": "XSRF-TOKEN=csrf-qa; Path=/" }).end();
+  }
+  if (["/login", "/logout"].includes(peticion.url)) {
+    if (peticion.headers["x-xsrf-token"] !== "csrf-qa") return respuesta.writeHead(419).end();
+    if (peticion.url === "/logout") {
+      return respuesta.writeHead(204, { "Set-Cookie": "sesion-qa=; Max-Age=0; Path=/; HttpOnly" }).end();
+    }
+    let cuerpo = "";
+    for await (const parte of peticion) cuerpo += parte;
+    const { email, password } = JSON.parse(cuerpo);
+    if (!cuentas[email] || password !== claveFicticia) return respuesta.writeHead(422).end();
+    return respuesta.writeHead(204, { "Set-Cookie": "sesion-qa=" + email + "; Path=/; HttpOnly" }).end();
+  }
   const recurso = recursos[peticion.url];
   const [tipo, contenido] = recurso || ["text/html; charset=utf-8", pagina];
   respuesta.setHeader("Content-Type", tipo);
@@ -195,17 +218,12 @@ try {
     const documento = document.documentElement;
     return window.innerWidth === w && documento.scrollWidth <= documento.clientWidth;
   }, esperado);
-  const iniciar = async (rol, usuario) => {
-    await hasta(() => texto("Soy " + rol), "No apareció la pantalla de ingreso.");
-    await clicTexto("Soy " + rol);
-    await hasta(() => texto("Ingrese sus credenciales"), "No apareció el formulario de ingreso.");
-    await leer(u => {
-      for (const [placeholder, valor] of [["Su nombre de usuario", u], ["Su contraseña", "solo-qa"]]) {
-        const campo = document.querySelector(`[placeholder="${placeholder}"]`);
-        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(campo, valor);
-        campo.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-    }, usuario);
+  const iniciar = async (correo) => {
+    await hasta(() => texto("Iniciar sesión"), "No apareció el formulario de ingreso.");
+    await leer(({ email, clave }) => {
+      document.querySelector("#correo").value = email;
+      document.querySelector("#contrasena").value = clave;
+    }, { email: correo, clave: claveFicticia });
     await clicTexto("Ingresar");
   };
   const indicadores = () => leer(() => Object.fromEntries([...document.querySelectorAll("main dl dt")]
@@ -247,7 +265,7 @@ try {
   ] });
   await ajustar(1440, 1050);
   await ir("/");
-  await iniciar("Administrador", "qa-admin");
+  await iniciar("qa-admin@example.invalid");
   await hasta(() => texto("Panel de administración", "main"), "No abrió el panel de administrador.");
   await hasta(() => leer(() => document.querySelector("aside img")?.naturalWidth > 0),
     "No se pudo cargar el logotipo local.");
@@ -268,11 +286,10 @@ try {
     verificar(await hasta(() => texto(destino, 'aside [aria-current="page"]'), destino), `Acceso real a ${destino}`);
     await clicTexto("Panel Principal", "aside button");
   }
-  await leer(() => {
-    document.querySelector("main input[type=file]").click = () => { window.fotoQA = true; };
-    document.querySelector('[aria-label="Cambiar foto de perfil"]').click();
-  });
-  verificar(await leer(() => window.fotoQA), "El botón de perfil conserva la acción de cambiar foto");
+  verificar(await leer(() => document.querySelector(".panel-avatar")?.textContent === "LM"
+    && document.querySelector(".panel-cabecera").textContent.includes("Laura Moreno")
+    && !document.querySelector('[aria-label="Cambiar foto de perfil"]')),
+  "La cabecera muestra la identidad de sesión sin habilitar un perfil Base44 sin vínculo");
   await clic('[title="Modo oscuro"]');
   await hasta(() => leer(() => document.documentElement.classList.contains("dark")), "El tema oscuro no se activó.");
   await comprobarContraste("El control de tema funciona y las muestras en oscuro alcanzan 4.5:1");
@@ -314,10 +331,10 @@ try {
   await hasta(() => texto("Panel de administración", "main"), "No se recuperaron los indicadores al reintentar.");
   verificar(await ancho(768), "Administrador recupera los indicadores y se adapta a 768 px");
   await clic('[aria-label="Cerrar sesión"]');
-  await hasta(() => leer(() => location.pathname === "/" && !localStorage.getItem("admin_id")), "No cerró la sesión de administrador.");
+  await hasta(() => leer(() => location.pathname === "/" && Boolean(document.querySelector("#correo"))), "No cerró la sesión de administrador.");
 
   await ajustar(1440, 1000);
-  await iniciar("Colaborador", "qa-colaborador");
+  await iniciar("qa-colaborador@example.invalid");
   await hasta(() => texto("Mariana Silva", "main"), "No abrió el panel de colaborador.");
   verificar(await leer(() => location.pathname === "/ColaboradorDashboard"
     && document.querySelector('aside [aria-current="page"]')?.getAttribute("href") === "/ColaboradorDashboard"),
@@ -351,15 +368,16 @@ try {
   await clicTexto("Volver a intentar", "main button");
   verificar(await hasta(() => texto("Mariana Silva", "main"), "El reintento no recuperó los registros."),
     "Colaborador conserva sesión y recupera su lista tras un fallo de consulta");
-  await leer(() => localStorage.setItem("colaborador_id", "col-vacio"));
+  await clic('[aria-label="Cerrar sesión"]');
+  await iniciar("qa-vacio@example.invalid");
   await ir("/ColaboradorDashboard?estado=vacio");
   verificar(await hasta(() => texto("Aún no tiene graduandos registrados", "main"), "No apareció el estado vacío."),
     "Colaborador sin registros muestra un estado vacío y conserva el acceso al registro");
   await clic('[aria-label="Cerrar sesión"]');
-  verificar(await hasta(() => leer(() => location.pathname === "/" && !localStorage.getItem("colaborador_id")),
+  verificar(await hasta(() => leer(() => location.pathname === "/" && Boolean(document.querySelector("#correo"))),
     "No cerró la sesión de colaborador."), "Los controles de cierre de sesión regresan al inicio");
   await ir("/Home");
-  verificar(await hasta(() => texto("Soy Colaborador"), "La ruta /Home no abrió."), "La ruta /Home conserva el inicio existente");
+  verificar(await hasta(() => texto("Iniciar sesión"), "La ruta /Home no abrió."), "La ruta /Home conserva el inicio existente");
   assert.deepEqual(errores, []);
   console.log("PASS Sin excepciones JavaScript sin manejar");
 } catch (error) {

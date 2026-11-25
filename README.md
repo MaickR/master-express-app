@@ -23,9 +23,14 @@ Ejecute los comandos desde la raíz, con las dependencias del proyecto disponibl
 | `npm run typecheck` | Comprobar en modo estricto los archivos TS y TSX bajo `apps/web/src`. |
 | `npm run typecheck:legacy` | Ejecutar la revisión heredada con `checkJs` y su alcance original. |
 
-Para probar la demostración con datos ficticios, defina `VITE_LOCAL_ADMIN_PASSWORD` y `VITE_LOCAL_COLABORADOR_PASSWORD` con contraseñas de prueba en la sesión de terminal o en `.env.development.local` en la raíz. Abra la URL de loopback que indica Vite. Use `admin` para Administrador y `xd` para Colaborador, con su contraseña de prueba respectiva. La demostración guarda las entidades en el navegador y requiere el servidor de desarrollo. Use un perfil limpio y datos ficticios.
+Para el acceso integrado, inicie Laravel en `127.0.0.1:8000` y Vite en `127.0.0.1:5173`. En otra terminal, desde la raíz:
 
-El modo conectado requiere la configuración de Base44 por el canal autorizado. Vite sigue leyendo los archivos de entorno en la raíz del repositorio.
+```powershell
+$env:VITE_BASE44_DATOS_LOCALES = 'true'
+npm.cmd run dev -- --host 127.0.0.1 --port 5173 --strictPort
+```
+
+Abra [MasterExpress Control](http://127.0.0.1:5173/). Use cuentas ficticias de Laravel. El modo local de Base44 conserva únicamente los datos operativos ficticios del navegador. Vite limita las variables públicas a la configuración de Base44. Consulte el [contrato de autenticación](docs/engineering/AUTENTICACION.md) para conocer el alcance de la operación de Colaborador.
 
 ### Backend Laravel
 
@@ -45,7 +50,7 @@ Si Composer informa que falta soporte para descomprimir paquetes en Windows, use
 
 Desde otra terminal, ejecute `curl.exe -i http://127.0.0.1:8000/api/salud`. La respuesta esperada es HTTP 200 con `{"estado":"correcto","servicio":"masterexpress-api"}`. La plantilla usa `APP_DEBUG=false` y habilita CORS para los endpoints de sesión desde `http://127.0.0.1:5173`.
 
-El entorno de desarrollo usa `masterexpress_control_dev` en MySQL local. En `apps/api/.env`, configure `DB_CONNECTION=mysql`, `DB_HOST=127.0.0.1`, `DB_PORT`, `DB_DATABASE=masterexpress_control_dev`, `DB_USERNAME` y `DB_PASSWORD`. Guarde las credenciales locales únicamente en el entorno excluido de Git. La instalación con Composer y la ruta de salud funcionan sin MySQL. React conserva su integración con Base44.
+El entorno de desarrollo usa `masterexpress_control_dev` en MySQL local. En `apps/api/.env`, configure `DB_CONNECTION=mysql`, `DB_HOST=127.0.0.1`, `DB_PORT`, `DB_DATABASE=masterexpress_control_dev`, `DB_USERNAME` y `DB_PASSWORD`. Guarde las credenciales locales únicamente en el entorno excluido de Git. La instalación con Composer y la ruta de salud funcionan sin MySQL. React usa Laravel para la sesión y conserva Base44 para los módulos operativos heredados.
 
 Desde `apps/api/`, ejecute `php artisan auth:crear-cuenta-prueba` para aprovisionar una cuenta ficticia interactiva. Consulte la [configuración y el contrato de autenticación](docs/engineering/AUTENTICACION.md).
 
@@ -62,12 +67,13 @@ Desde `apps/api/`, ejecute `composer test` para las pruebas sin SQL. Para la int
 
 Consulte el [contrato de identidad y roles](docs/engineering/IDENTIDAD.md) para las reglas de asignación y los pendientes de ME-AUTH1.
 
-Ejecute cada comando con la ruta al ejecutable de Chrome o Edge. Las tres suites usan datos ficticios y aíslan Base44.
+Ejecute cada comando con la ruta al ejecutable de Chrome o Edge. Las suites usan datos ficticios y aíslan Base44. Para la suite de autenticación, deje ambos servidores activos en los puertos indicados y habilite las entidades locales. La suite crea y elimina sus propias cuentas ficticias en MySQL de desarrollo.
 
 ```text
 node tests/papelera-graduandos.mjs "<ruta al navegador>"
 node tests/vinculo-ceremonias.mjs "<ruta al navegador>"
 node tests/interfaz-base.mjs "<ruta al navegador>"
+node tests/autenticacion.mjs "<ruta al navegador>" "<carpeta de capturas>"
 ```
 
 Consulte la [línea base técnica](docs/engineering/BASELINE.md), el [alcance V1](docs/product/ME-SCOPE-V1.md), los [estándares de ingeniería](docs/engineering/STANDARDS.md) y la [guía para agentes](AGENTS.md).
