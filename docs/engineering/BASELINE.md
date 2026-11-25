@@ -1,5 +1,13 @@
 # Línea base técnica de MasterExpress Control
 
+## Fundamento Laravel desde ME-L0R
+
+`apps/api/` contiene Laravel 13.44.1, instalado con PHP 8.3.14 y Composer 2.8.4. `composer.lock` fija las dependencias. El arranque registra `routes/api.php` con el prefijo oficial `/api`. `GET /api/salud` devuelve HTTP 200 en JSON. La API negocia sus errores como JSON y el entorno local recomendado mantiene la depuración desactivada y CORS cerrado.
+
+El esqueleto conserva Eloquent y las migraciones iniciales de Laravel. La instalación y las pruebas no ejecutan migraciones ni consultan una base. MySQL es la conexión predeterminada de la aplicación. En la máquina de trabajo se comprobó `pdo_mysql` y el servicio de Windows `MySQL91`. Quedan pendientes la conexión desde Laravel y la verificación sobre una base aislada. La suite fuerza el entorno de pruebas y el destino SQLite en memoria, sin usar SQL para los casos actuales.
+
+El frontend sigue usando Base44. La conexión de React con Laravel, los modelos de negocio, las sesiones empresariales, Form Requests y Policies quedan para fases posteriores. Para ME-D0 se requiere una base MySQL aislada y autorizada, un usuario con permisos limitados a esa base y pruebas de conexión y migraciones con datos ficticios. Consulte los [comandos de desarrollo](../../README.md#backend-laravel).
+
 ## Fundamento TypeScript desde ME-TS1
 
 La entrada es `apps/web/src/app/main.tsx`. Se migraron la composición de React y del router (`App.tsx`), el registro de páginas (`pages.config.ts`), el cliente compartido de TanStack Query (`query-client.ts`), el combinador de clases (`utils.ts`) y el panel desplegable de navegación móvil (`sheet.tsx`). Cada archivo migrado reemplaza su equivalente JS o JSX. El Layout conserva JSX con su contrato de props en JSDoc, que también usa el router.
@@ -35,7 +43,7 @@ Ejecute los comandos de [desarrollo y pruebas](../../README.md#desarrollo-local)
 
 En QA con datos ficticios, Vite sirvió ambos paneles, la navegación móvil y los recursos locales. Se comprobaron HMR de CSS y React Fast Refresh con la página abierta. Las suites de papelera, vínculo e interfaz completaron sus verificaciones. La prueba de retorno del foco con Escape presentó fallos intermitentes desde la base. La conexión remota con Base44 y el envío real de correo quedaron fuera de esta validación.
 
-La siguiente etapa propuesta es tipar el módulo de vínculo entre ceremonias y graduandos, comenzando por los datos que consumen los selectores y la validación de pertenencia, y repetir la suite de vínculo. `apps/api/` queda como destino de la futura implementación de Laravel.
+La siguiente etapa propuesta para el frontend es tipar el módulo de vínculo entre ceremonias y graduandos, comenzando por los datos que consumen los selectores y la validación de pertenencia, y repetir la suite de vínculo.
 
 ## Inventario histórico de ME-G0
 
