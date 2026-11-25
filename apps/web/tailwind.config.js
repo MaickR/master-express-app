@@ -47,6 +47,10 @@ module.exports = {
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
+			'marca-placa': 'hsl(var(--marca-placa))',
+			exito: { DEFAULT: 'hsl(var(--exito))', suave: 'hsl(var(--exito-suave))' },
+			aviso: { DEFAULT: 'hsl(var(--aviso))', suave: 'hsl(var(--aviso-suave))' },
+			error: { DEFAULT: 'hsl(var(--error))', suave: 'hsl(var(--error-suave))' },
   			chart: {
   				'1': 'hsl(var(--chart-1))',
   				'2': 'hsl(var(--chart-2))',
@@ -62,7 +66,8 @@ module.exports = {
   				accent: 'hsl(var(--sidebar-accent))',
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
-  				ring: 'hsl(var(--sidebar-ring))'
+				ring: 'hsl(var(--sidebar-ring))',
+				marca: 'hsl(var(--sidebar-marca))'
   			}
   		},
   		keyframes: {

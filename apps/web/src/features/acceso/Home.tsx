@@ -4,6 +4,7 @@ import { Link, Navigate } from 'react-router-dom';
 import Button from '@/features/acceso/BotonAcceso';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
+import SelectorTema from '@/shared/components/selector-tema';
 import { ErrorSesion, mensajeSesion } from './cliente-sesion';
 import { useSesion } from './contexto-sesion';
 import { paneles } from './destinos';
@@ -14,15 +15,16 @@ const Etiqueta = Label as ComponentType<ComponentProps<'label'>>;
 export function MarcoAcceso({ children }: { children: ReactNode }) {
   return (
     <main className="grid min-h-dvh grid-rows-[auto_1fr] bg-background lg:grid-rows-1 lg:grid-cols-[minmax(320px,0.85fr)_minmax(520px,1.15fr)]">
-      <header className="flex items-center gap-3 bg-[#101c33] px-5 py-5 text-white sm:px-10 lg:flex-col lg:items-start lg:justify-between lg:px-12 lg:py-12">
+      <header className="relative flex items-center gap-3 border-b border-sidebar-border bg-sidebar py-5 pl-5 pr-20 text-sidebar-foreground sm:pl-10 lg:flex-col lg:items-start lg:justify-between lg:border-b-0 lg:border-r lg:py-12 lg:pl-12">
         <div className="flex items-center gap-3">
-          <img src="/master-express.png" alt="" width={48} height={48} className="size-12 shrink-0 rounded-lg bg-white object-contain" />
-          <p className="text-base font-semibold leading-tight sm:text-lg">MasterExpress <strong className="text-[#f2ce73]">Control</strong></p>
+          <img src="/master-express.png" alt="" width={48} height={48} className="size-12 shrink-0 rounded-lg bg-marca-placa object-contain p-1" />
+          <p className="text-base font-semibold leading-tight sm:text-lg">MasterExpress <strong className="block text-sidebar-marca">Control</strong></p>
         </div>
         <p className="hidden max-w-sm font-heading text-4xl font-semibold leading-tight lg:block">
           Gestión de ceremonias de grado
         </p>
-        <div aria-hidden="true" className="hidden h-1 w-14 rounded bg-[#f2ce73] lg:block" />
+        <div aria-hidden="true" className="hidden h-1 w-14 rounded bg-sidebar-marca lg:block" />
+        <SelectorTema className="absolute right-4 top-5 border border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-sidebar-ring lg:right-8 lg:top-12" />
       </header>
       <div className="grid content-start justify-items-center px-4 py-9 sm:px-10 sm:py-14 lg:content-center lg:px-16">
         <section className="w-full max-w-[440px] rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm sm:p-9">
@@ -140,11 +142,11 @@ function FormularioAcceso({ aviso }: { aviso?: string }) {
           </div>
         </div>
         {(error || aviso) && (
-          <p id="mensaje-acceso" role="alert" className="rounded-lg border border-destructive/40 px-3 py-2 text-sm text-foreground">
+          <p id="mensaje-acceso" role="alert" className="rounded-lg border border-destructive/40 bg-error-suave px-3 py-2 text-sm text-error">
             {error || aviso}
           </p>
         )}
-        <Button type="submit" disabled={ocupado || reintentarEn > 0} className="h-12 w-full bg-[#163861] text-white hover:bg-[#204671]">
+        <Button type="submit" disabled={ocupado || reintentarEn > 0} className="h-12 w-full">
           {ocupado ? 'Iniciando sesión…' : 'Ingresar'}
           {!ocupado && <ArrowRight aria-hidden="true" />}
         </Button>

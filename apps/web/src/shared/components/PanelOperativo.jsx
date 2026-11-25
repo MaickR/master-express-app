@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeftRight, ChevronRight, LogOut, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/shared/ui/sheet";
 import { useSesion } from "@/features/acceso/contexto-sesion";
+import SelectorTema from "@/shared/components/selector-tema";
 
 /**
  * @typedef {{ id: string, label: string, icon: import("lucide-react").LucideIcon, url?: string }} Destino
@@ -60,13 +61,14 @@ function MarcaPanel() {
 /**
  * @param {{
  *   grupos: Grupo[], activo: string, rol: string, nombre: string,
- *   alSeleccionar?: (id: string) => void, avatar?: React.ReactNode, herramientas?: React.ReactNode,
+ *   alSeleccionar?: (id: string) => void, avatar?: React.ReactNode,
  *   children: React.ReactNode
  * }} props
  */
-export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccionar, avatar, herramientas, children }) {
+export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccionar, avatar, children }) {
   const { estado, cerrar } = useSesion();
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const activadorMenu = useRef(null);
   const seccion = grupos.flatMap(grupo => grupo.destinos).find(destino => destino.id === activo)?.label || rol;
   const iniciales = (nombre || rol).trim().split(/\s+/).slice(0, 2).map(parte => parte.charAt(0)).join("").toUpperCase();
 
@@ -91,11 +93,18 @@ export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccio
           <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <Sheet open={menuAbierto} onOpenChange={setMenuAbierto}>
               <SheetTrigger asChild>
-                <button type="button" aria-label="Abrir menú del panel" className="panel-icono-boton lg:hidden">
+                <button ref={activadorMenu} type="button" aria-label="Abrir menú del panel" className="panel-icono-boton lg:hidden">
                   <Menu aria-hidden="true" className="size-5" />
                 </button>
               </SheetTrigger>
               <SheetContent side="left" aria-describedby={undefined}
+                onCloseAutoFocus={evento => {
+                  const activador = activadorMenu.current;
+                  if (activador?.getClientRects().length) {
+                    evento.preventDefault();
+                    activador.focus({ preventScroll: true });
+                  }
+                }}
                 className="panel-menu-movil w-[90vw] max-w-80 gap-0 bg-sidebar p-0 sm:max-w-80 motion-reduce:!animate-none">
                 <SheetTitle className="sr-only">Menú del panel</SheetTitle>
                 <MarcaPanel />
@@ -109,7 +118,7 @@ export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccio
             </div>
           </div>
           <div className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
-            {herramientas}
+            <SelectorTema />
             <div className="flex min-w-0 items-center gap-2.5 sm:ml-1">
               {avatar || <span aria-hidden="true" className="panel-avatar">{iniciales}</span>}
               <div className="hidden min-w-0 sm:block">

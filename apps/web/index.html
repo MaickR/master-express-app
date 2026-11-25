@@ -6,8 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#6BA3D6" />
+    <meta name="theme-color" content="#16181d" />
     <title>MasterExpress Control</title>
+    <script>
+      // Mismo contrato de persistencia que ProveedorTema, antes del primer render.
+      (() => {
+        let preferencia;
+        try {
+          preferencia = localStorage.getItem('theme');
+        } catch {
+          // El sistema sigue disponible cuando el navegador bloquea el almacenamiento.
+        }
+        const oscuro = preferencia === 'dark' ||
+          (preferencia !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', oscuro);
+        document.documentElement.style.colorScheme = oscuro ? 'dark' : 'light';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

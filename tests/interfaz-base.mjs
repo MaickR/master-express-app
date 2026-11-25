@@ -1,7 +1,7 @@
 // node tests/interfaz-base.mjs "ruta al ejecutable de Chrome o Edge" ["carpeta de capturas"]
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -92,6 +92,8 @@ const { outputFiles: [bundle] } = await build({
 
 const pagina = html.replace('<script type="module" src="/src/app/main.tsx"></script>', '<script defer src="/prueba.js"></script>')
   .replace("</head>", '<link rel="stylesheet" href="/prueba.css" /></head>');
+const inicioTema = pagina.match(/<script>([\s\S]*?)<\/script>/)[1];
+const hashTema = createHash("sha256").update(inicioTema.replace(/\r\n/g, "\n")).digest("base64");
 const recursos = {
   "/prueba.js": ["text/javascript", bundle.contents],
   "/prueba.css": ["text/css", estilos.css],
@@ -126,9 +128,12 @@ const servidor = createServer(async (peticion, respuesta) => {
     return respuesta.writeHead(204, { "Set-Cookie": "sesion-qa=" + email + "; Path=/; HttpOnly" }).end();
   }
   const recurso = recursos[peticion.url];
-  const [tipo, contenido] = recurso || ["text/html; charset=utf-8", pagina];
+  const documento = peticion.url === "/?sin-react"
+    ? pagina.replace('<script defer src="/prueba.js"></script>', '')
+    : pagina;
+  const [tipo, contenido] = recurso || ["text/html; charset=utf-8", documento];
   respuesta.setHeader("Content-Type", tipo);
-  respuesta.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'");
+  respuesta.setHeader("Content-Security-Policy", `default-src 'none'; script-src 'self' 'sha256-${hashTema}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'`);
   respuesta.end(contenido);
 });
 const perfil = await mkdtemp(join(tmpdir(), "me-interfaz-"));
@@ -201,6 +206,10 @@ try {
     width, height, deviceScaleFactor: 1, mobile: false,
   });
   const enfoque = (selector) => leer(s => document.querySelector(s)?.focus(), selector);
+  const emularSistema = (tema) => enviar("Emulation.setEmulatedMedia", { features: [
+    { name: "prefers-reduced-motion", value: "reduce" },
+    { name: "prefers-color-scheme", value: tema },
+  ] });
   const tecla = async (key, windowsVirtualKeyCode) => {
     const parametros = { key, code: key, nativeVirtualKeyCode: windowsVirtualKeyCode, windowsVirtualKeyCode };
     await enviar("Input.dispatchKeyEvent", key === "Enter"
@@ -213,6 +222,21 @@ try {
     await mkdir(capturas, { recursive: true });
     const { data } = await enviar("Page.captureScreenshot", { format: "png", fromSurface: true });
     await writeFile(join(capturas, nombre + ".png"), Buffer.from(data, "base64"));
+  };
+  const aplicado = (tema) => leer(t => {
+    const raiz = document.documentElement;
+    return raiz.classList.contains("dark") === (t === "dark") && getComputedStyle(raiz).colorScheme === t;
+  }, tema);
+  const cambiarTema = async (nombre, tema) => {
+    const activador = '[aria-label^="Tema visual:"]';
+    await enfoque(activador);
+    await tecla("Enter", 13);
+    await hasta(() => texto(nombre, '[role="menu"]'), "El selector no abrió con Enter.");
+    await comprobarContraste("El menú de tema en portal usa los colores del documento y alcanza 4.5:1");
+    await clicTexto(nombre, '[role="menuitemradio"]');
+    await hasta(() => aplicado(tema), `No se aplicó ${tema}.`);
+    verificar(await leer((s, valor) => document.querySelector(s)?.getAttribute("aria-label") === `Tema visual: ${valor}`,
+      activador, nombre), `El selector anuncia la preferencia ${nombre}`);
   };
   const ancho = (esperado) => leer(w => {
     const documento = document.documentElement;
@@ -235,6 +259,14 @@ try {
       return canales[0] * 0.2126 + canales[1] * 0.7152 + canales[2] * 0.0722;
     };
     const muestras = [
+      ["main > section, main section:has(#correo)", "label[for='correo']"],
+      ["#correo", "#correo"], ["button[type='submit']", "button[type='submit']"],
+      ["main section:has(#correo)", "h1 + p"], ["#mensaje-acceso", "#mensaje-acceso"],
+      ["[role='menu']", "[role='menuitemradio']"],
+      ["[role='menuitemradio'][data-highlighted]", "[role='menuitemradio'][data-highlighted]"],
+      ["[role='dialog']", "[role='dialog'] h2"],
+      ["[role='listbox']", "[role='option']"],
+      ["[role='listbox']", "[role='option'][data-highlighted]"],
       ["aside", ".panel-navegacion__grupo"], ["aside [aria-current]", "aside [aria-current]"],
       [".panel-menu-movil", ".panel-menu-movil .panel-navegacion__destino:not([aria-current])"],
       [".panel-menu-movil", ".panel-menu-movil .panel-navegacion__grupo"],
@@ -256,15 +288,62 @@ try {
     assert.deepEqual(fallos, [], detalle);
     console.log(`PASS ${detalle}`);
   };
+  const comprobarDialogo = async (tema) => {
+    await clicTexto("Administradores", "aside button");
+    await hasta(() => texto("Nuevo Administrador", "main button"), "No cargó el formulario de administradores.");
+    await clicTexto("Nuevo Administrador", "main button");
+    await hasta(() => texto("Nuevo Administrador", '[role="dialog"]'), "No abrió el diálogo.");
+    await enfoque('[role="dialog"] [role="combobox"]');
+    await tecla("Enter", 13);
+    await hasta(() => texto("Presidente", '[role="listbox"]'), "No abrió el Select del diálogo.");
+    await comprobarContraste(`Los portales Dialog y Select mantienen el contraste del tema ${tema}`);
+    await tecla("Escape", 27);
+    await hasta(() => leer(() => !document.querySelector('[role="listbox"]')), "Escape no cerró el Select.");
+    await clicTexto("Cancelar", '[role="dialog"] button');
+    await hasta(() => leer(() => !document.querySelector('[role="dialog"]')), "Cancelar no cerró el diálogo.");
+    await clicTexto("Panel Principal", "aside button");
+  };
 
   await enviar("Runtime.enable");
   await enviar("Page.bringToFront");
-  await enviar("Emulation.setEmulatedMedia", { features: [
-    { name: "prefers-reduced-motion", value: "reduce" },
-    { name: "prefers-color-scheme", value: "light" },
-  ] });
+  await emularSistema("light");
   await ajustar(1440, 1050);
   await ir("/");
+  await hasta(() => texto("Iniciar sesión"), "No apareció el ingreso.");
+  await hasta(() => leer(() => document.querySelector("header img")?.naturalWidth > 0), "No cargó la marca en el ingreso.");
+  verificar(await aplicado("light"), "El ingreso inicia en claro con el sistema claro");
+  await tecla("Tab", 9);
+  verificar(await leer(() => document.activeElement?.matches('button[aria-label^="Tema visual:"]:focus-visible')
+    && getComputedStyle(document.activeElement).outlineWidth === "2px"), "El primer Tab enfoca el selector con contorno visible");
+  await comprobarContraste("Ingreso claro alcanza 4.5:1 en las muestras principales");
+  await pantalla("01-login-claro");
+  await cambiarTema("Oscuro", "dark");
+  await comprobarContraste("Ingreso oscuro alcanza 4.5:1 en las muestras principales");
+  await pantalla("02-login-oscuro");
+  await ir("/?sin-react");
+  await hasta(() => leer(() => location.search === "?sin-react" && document.readyState === "complete"),
+    "La comprobación previa al render no cargó el documento.");
+  verificar(await aplicado("dark") && await leer(() => !document.querySelector("#root").hasChildNodes()
+    && getComputedStyle(document.body).backgroundColor === "rgb(18, 20, 23)"),
+  "El fondo oscuro y color-scheme se aplican antes de React con sistema claro");
+  await ir("/");
+  await hasta(() => texto("Iniciar sesión"), "La recarga no mostró el ingreso.");
+  verificar(await aplicado("dark"), "La preferencia oscura persiste al recargar");
+  await cambiarTema("Sistema", "light");
+  await emularSistema("dark");
+  verificar(await hasta(() => aplicado("dark"), "El sistema no cambió a oscuro."),
+    "Sistema cambia a oscuro sin recargar");
+  await emularSistema("light");
+  verificar(await hasta(() => aplicado("light"), "El sistema no volvió a claro."),
+    "Sistema vuelve a claro sin recargar");
+  await ir("/?recarga-sistema");
+  await hasta(() => texto("Iniciar sesión"), "La recarga en Sistema no mostró el ingreso.");
+  verificar(await leer(() => localStorage.getItem("theme") === "system"
+    && Boolean(document.querySelector('[aria-label="Tema visual: Sistema"]'))), "Sistema persiste al recargar");
+  for (const anchoActual of [320, 390, 768, 1440]) {
+    await ajustar(anchoActual, 1050);
+    verificar(await ancho(anchoActual), `Ingreso sin desbordamiento a ${anchoActual} px`);
+  }
   await iniciar("qa-admin@example.invalid");
   await hasta(() => texto("Panel de administración", "main"), "No abrió el panel de administrador.");
   await hasta(() => leer(() => document.querySelector("aside img")?.naturalWidth > 0),
@@ -277,7 +356,8 @@ try {
   verificar(await texto("190.000", "main"), "Indicadores y ganancia neta de administrador conservan los valores");
   verificar(await ancho(1440), "Administrador sin desbordamiento a 1440 px");
   await comprobarContraste("Muestras de texto del administrador en tema claro alcanzan 4.5:1");
-  await pantalla("01-administrador-escritorio");
+  await pantalla("03-administrador-claro");
+  await comprobarDialogo("claro");
   for (const [acceso, destino] of [
     ["Gestionar colaboradores", "Colaboradores"], ["Gestionar eventos", "Eventos"],
     ["Gestionar gastos", "Gastos"], ["Ver registros de graduandos", "Registros de Graduandos"],
@@ -290,10 +370,14 @@ try {
     && document.querySelector(".panel-cabecera").textContent.includes("Laura Moreno")
     && !document.querySelector('[aria-label="Cambiar foto de perfil"]')),
   "La cabecera muestra la identidad de sesión sin habilitar un perfil Base44 sin vínculo");
-  await clic('[title="Modo oscuro"]');
-  await hasta(() => leer(() => document.documentElement.classList.contains("dark")), "El tema oscuro no se activó.");
+  await cambiarTema("Oscuro", "dark");
+  verificar(await texto("Laura Moreno", ".panel-cabecera") && await texto("Panel de administración", "main"),
+    "La sesión y la vista del administrador siguen activas al cambiar de tema");
   await comprobarContraste("El control de tema funciona y las muestras en oscuro alcanzan 4.5:1");
-  await clic('[title="Modo claro"]');
+  await pantalla("04-administrador-oscuro");
+  await comprobarDialogo("oscuro");
+  await ajustar(320, 760);
+  verificar(await ancho(320), "Administrador oscuro sin desbordamiento a 320 px");
 
   await ajustar(390, 844);
   verificar(await ancho(390), "Administrador sin desbordamiento a 390 px");
@@ -309,7 +393,7 @@ try {
   verificar(await leer(() => getComputedStyle(document.querySelector(".panel-menu-movil")).animationName === "none"),
     "El menú respeta la preferencia de movimiento reducido");
   await comprobarContraste("Los destinos y encabezados del menú móvil alcanzan 4.5:1");
-  await pantalla("02-administrador-menu-movil");
+  await pantalla("07-menu-movil-oscuro");
   await tecla("Escape", 27);
   verificar(await hasta(() => leer(s => !document.querySelector('[role="dialog"]')
     && document.activeElement.matches(s), disparador), "Escape no devuelve el foco."),
@@ -332,8 +416,10 @@ try {
   verificar(await ancho(768), "Administrador recupera los indicadores y se adapta a 768 px");
   await clic('[aria-label="Cerrar sesión"]');
   await hasta(() => leer(() => location.pathname === "/" && Boolean(document.querySelector("#correo"))), "No cerró la sesión de administrador.");
+  verificar(await aplicado("dark"), "Cerrar sesión conserva la preferencia visual");
 
   await ajustar(1440, 1000);
+  await cambiarTema("Claro", "light");
   await iniciar("qa-colaborador@example.invalid");
   await hasta(() => texto("Mariana Silva", "main"), "No abrió el panel de colaborador.");
   verificar(await leer(() => location.pathname === "/ColaboradorDashboard"
@@ -345,12 +431,16 @@ try {
   verificar(!(await texto("Andrea Rojas", "main")), "Indicadores y registros del colaborador conservan su alcance");
   verificar(await ancho(1440), "Colaborador sin desbordamiento a 1440 px");
   await comprobarContraste("Muestras de texto del colaborador y su acción principal alcanzan 4.5:1");
-  await pantalla("03-colaborador-escritorio");
+  await pantalla("05-colaborador-claro");
+  await cambiarTema("Oscuro", "dark");
+  await comprobarContraste("Colaborador oscuro alcanza 4.5:1 en las muestras principales");
+  verificar(await texto("Camila Ruiz", ".panel-cabecera") && await texto("Mariana Silva", "main"),
+    "La sesión y los registros del colaborador se conservan al cambiar de tema");
+  await pantalla("06-colaborador-oscuro");
   await ajustar(768);
   verificar(await ancho(768), "Colaborador sin desbordamiento a 768 px");
   await ajustar(390, 844);
   verificar(await ancho(390), "Colaborador sin desbordamiento a 390 px");
-  await pantalla("04-colaborador-movil");
   await ajustar(320, 760);
   await clicTexto("Ver más", "main button");
   verificar(await ancho(320) && await texto("Ocultar", "main"), "El detalle abre sin desbordamiento a 320 px");

@@ -19,7 +19,6 @@ import ResumenFinanciero from "@/features/finanzas/ResumenFinanciero";
 import Recomendaciones from "@/features/finanzas/Recomendaciones";
 import GestionAdministradores from "@/features/personal/GestionAdministradores";
 import ExportarExcel from "@/features/graduandos/ExportarExcel";
-import DarkModeToggle from "@/shared/components/DarkModeToggle";
 import GestionCorreos from "@/features/correo/GestionCorreos";
 import PapeleraGraduandos from "@/features/graduandos/PapeleraGraduandos";
 
@@ -114,7 +113,7 @@ export default function AdminDashboard({ identidad }) {
 
   return (
     <PanelOperativo grupos={gruposNavegacion} activo={activeTab} rol="Administrador" nombre={identidad.nombre}
-      alSeleccionar={setActiveTab} herramientas={<DarkModeToggle className="!size-11" />}>
+      alSeleccionar={setActiveTab}>
       <div className="panel-pagina">
         {activeTab !== "panel" && <h1 className="sr-only">{activeTabDef?.label}</h1>}
         {activeTab === "panel" && loading ? (

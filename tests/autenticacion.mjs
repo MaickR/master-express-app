@@ -107,11 +107,19 @@ try {
   });
 
   let numero = 0, envios = 0;
+  const respuestasLogin = [];
+  const solicitudesLogin = new Set();
   const pendientes = new Map();
   conexion.addEventListener('message', ({ data }) => {
     const evento = JSON.parse(data);
     if (evento.method === 'Network.requestWillBeSent' && evento.params.request.url === api + '/login'
-      && evento.params.request.method === 'POST') envios++;
+      && evento.params.request.method === 'POST') {
+      envios++;
+      solicitudesLogin.add(evento.params.requestId);
+    }
+    if (evento.method === 'Network.responseReceived' && solicitudesLogin.delete(evento.params.requestId)) {
+      respuestasLogin.push(evento.params.response.status);
+    }
     const llamada = pendientes.get(evento.id);
     if (!llamada) return;
     pendientes.delete(evento.id);
@@ -207,6 +215,8 @@ try {
   console.log('PASS A/F/Q Login anónimo, URL privada bloqueada incluso con localStorage legado y cuatro anchos.');
 
   await tecla('Tab', 'Tab', 9);
+  assert.match(await leer(() => document.activeElement.getAttribute('aria-label')), /^Tema visual:/);
+  await tecla('Tab', 'Tab', 9);
   assert.equal(await leer(() => document.activeElement.id), 'correo');
   await tecla('Tab', 'Tab', 9);
   assert.equal(await leer(() => document.activeElement.id), 'contrasena');
@@ -247,6 +257,15 @@ try {
   await digitar(cuentas[0].email, clave, 2);
   await panel('/AdminDashboard', 'Panel de administración');
   assert.equal(envios - enviosPrevios, 1);
+  await leer(() => document.querySelector('button[aria-label^="Tema visual:"]').focus());
+  await tecla('Enter', 'Enter', 13);
+  await hasta(() => leer(() => Boolean(document.querySelector('[role="menuitemradio"]'))), 'No abrió el selector de tema.');
+  await leer(() => [...document.querySelectorAll('[role="menuitemradio"]')]
+    .find(item => item.textContent.trim() === 'Oscuro').click());
+  await hasta(() => leer(() => document.documentElement.classList.contains('dark')), 'No se aplicó el tema oscuro.');
+  await panel('/AdminDashboard', 'Panel de administración');
+  assert.equal(envios - enviosPrevios, 1);
+  console.log('PASS Cambio de tema conserva la sesión real de Laravel y el panel.');
   await pantalla('03-panel-administrador-1440');
   await navegar('/AdminDashboard');
   await panel('/AdminDashboard', 'Panel de administración');
@@ -302,17 +321,20 @@ try {
   await navegar('/');
   await hasta(() => texto('Acceso no disponible'), 'No apareció el error de conexión.');
   await cdp('Network.setBlockedURLs', { urls: [] });
-  await clic('main button');
+  await clic('main section button');
   await loginVisible();
-  for (let intento = 0; intento < 5; intento++) {
-    await digitar(correo('ausente'), clave);
-    const resultado = await hasta(mensaje, 'No respondió el limitador de Laravel.');
-    if (/Demasiados intentos/.test(resultado)) {
-      assert(await leer(() => document.querySelector('button[type="submit"]').disabled));
-      break;
+  // Usa un correo nuevo para que las comprobaciones anteriores no consuman la ventana del limitador.
+  for (let intento = 0; intento < 6; intento++) {
+    const anteriores = respuestasLogin.length;
+    await digitar(correo('limite'), clave);
+    await hasta(() => respuestasLogin.length > anteriores, 'No respondió el limitador de Laravel.');
+    assert.equal(respuestasLogin[anteriores], intento === 5 ? 429 : 422);
+    if (intento < 5) {
+      await hasta(() => leer(() => !document.querySelector('button[type="submit"]').disabled), 'El formulario siguió ocupado.');
     }
-    assert(intento < 4, 'Laravel no devolvió el límite de intentos.');
   }
+  assert.match(await hasta(mensaje, 'No se mostró el mensaje del limitador.'), /Demasiados intentos/);
+  assert(await leer(() => document.querySelector('button[type="submit"]').disabled));
   console.log('PASS M/N Limitación real 429 y recuperación tras error de conexión.');
 } finally {
   conexion?.close();

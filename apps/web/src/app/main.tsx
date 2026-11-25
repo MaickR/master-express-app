@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import App from '@/app/App'
+import ProveedorTema from '@/shared/components/proveedor-tema'
 import '@/app/index.css'
 
 const raiz = document.getElementById('root')
@@ -7,7 +8,7 @@ if (!raiz) {
   throw new Error('Falta el elemento raíz de MasterExpress Control.')
 }
 
-createRoot(raiz).render(<App />)
+createRoot(raiz).render(<ProveedorTema><App /></ProveedorTema>)
 
 if (import.meta.hot) {
   import.meta.hot.on('vite:beforeUpdate', () => {
