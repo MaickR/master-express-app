@@ -136,6 +136,146 @@
 .dark ::-webkit-scrollbar-thumb {
   background: hsl(208 55% 40%);
 }
+
+@layer components {
+  .panel-operativo,
+  .panel-menu-movil {
+    --panel-accion: 209 72% 36%;
+    --panel-accion-texto: 0 0% 100%;
+    --panel-accion-suave: 209 75% 94%;
+    --panel-exito: 156 68% 24%;
+    --panel-exito-suave: 152 46% 93%;
+    --panel-aviso: 29 79% 29%;
+    --panel-aviso-suave: 40 81% 92%;
+    --panel-dorado: 36 62% 75%;
+  }
+
+  .dark :is(.panel-operativo, .panel-menu-movil) {
+    --panel-accion: 207 84% 78%;
+    --panel-accion-texto: 222 60% 18%;
+    --panel-accion-suave: 217 42% 23%;
+    --panel-exito: 152 57% 73%;
+    --panel-exito-suave: 158 36% 19%;
+    --panel-aviso: 41 78% 77%;
+    --panel-aviso-suave: 34 48% 22%;
+  }
+
+  .panel-operativo { @apply flex min-h-screen bg-background text-foreground; }
+  .panel-lateral {
+    @apply sticky top-0 h-dvh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground;
+  }
+  .panel-marca {
+    @apply flex shrink-0 items-center gap-3 border-b border-sidebar-border px-5 py-5 text-sm font-semibold leading-tight;
+  }
+  .panel-marca img { @apply size-10 shrink-0 rounded-lg bg-white object-contain p-1; }
+  .panel-marca strong { @apply block font-semibold; color: hsl(var(--panel-dorado)); }
+  .panel-navegacion { @apply min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-5; }
+  .panel-navegacion__grupo {
+    @apply mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider;
+    color: hsl(210 28% 75%);
+  }
+  .panel-navegacion__destino {
+    @apply flex min-h-11 w-full items-center gap-2.5 rounded-lg border border-transparent px-3 py-2 text-left text-sm leading-snug;
+  }
+  .panel-navegacion__destino:hover { @apply bg-sidebar-accent text-sidebar-accent-foreground; }
+  .panel-navegacion__destino[aria-current="page"] {
+    @apply border-sidebar-border bg-sidebar-accent font-semibold text-sidebar-accent-foreground;
+    box-shadow: inset 3px 0 hsl(var(--panel-dorado));
+  }
+  .panel-navegacion__destino:focus-visible,
+  .panel-menu-movil > button:focus-visible {
+    outline: 2px solid hsl(var(--panel-dorado));
+    outline-offset: -2px;
+  }
+
+  .panel-menu-movil {
+    @apply flex max-w-80 flex-col gap-0 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground;
+    width: min(90vw, 20rem);
+    padding-top: env(safe-area-inset-top);
+  }
+  .panel-menu-movil > button {
+    @apply right-2 top-4 grid size-11 place-items-center opacity-100 hover:bg-sidebar-accent;
+    top: calc(1rem + env(safe-area-inset-top));
+  }
+
+  .panel-cabecera {
+    @apply sticky top-0 z-20 flex min-h-16 items-center justify-between gap-2 border-b border-border bg-card px-3 py-2 sm:px-6 lg:px-8;
+    padding-top: calc(.5rem + env(safe-area-inset-top));
+  }
+  .panel-icono-boton { @apply grid size-11 shrink-0 place-items-center rounded-lg text-foreground hover:bg-muted; }
+  .panel-avatar {
+    @apply grid size-9 shrink-0 place-items-center overflow-hidden rounded-full text-xs font-bold;
+    background: hsl(var(--panel-accion-suave));
+    color: hsl(var(--panel-accion));
+  }
+  button.panel-avatar { @apply size-11 border border-border; }
+  .panel-salto {
+    @apply sr-only;
+  }
+  .panel-salto:focus {
+    @apply not-sr-only fixed left-3 top-3 z-[60] rounded-lg bg-card px-4 py-3 font-semibold text-foreground;
+  }
+  .panel-contenido { @apply min-w-0; scroll-margin-top: 5rem; }
+  .panel-contenido:focus { outline: none; }
+  .panel-pagina { @apply mx-auto max-w-[100rem] space-y-7 p-4 sm:p-6 lg:p-8; }
+  .panel-portada {
+    @apply flex flex-col gap-5 rounded-2xl border border-border bg-card p-5 sm:p-7 md:flex-row md:items-center md:justify-between;
+    background-image: linear-gradient(115deg, hsl(var(--panel-accion-suave)), transparent 75%);
+  }
+  .panel-portada h1 { @apply break-words font-heading text-2xl font-bold tracking-tight sm:text-3xl; }
+  .panel-portada p { @apply mt-1.5 break-words text-sm leading-relaxed text-muted-foreground; }
+  .panel-accion {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-lg px-4 py-2 text-center text-sm font-semibold;
+    background: hsl(var(--panel-accion));
+    color: hsl(var(--panel-accion-texto));
+  }
+  .panel-accion:hover { text-decoration: underline; }
+  .panel-icono-boton:focus-visible,
+  .panel-avatar:focus-visible,
+  .panel-accion:focus-visible,
+  .panel-acceso:focus-visible,
+  .panel-salto:focus-visible {
+    outline: 2px solid hsl(var(--panel-accion));
+    outline-offset: 2px;
+  }
+  .panel-indicadores {
+    @apply grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4;
+  }
+  .panel-indicador { @apply min-w-0 rounded-xl border border-border bg-card p-3.5 sm:p-4; }
+  .panel-indicador dt { @apply text-xs font-medium text-muted-foreground sm:text-sm; }
+  .panel-indicador dd { @apply mt-1 break-words font-heading text-lg font-bold leading-tight tabular-nums sm:text-xl; }
+  .panel-indicador__icono {
+    @apply grid size-9 place-items-center rounded-lg;
+    background: hsl(var(--panel-accion-suave));
+    color: hsl(var(--panel-accion));
+  }
+  .panel-indicador__icono[data-tono="exito"],
+  .panel-resultado[data-estado="positivo"] {
+    background: hsl(var(--panel-exito-suave));
+    color: hsl(var(--panel-exito));
+  }
+  .panel-indicador__icono[data-tono="aviso"],
+  .panel-resultado[data-estado="negativo"] {
+    background: hsl(var(--panel-aviso-suave));
+    color: hsl(var(--panel-aviso));
+  }
+  .panel-indicador__icono[data-tono="neutro"] { @apply bg-muted text-foreground; }
+  .panel-texto-accion { color: hsl(var(--panel-accion, var(--primary))); }
+  button.panel-texto-accion:hover { color: hsl(var(--panel-accion, var(--primary))); }
+  .panel-acceso {
+    @apply flex min-w-0 items-start gap-3 rounded-xl border border-border bg-card p-4 text-left hover:bg-muted;
+  }
+  .panel-estado { @apply grid min-h-48 place-content-center gap-3 rounded-xl border border-border bg-card p-5 text-center; }
+  .dark .panel-operativo { --muted-foreground: 210 25% 72%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-operativo *, .panel-menu-movil * {
+    animation-duration: .01ms !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
 .dark ::-webkit-scrollbar-thumb:hover {
   background: hsl(208 55% 55%);
 }
