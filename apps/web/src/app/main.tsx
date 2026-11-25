@@ -1,13 +1,13 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from '@/app/App.jsx'
+import { createRoot } from 'react-dom/client'
+import App from '@/app/App'
 import '@/app/index.css'
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  // <React.StrictMode>
-  <App />
-  // </React.StrictMode>,
-)
+const raiz = document.getElementById('root')
+if (!raiz) {
+  throw new Error('Falta el elemento raíz de MasterExpress Control.')
+}
+
+createRoot(raiz).render(<App />)
 
 if (import.meta.hot) {
   import.meta.hot.on('vite:beforeUpdate', () => {

@@ -11,17 +11,26 @@ import { AuthProvider, useAuth } from '@/integrations/base44/AuthContext';
 import UserNotRegisteredError from '@/shared/components/UserNotRegisteredError';
 
 const { Pages, Layout, mainPage } = pagesConfig;
-const mainPageKey = mainPage ?? Object.keys(Pages)[0];
-const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
+const MainPage = Pages[mainPage];
 
-const LayoutWrapper = ({ children, currentPageName }) => Layout ?
+type PropsLayout = Parameters<typeof Layout>[0];
+
+// * Contrato que consume el router del contexto de Base44 en JSX.
+type EstadoAcceso = {
+  isLoadingAuth: boolean;
+  isLoadingPublicSettings: boolean;
+  authError: { type: string } | null;
+  navigateToLogin: () => void;
+};
+
+const LayoutWrapper = ({ children, currentPageName }: PropsLayout) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
   : <>{children}</>;
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin }: EstadoAcceso = useAuth();
 
-  // Show loading spinner while checking app public settings or auth
+  // La navegación espera la configuración pública y el estado de sesión.
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
@@ -30,18 +39,15 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Handle authentication errors
   if (authError) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
       navigateToLogin();
       return null;
     }
   }
 
-  // Render the main app
   return (
     <Routes>
       <Route path="/" element={<MainPage />} />

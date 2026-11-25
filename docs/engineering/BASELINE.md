@@ -1,8 +1,18 @@
 # Línea base técnica de MasterExpress Control
 
+## Fundamento TypeScript desde ME-TS1
+
+La entrada es `apps/web/src/app/main.tsx`. Se migraron la composición de React y del router (`App.tsx`), el registro de páginas (`pages.config.ts`), el cliente compartido de TanStack Query (`query-client.ts`), el combinador de clases (`utils.ts`) y el panel desplegable de navegación móvil (`sheet.tsx`). Cada archivo migrado reemplaza su equivalente JS o JSX. El Layout conserva JSX con su contrato de props en JSDoc, que también usa el router.
+
+`apps/web/tsconfig.json` hereda los alias y la resolución para Vite de `jsconfig.json`. Usa TypeScript estricto sin emitir código y permite importar JS/JSX. Vite conserva la transpilación y el plugin de React. `npm run typecheck` cubre todo TS/TSX bajo `src`. `npm run typecheck:legacy` conserva la revisión `checkJs` anterior con 415 diagnósticos idénticos a la base `b26a865`. ESLint conserva sus 8 errores heredados en los mismos archivos y ubicaciones.
+
+Hay 7 archivos TS/TSX de 92 archivos fuente JS, JSX, TS o TSX bajo `apps/web/src`. Seis corresponden a ME-TS1 y uno ya era TypeScript. Vite inició y compiló en una copia aislada con configuración ficticia. HMR actualizó CSS y Fast Refresh aplicó un cambio de `App.tsx` conservando el formulario y su valor en Chrome. Las suites de papelera y vínculo pasaron con datos ficticios. La suite de interfaz pasó completa en Edge. Chrome reprodujo el fallo heredado de retorno del foco con Escape, tanto en la base como con ME-TS1.
+
+Para ME-TS2 quedan el tipado del proveedor y los adaptadores de Base44, el Layout, los hooks y los componentes de panel que siguen en JSX, y el vínculo de ceremonias con graduandos. El router consume un contrato acotado del proveedor heredado. Las pruebas de ME-TS1 cubren la demostración aislada y las funciones simuladas de Base44 y correo.
+
 ## Estructura vigente desde ME-A1
 
-La aplicación web tiene una sola entrada en `apps/web/index.html` y arranca desde `apps/web/src/app/main.jsx`. Vite sirve `apps/web` y el alias `@/` apunta a `apps/web/src`. El manifiesto de npm, el lockfile, ESLint, el entorno local y la salida `dist/` conservan su ubicación en la raíz. El plugin de Base44 consulta el entorno de esa raíz antes de aplicar la raíz web de Vite.
+ME-A1 estableció una sola entrada HTML en `apps/web/index.html`. Vite sirve `apps/web` y el alias `@/` apunta a `apps/web/src`. El manifiesto de npm, el lockfile, ESLint, el entorno local y la salida `dist/` conservan su ubicación en la raíz. El plugin de Base44 consulta el entorno de esa raíz antes de aplicar la raíz web de Vite.
 
 | Origen | Destino dentro de `apps/web` |
 | --- | --- |

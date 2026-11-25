@@ -2,7 +2,7 @@ import Home from '../features/acceso/Home';
 import AdminDashboard from '../features/paneles/AdminDashboard';
 import ColaboradorDashboard from '../features/paneles/ColaboradorDashboard';
 import RegistroGraduando from '../features/graduandos/RegistroGraduando';
-import __Layout from './Layout.jsx';
+import Layout from './Layout';
 
 export const PAGES = {
     "Home": Home,
@@ -14,5 +14,9 @@ export const PAGES = {
 export const pagesConfig = {
     mainPage: "Home",
     Pages: PAGES,
-    Layout: __Layout,
+    Layout,
+} satisfies {
+    mainPage: keyof typeof PAGES;
+    Pages: typeof PAGES;
+    Layout: typeof Layout;
 };

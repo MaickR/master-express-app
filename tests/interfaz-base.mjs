@@ -73,7 +73,7 @@ const clienteLocal = `
 `;
 
 const { outputFiles: [bundle] } = await build({
-  absWorkingDir: proyecto, entryPoints: ["apps/web/src/app/main.jsx"], bundle: true, write: false, jsx: "automatic",
+  absWorkingDir: proyecto, entryPoints: ["apps/web/src/app/main.tsx"], bundle: true, write: false, jsx: "automatic",
   loader: { ".css": "empty" },
   define: { "import.meta.env": "{}", "import.meta.hot": "undefined", "process.env.NODE_ENV": '"production"' },
   plugins: [{
@@ -94,7 +94,7 @@ const { outputFiles: [bundle] } = await build({
   }],
 });
 
-const pagina = html.replace('<script type="module" src="/src/app/main.jsx"></script>', '<script defer src="/prueba.js"></script>')
+const pagina = html.replace('<script type="module" src="/src/app/main.tsx"></script>', '<script defer src="/prueba.js"></script>')
   .replace("</head>", '<link rel="stylesheet" href="/prueba.css" /></head>');
 const recursos = {
   "/prueba.js": ["text/javascript", bundle.contents],
