@@ -200,23 +200,23 @@ const { outputFiles: [bundle] } = await build({
       import React, { act } from "react";
       import { createRoot } from "react-dom/client";
       import { MemoryRouter } from "react-router-dom";
-      import Gestion from "@/components/admin/GestionEventos";
-      import Registro from "@/pages/RegistroGraduando";
-      import Todos from "@/components/admin/TodosRegistros";
-      import { base44, operaciones } from "@/api/base44Client";
+      import Gestion from "@/features/ceremonias/GestionEventos";
+      import Registro from "@/features/graduandos/RegistroGraduando";
+      import Todos from "@/features/graduandos/TodosRegistros";
+      import { base44, operaciones } from "@/integrations/base44/base44Client";
       (${verificarCircuito})({ React, act, createRoot, MemoryRouter, base44, Gestion, Registro, Todos, operaciones });
     `,
   },
   plugins: [{
     name: "aislamiento-base44",
     setup(contexto) {
-      contexto.onResolve({ filter: /^@\/(api\/base44Client|lib\/emailService)$/ }, ({ path }) => ({
+      contexto.onResolve({ filter: /^@\/(integrations\/base44\/base44Client|integrations\/emailjs\/emailService)$/ }, ({ path }) => ({
         path, namespace: "prueba",
       }));
       contexto.onLoad({ filter: /base44Client$/, namespace: "prueba" }, () => ({
         resolveDir: proyecto,
         contents: `
-          import { createLocalEntities } from "@/api/localEntities";
+          import { createLocalEntities } from "@/integrations/base44/localEntities";
           export const operaciones = [];
           export const base44 = {
             entities: createLocalEntities(),
@@ -230,12 +230,12 @@ const { outputFiles: [bundle] } = await build({
       contexto.onLoad({ filter: /emailService$/, namespace: "prueba" }, () => ({
         resolveDir: proyecto,
         contents: `
-          import { operaciones } from "@/api/base44Client";
+          import { operaciones } from "@/integrations/base44/base44Client";
           export async function sendRegistroGraduandoEmail() { operaciones.push("correo"); }
         `,
       }));
       contexto.onResolve({ filter: /^@\// }, ({ path }) =>
-        contexto.resolve("./src/" + path.slice(2), { resolveDir: proyecto, kind: "import-statement" }));
+        contexto.resolve("./apps/web/src/" + path.slice(2), { resolveDir: proyecto, kind: "import-statement" }));
     },
   }],
 });

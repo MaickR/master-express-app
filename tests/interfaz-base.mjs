@@ -14,17 +14,18 @@ import tailwindcss from "tailwindcss";
 const [navegador, capturas] = process.argv.slice(2);
 assert(navegador, "Indica la ruta al ejecutable de Chrome o Edge.");
 const proyecto = fileURLToPath(new URL("..", import.meta.url));
-const archivoCss = join(proyecto, "src", "index.css");
+const web = join(proyecto, "apps", "web");
+const archivoCss = join(web, "src", "app", "index.css");
 const [css, html, logo] = await Promise.all([
   readFile(archivoCss, "utf8"),
-  readFile(join(proyecto, "index.html"), "utf8"),
-  readFile(join(proyecto, "public", "master-express.png")),
+  readFile(join(web, "index.html"), "utf8"),
+  readFile(join(web, "public", "master-express.png")),
 ]);
-const estilos = await postcss([tailwindcss({ config: join(proyecto, "tailwind.config.js") })])
+const estilos = await postcss([tailwindcss({ config: join(web, "tailwind.config.js") })])
   .process(css.replace(/^@import .*;\r?\n/, ""), { from: archivoCss });
 
 const clienteLocal = `
-  import { createLocalEntities } from "@/api/localEntities";
+  import { createLocalEntities } from "@/integrations/base44/localEntities";
   const entidades = createLocalEntities();
   const fecha = new Date().toISOString().slice(0, 10);
   const eliminacion = new Date(Date.now() - 12 * 86400000).toISOString();
@@ -72,7 +73,7 @@ const clienteLocal = `
 `;
 
 const { outputFiles: [bundle] } = await build({
-  absWorkingDir: proyecto, entryPoints: ["src/main.jsx"], bundle: true, write: false, jsx: "automatic",
+  absWorkingDir: proyecto, entryPoints: ["apps/web/src/app/main.jsx"], bundle: true, write: false, jsx: "automatic",
   loader: { ".css": "empty" },
   define: { "import.meta.env": "{}", "import.meta.hot": "undefined", "process.env.NODE_ENV": '"production"' },
   plugins: [{
@@ -88,13 +89,13 @@ const { outputFiles: [bundle] } = await build({
         contents: "export const AuthProvider = ({ children }) => children; export const useAuth = () => ({});",
       }));
       contexto.onResolve({ filter: /^@\// }, ({ path }) =>
-        contexto.resolve("./src/" + path.slice(2), { resolveDir: proyecto, kind: "import-statement" }));
+        contexto.resolve("./apps/web/src/" + path.slice(2), { resolveDir: proyecto, kind: "import-statement" }));
     },
   }],
 });
 
-const pagina = html.replace('<script type="module" src="/src/main.jsx"></script>', '<script defer src="/prueba.js"></script>')
-  .replace('<link rel="manifest" href="/manifest.json" />', '<link rel="stylesheet" href="/prueba.css" />');
+const pagina = html.replace('<script type="module" src="/src/app/main.jsx"></script>', '<script defer src="/prueba.js"></script>')
+  .replace("</head>", '<link rel="stylesheet" href="/prueba.css" /></head>');
 const recursos = {
   "/prueba.js": ["text/javascript", bundle.contents],
   "/prueba.css": ["text/css", estilos.css],
