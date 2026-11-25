@@ -30,7 +30,7 @@ function GraduandoCard({ g, index }) {
         {/* Vista principal */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h4 className="text-xl font-bold text-primary font-heading leading-tight">
+            <h4 className="panel-texto-accion break-words text-xl font-bold font-heading leading-tight">
               {g.nombre_completo}
             </h4>
             <div className="mt-1 space-y-0.5">
@@ -42,7 +42,7 @@ function GraduandoCard({ g, index }) {
             variant="ghost"
             size="sm"
             onClick={() => setExpanded(!expanded)}
-            className="shrink-0 text-xs text-primary hover:text-primary/80 hover:bg-primary/5 gap-1"
+            className="panel-texto-accion min-h-11 shrink-0 gap-1 text-xs hover:bg-muted"
           >
             {expanded ? <><ChevronUp className="w-3.5 h-3.5" />Ocultar</> : <><ChevronDown className="w-3.5 h-3.5" />Ver más</>}
           </Button>
