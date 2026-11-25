@@ -33,6 +33,10 @@
             "@php artisan config:clear --ansi @no_additional_args",
             "@php artisan test"
         ],
+        "test:mysql": [
+            "@php artisan config:clear --ansi @no_additional_args",
+            "@php vendor/bin/phpunit --configuration phpunit.xml tests/MySql"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
