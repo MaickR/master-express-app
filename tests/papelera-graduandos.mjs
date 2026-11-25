@@ -108,8 +108,8 @@ const { outputFiles: [bundle] } = await build({
     contents: `
       import React, { act } from "react";
       import { createRoot } from "react-dom/client";
-      import Papelera from "@/components/admin/PapeleraGraduandos";
-      import { graduandos } from "@/api/base44Client";
+      import Papelera from "@/features/graduandos/PapeleraGraduandos";
+      import { graduandos } from "@/integrations/base44/base44Client";
       (${comprobarPapelera})(React, createRoot, act, Papelera, graduandos);
     `,
   },
@@ -118,12 +118,12 @@ const { outputFiles: [bundle] } = await build({
   plugins: [{
     name: "cliente-base44-ficticio",
     setup(contexto) {
-      contexto.onResolve({ filter: /^@\/api\/base44Client$/ }, () => ({
+      contexto.onResolve({ filter: /^@\/integrations\/base44\/base44Client$/ }, () => ({
         path: "base44-ficticio", namespace: "prueba",
       }));
       contexto.onLoad({ filter: /.*/, namespace: "prueba" }, () => ({ contents: clienteFicticio }));
       contexto.onResolve({ filter: /^@\// }, ({ path }) =>
-        contexto.resolve("./src/" + path.slice(2), { resolveDir: proyecto, kind: "import-statement" }));
+        contexto.resolve("./apps/web/src/" + path.slice(2), { resolveDir: proyecto, kind: "import-statement" }));
     },
   }],
 });

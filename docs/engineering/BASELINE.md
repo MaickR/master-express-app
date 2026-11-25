@@ -1,6 +1,33 @@
 # Línea base técnica de MasterExpress Control
 
-## Inventario comprobado en ME-G0
+## Estructura vigente desde ME-A1
+
+La aplicación web tiene una sola entrada en `apps/web/index.html` y arranca desde `apps/web/src/app/main.jsx`. Vite sirve `apps/web` y el alias `@/` apunta a `apps/web/src`. El manifiesto de npm, el lockfile, ESLint, el entorno local y la salida `dist/` conservan su ubicación en la raíz. El plugin de Base44 consulta el entorno de esa raíz antes de aplicar la raíz web de Vite.
+
+| Origen | Destino dentro de `apps/web` |
+| --- | --- |
+| `index.html`, Vite, PostCSS, Tailwind, shadcn/ui y `jsconfig.json` | Raíz web |
+| `src/main.jsx`, `App`, `Layout`, `pages.config`, estilos globales y `src/lib/PageNotFound.jsx` | `src/app/` |
+| Inicio y consentimiento OAuth de `src/pages/` | `src/features/acceso/` |
+| Paneles de Administrador y Colaborador de `src/pages/` | `src/features/paneles/` |
+| Registro, consulta, exportación y papelera de graduandos | `src/features/graduandos/` |
+| Componentes administrativos de eventos, precios, gastos, resumen, recomendaciones, correo, personal y reportes | `src/features/{ceremonias,ventas,finanzas,correo,personal,reportes}/` |
+| Componentes transversales, shadcn/ui, hook de móvil y utilidades de `src/lib/` y `src/utils/` | `src/shared/{components,ui,hooks,lib,utils}/` |
+| `src/api/` y contexto, parámetros y agentes de Base44 de `src/lib/` | `src/integrations/base44/` |
+| `src/lib/emailService.js` | `src/integrations/emailjs/` |
+| `src/assets/` y `public/` | `src/assets/` y `public/` |
+
+Las rutas públicas siguen siendo `/`, `/Home`, `/AdminDashboard`, `/ColaboradorDashboard` y `/RegistroGraduando`. El consentimiento OAuth se conserva como código sin entrada en el registro de rutas. Se retiró del HTML la referencia a `/manifest.json`, cuyo archivo no existía en la base.
+
+Base44 sigue proporcionando el SDK, la autenticación conectada, entidades, archivos, integraciones remotas y registro de navegación. Se conservan el plugin Vite, su compatibilidad legado y la configuración y los esquemas en `base44/`. El modo de demostración conserva el adaptador de entidades locales con persistencia en `localStorage`. EmailJS conserva el envío de correo existente.
+
+Ejecute los comandos de [desarrollo y pruebas](../../README.md#desarrollo-local) desde la raíz. La comparación de ME-A1 sobre `fca7683` obtuvo los mismos 8 errores de ESLint y 415 diagnósticos de TypeScript antes y después del traslado, con equivalencia por archivo reubicado y diagnóstico.
+
+En QA con datos ficticios, Vite sirvió ambos paneles, la navegación móvil y los recursos locales. Se comprobaron HMR de CSS y React Fast Refresh con la página abierta. Las suites de papelera, vínculo e interfaz completaron sus verificaciones. La prueba de retorno del foco con Escape presentó fallos intermitentes desde la base. La conexión remota con Base44 y el envío real de correo quedaron fuera de esta validación.
+
+La siguiente etapa propuesta es tipar el módulo de vínculo entre ceremonias y graduandos, comenzando por los datos que consumen los selectores y la validación de pertenencia, y repetir la suite de vínculo. `apps/api/` queda como destino de la futura implementación de Laravel.
+
+## Inventario histórico de ME-G0
 
 | Ruta | Contenido observado |
 | --- | --- |
