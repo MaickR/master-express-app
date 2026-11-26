@@ -113,8 +113,8 @@ export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccio
               </SheetContent>
             </Sheet>
             <div className="min-w-0">
-              <p className="truncate text-[11px] font-semibold text-muted-foreground lg:hidden">MasterExpress Control</p>
-              <p className="truncate text-sm font-semibold sm:text-base">{seccion}</p>
+              <p className="break-words dark:truncate text-[11px] font-semibold text-muted-foreground lg:hidden">MasterExpress Control</p>
+              <p className="break-words dark:truncate text-sm font-semibold sm:text-base">{seccion}</p>
             </div>
           </div>
           <div className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
@@ -122,7 +122,7 @@ export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccio
             <div className="flex min-w-0 items-center gap-2.5 sm:ml-1">
               {avatar || <span aria-hidden="true" className="panel-avatar">{iniciales}</span>}
               <div className="hidden min-w-0 sm:block">
-                <p className="max-w-44 truncate text-sm font-semibold" title={nombre || rol}>{nombre || rol}</p>
+                <p className="max-w-44 break-words dark:truncate text-sm font-semibold" title={nombre || rol}>{nombre || rol}</p>
                 <p className="text-xs text-muted-foreground">{rol}</p>
               </div>
             </div>

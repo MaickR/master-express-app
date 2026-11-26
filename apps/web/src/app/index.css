@@ -13,21 +13,27 @@
 @layer base {
   :root {
     color-scheme: light;
-    --background: 45 33.3% 97.6%;
+    --background: 45 33.3333% 97.6471%;
     --foreground: 222.9 13.7% 10%;
     --card: 0 0% 100%;
     --card-foreground: 222.9 13.7% 10%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.9 13.7% 10%;
-    --primary: 31.3 51.8% 26.9%;
-    --primary-foreground: 0 0% 100%;
-    --primary-suave: 31.3 53.5% 91.6%;
+    --primary: 36.2903 52.5424% 46.2745%;
+    --primary-foreground: var(--foreground);
+    --interactivo: 33.0612 53.8462% 35.6863%;
+    --primary-suave: var(--accent);
+    --primary-suave-foreground: var(--foreground);
+    --insignia: var(--primary-suave);
+    --insignia-foreground: var(--primary-suave-foreground);
     --secondary: 38.8 29.8% 88.8%;
     --secondary-foreground: 30 27.3% 17.3%;
     --muted: 45 20% 92.2%;
     --muted-foreground: 216 8.1% 36.3%;
-    --accent: 35.6 49.1% 89.2%;
+    --accent: 35.7143 48.8372% 83.1373%;
     --accent-foreground: 30 27.3% 17.3%;
+    --texto-acento: var(--accent-foreground);
+    --texto-secundario: var(--secondary-foreground);
     --destructive: 354.6 61% 39.2%;
     --destructive-foreground: 0 0% 100%;
     --error: 350.6 60.9% 35.1%;
@@ -38,17 +44,17 @@
     --aviso-suave: 39.5 79.2% 90.6%;
     --border: 38.8 20.5% 83.7%;
     --input: 35 9.4% 49.8%;
-    --ring: 31.5 57.9% 33.5%;
+    --ring: var(--interactivo);
     --sidebar-background: 222.9 13.7% 10%;
     --sidebar-foreground: 45 33.3% 97.6%;
-    --sidebar-primary: 36 62.5% 74.9%;
-    --sidebar-primary-foreground: 222.9 13.7% 10%;
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
     --sidebar-accent: 32 17.2% 17.1%;
     --sidebar-accent-foreground: 45 33.3% 97.6%;
     --sidebar-border: 25.7 5.3% 25.7%;
-    --sidebar-ring: 36 62.5% 74.9%;
+    --sidebar-ring: var(--primary);
     --sidebar-muted: 33.8 11.9% 73.7%;
-    --sidebar-marca: 36 62.5% 74.9%;
+    --sidebar-marca: var(--primary);
     --marca-placa: 45 33.3% 97.6%;
     --chart-1: 208 65% 55%;
     --chart-2: 4 55% 62%;
@@ -69,12 +75,18 @@
     --primary: 36 62.5% 74.9%;
     --primary-foreground: 32.5 50% 9.4%;
     --primary-suave: 31.4 25.9% 15.9%;
+    --interactivo: var(--primary);
+    --primary-suave-foreground: var(--primary);
+    --insignia: var(--primary);
+    --insignia-foreground: var(--primary-foreground);
     --secondary: 30 8.3% 18.8%;
     --secondary-foreground: 36.9 39.4% 93.5%;
     --muted: 218.2 12.9% 16.7%;
     --muted-foreground: 38.2 8.5% 74.7%;
     --accent: 31.2 25.8% 19%;
     --accent-foreground: 35.2 78.4% 92.7%;
+    --texto-acento: var(--accent);
+    --texto-secundario: var(--secondary);
     --destructive: 351.9 55.1% 42%;
     --destructive-foreground: 0 0% 100%;
     --error: 351.8 100% 85.7%;
@@ -88,14 +100,14 @@
     --ring: 36 62.5% 74.9%;
     --sidebar-background: 216 13.5% 7.3%;
     --sidebar-foreground: 36.9 39.4% 93.5%;
-    --sidebar-primary: 36 62.5% 74.9%;
-    --sidebar-primary-foreground: 222.9 13.7% 10%;
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
     --sidebar-accent: 32 17.2% 17.1%;
     --sidebar-accent-foreground: 45 33.3% 97.6%;
     --sidebar-border: 25.7 6.3% 21.8%;
-    --sidebar-ring: 36 62.5% 74.9%;
+    --sidebar-ring: var(--primary);
     --sidebar-muted: 33.8 11.9% 73.7%;
-    --sidebar-marca: 36 62.5% 74.9%;
+    --sidebar-marca: var(--primary);
     --chart-1: 208 55% 52%;
     --chart-2: 4 50% 58%;
     --chart-3: 160 45% 42%;
@@ -134,38 +146,151 @@
 
 @layer components {
   .acceso {
-    --acceso-luz: var(--primary-suave);
-    --acceso-resplandor: .9;
-    --acceso-textura: .045;
-    background-color: hsl(var(--background));
+    --acceso-dorado: hsl(var(--primary));
+    --acceso-fondo: hsl(var(--background));
+    --acceso-superficie: #fdfbf7;
+    --acceso-marca: #f0e8da;
+    --acceso-enlace: hsl(var(--interactivo));
+    --acceso-enlace-hover: hsl(var(--foreground));
+    --acceso-marca-texto: hsl(var(--accent-foreground));
+    --acceso-accion: var(--acceso-dorado);
+    --acceso-accion-hover: #bd8b44;
+    --acceso-accion-texto: hsl(var(--primary-foreground));
+    --acceso-sombra: 47 34 17;
+    --acceso-textura: .04;
+    background-color: var(--acceso-fondo);
     background-image:
       radial-gradient(hsl(var(--foreground) / var(--acceso-textura)) .55px, transparent .9px),
-      radial-gradient(ellipse 40rem 32rem at 32% 20%, hsl(var(--acceso-luz) / var(--acceso-resplandor)), transparent 100%),
-      radial-gradient(ellipse 35rem 28rem at 76% 76%, hsl(var(--primary-suave) / .56), transparent 100%);
+      radial-gradient(ellipse 38rem 29rem at 22% 18%, color-mix(in srgb, var(--acceso-dorado) 13%, transparent), transparent),
+      radial-gradient(ellipse 38rem 29rem at 78% 82%, hsl(var(--primary-suave) / .55), transparent);
     background-size: 7px 7px, auto, auto;
   }
   .dark .acceso {
-    --acceso-luz: var(--primary);
-    --acceso-resplandor: .14;
-    --acceso-textura: .06;
+    --acceso-dorado: #b48338;
+    --acceso-marca-texto: var(--acceso-enlace);
+    --acceso-fondo: #121417;
+    --acceso-superficie: #1b1e23;
+    --acceso-marca: #252327;
+    --acceso-enlace: #e7c797;
+    --acceso-enlace-hover: #f0d7b1;
+    --acceso-accion: var(--acceso-enlace);
+    --acceso-accion-hover: var(--acceso-enlace-hover);
+    --acceso-accion-texto: hsl(var(--primary-foreground));
+    --acceso-sombra: 0 0 0;
+    --acceso-textura: .05;
   }
   .acceso__panel {
     position: relative;
-    box-shadow: 0 .25rem .75rem hsl(var(--foreground) / .04), 0 2rem 4rem hsl(var(--foreground) / .10);
+    max-width: 36rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 1.5rem;
+    background: var(--acceso-superficie);
+    box-shadow: 0 .5rem 1rem rgb(var(--acceso-sombra) / .06), 0 1.75rem 4rem rgb(var(--acceso-sombra) / .12);
   }
-  .acceso__panel::before {
-    position: absolute;
-    inset-inline: 1.25rem;
-    top: -1px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, hsl(var(--ring) / .8) 14%, hsl(var(--ring) / .27) 55%, transparent 88%);
-    content: "";
-    pointer-events: none;
+  .dark .acceso__panel {
+    box-shadow: 0 .5rem 1rem rgb(var(--acceso-sombra) / .24), 0 1.75rem 4rem rgb(var(--acceso-sombra) / .38);
   }
   .acceso__marca {
-    background-image: linear-gradient(115deg, hsl(var(--primary-suave) / .5), transparent 68%);
+    padding: .75rem 1rem 1rem;
+    border-radius: 1.4375rem 1.4375rem 0 0;
+    background-color: var(--acceso-marca);
+    background-image: linear-gradient(135deg, color-mix(in srgb, var(--acceso-dorado) 9%, transparent), transparent 68%);
+    box-shadow: inset 0 -1px color-mix(in srgb, var(--acceso-dorado) 40%, transparent);
   }
-  .dark .acceso__panel { box-shadow: 0 .25rem 1rem rgb(0 0 0 / .24), 0 2rem 4.5rem rgb(0 0 0 / .40); }
+  .acceso__nombre {
+    overflow-wrap: anywhere;
+  }
+  .acceso__nombre span {
+    color: var(--acceso-marca-texto);
+  }
+  .acceso__contenido {
+    padding: 1rem 1rem 1.125rem;
+  }
+  .acceso__titulo {
+    @apply font-heading text-[1.75rem] font-bold leading-tight tracking-tight sm:text-3xl lg:text-[2.5rem];
+    overflow-wrap: anywhere;
+  }
+  .acceso .acceso__campo {
+    background-color: var(--acceso-fondo);
+  }
+  .acceso .acceso__accion {
+    background-color: var(--acceso-accion);
+    color: var(--acceso-accion-texto);
+  }
+  .acceso__accion:not(:disabled):hover {
+    background-color: var(--acceso-accion-hover);
+  }
+  .acceso__enlace {
+    @apply font-medium underline underline-offset-4;
+    color: var(--acceso-enlace);
+  }
+  .acceso__enlace:hover {
+    color: var(--acceso-enlace-hover);
+    text-decoration-thickness: 2px;
+  }
+  .acceso :is(button, a, input) {
+    transition-property: background-color, border-color, color, opacity;
+    transition-duration: 150ms;
+  }
+  .acceso :is(button, a, input):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  .acceso .acceso__aviso {
+    --aviso-tinta: var(--error);
+    --aviso-fondo: var(--error-suave);
+    border-color: hsl(var(--aviso-tinta) / .35);
+    background-color: hsl(var(--aviso-fondo));
+    color: hsl(var(--aviso-tinta));
+  }
+  .acceso .acceso__aviso > svg { color: currentColor; }
+  .acceso__aviso[data-tono="advertencia"] {
+    --aviso-tinta: var(--aviso);
+    --aviso-fondo: var(--aviso-suave);
+  }
+  .acceso__aviso[data-tono="informacion"] {
+    --aviso-tinta: var(--primary-suave-foreground);
+    --aviso-fondo: var(--primary-suave);
+  }
+  .acceso__aviso[data-tono="confirmacion"] {
+    --aviso-tinta: var(--exito);
+    --aviso-fondo: var(--exito-suave);
+  }
+
+  @media (min-width: 640px) {
+    .acceso__marca { padding-inline: 1.75rem; }
+    .acceso__contenido { padding: 1.75rem; }
+  }
+  @media (min-width: 1024px) {
+    .acceso__panel {
+      max-width: 60rem;
+      min-height: 35rem;
+      grid-template-columns: minmax(0, 38fr) minmax(0, 62fr);
+    }
+    .acceso__marca {
+      padding: 3rem 3.25rem 3rem 2.5rem;
+      border-radius: 1.4375rem 5.5rem 5.5rem 1.4375rem / 1.4375rem 50% 50% 1.4375rem;
+      box-shadow: inset -1px 0 color-mix(in srgb, var(--acceso-dorado) 44%, transparent);
+    }
+    .acceso__identidad::after {
+      width: 3rem;
+      height: 2px;
+      background: linear-gradient(90deg, var(--acceso-dorado), transparent);
+      content: "";
+    }
+    .acceso__tema {
+      position: absolute;
+      inset-block-start: 1.25rem;
+      inset-inline-end: 1.25rem;
+    }
+    .acceso__contenido {
+      align-self: center;
+      width: min(calc(100% - 5rem), 26rem);
+      margin-inline: auto;
+      padding: 4.5rem 0 3rem;
+    }
+  }
 
   .panel-operativo { @apply flex min-h-screen bg-background text-foreground; }
   .panel-lateral {
@@ -216,7 +341,7 @@
   .panel-avatar {
     @apply grid size-9 shrink-0 place-items-center overflow-hidden rounded-full text-xs font-bold;
     background: hsl(var(--primary-suave));
-    color: hsl(var(--primary));
+    color: hsl(var(--primary-suave-foreground));
   }
   button.panel-avatar { @apply size-11 border border-border; }
   .panel-salto {
@@ -245,7 +370,7 @@
   .panel-accion:focus-visible,
   .panel-acceso:focus-visible,
   .panel-salto:focus-visible {
-    outline: 2px solid hsl(var(--primary));
+    outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
   }
   .panel-indicadores {
@@ -257,7 +382,7 @@
   .panel-indicador__icono {
     @apply grid size-9 place-items-center rounded-lg;
     background: hsl(var(--primary-suave));
-    color: hsl(var(--primary));
+    color: hsl(var(--primary-suave-foreground));
   }
   .panel-indicador__icono[data-tono="exito"],
   .panel-resultado[data-estado="positivo"] {
@@ -270,8 +395,8 @@
     color: hsl(var(--aviso));
   }
   .panel-indicador__icono[data-tono="neutro"] { @apply bg-muted text-foreground; }
-  .panel-texto-accion { color: hsl(var(--primary)); }
-  button.panel-texto-accion:hover { color: hsl(var(--primary)); }
+  .panel-texto-accion { color: hsl(var(--interactivo)); }
+  button.panel-texto-accion:hover { color: hsl(var(--interactivo)); }
   .panel-acceso {
     @apply flex min-w-0 items-start gap-3 rounded-xl border border-border bg-card p-4 text-left hover:bg-muted;
   }

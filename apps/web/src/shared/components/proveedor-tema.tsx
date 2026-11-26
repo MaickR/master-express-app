@@ -3,7 +3,7 @@ import { ThemeProvider } from 'next-themes';
 
 export default function ProveedorTema({ children }: PropsWithChildren) {
   return (
-    <ThemeProvider attribute="class" storageKey="theme" defaultTheme="system" enableSystem>
+    <ThemeProvider attribute="class" storageKey="theme" defaultTheme="system" enableSystem disableTransitionOnChange>
       {children}
     </ThemeProvider>
   );

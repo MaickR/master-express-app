@@ -68,8 +68,8 @@ export default function ResumenFinanciero() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: "Total Graduandos", value: data.totalGraduandos, icon: GraduationCap, bg: "bg-primary/10", text: "text-primary" },
-          { label: "Pagos Completos", value: data.pagosCompletos, icon: CheckCircle, bg: "bg-green-100", text: "text-green-600" },
-          { label: "Pendientes", value: data.pagosPendientes, icon: AlertCircle, bg: "bg-amber-100", text: "text-amber-600" },
+          { label: "Pagos Completos", value: data.pagosCompletos, icon: CheckCircle, bg: "bg-green-100", text: "text-exito dark:text-green-600" },
+          { label: "Pendientes", value: data.pagosPendientes, icon: AlertCircle, bg: "bg-amber-100", text: "text-aviso dark:text-amber-600" },
           { label: "Total Gastos", value: formatCurrency(data.totalGastos), icon: Wallet, bg: "bg-accent/10", text: "text-accent", isCurrency: true },
         ].map(kpi => (
           <Card key={kpi.label} className="border-border/50">
@@ -130,7 +130,7 @@ export default function ResumenFinanciero() {
         <CardHeader className="pb-2">
           <CardTitle className="text-lg font-heading flex items-center gap-2">
             {gananciaNeta >= 0
-              ? <TrendingUp className="w-6 h-6 text-green-600" />
+              ? <TrendingUp className="w-6 h-6 text-exito dark:text-green-600" />
               : <TrendingDown className="w-6 h-6 text-accent" />}
             Ganancia Neta
           </CardTitle>
@@ -164,7 +164,7 @@ export default function ResumenFinanciero() {
                 </p>
               </div>
               <div className="w-16 h-16 rounded-full border-4 border-green-200 border-t-green-500 flex items-center justify-center">
-                <span className="text-sm font-bold text-green-600">
+                <span className="text-sm font-bold text-exito dark:text-green-600">
                   {data.totalGraduandos > 0 ? Math.round((data.pagosCompletos / data.totalGraduandos) * 100) : 0}%
                 </span>
               </div>

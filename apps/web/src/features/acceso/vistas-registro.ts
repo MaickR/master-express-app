@@ -1,0 +1,143 @@
+export type CampoRegistro = {
+  id: 'nombres' | 'apellidos' | 'correo' | 'telefono' | 'tipoDocumento' | 'numeroDocumento'
+    | 'contrasena' | 'confirmacion' | 'razonSocial' | 'nit' | 'sede' | 'responsable';
+  etiqueta: string;
+  tipo: 'text' | 'nombre' | 'email' | 'tel' | 'nit' | 'password' | 'tipoDocumento' | 'numeroDocumento';
+  limite?: number;
+  opcional?: boolean;
+};
+
+export type DatosRegistro = Partial<Record<CampoRegistro['id'], string>>;
+
+export const tiposDocumento = ['Cédula de ciudadanía', 'Tarjeta de identidad'] as const;
+export function soloDigitosDocumento(valor: string) {
+  return !/[^0-9]/.test(valor);
+}
+export const errorNumeroDocumento = 'Ingresa únicamente dígitos del 0 al 9.';
+export const errorNit = 'Usa solo dígitos. Si incluyes un guion, debe separar dos grupos de números.';
+
+export function permiteEditarNit(valor: string) {
+  return !/[^0-9-]/.test(valor) && /^(?:[0-9]+(?:-[0-9]*)?)?$/.test(valor);
+}
+
+type PasoRegistro = {
+  corto: string;
+  titulo: string;
+  campos: readonly CampoRegistro[];
+  verificacion?: boolean;
+};
+
+export type VistaRegistro = {
+  ruta: string;
+  enlace: string;
+  titulo: string;
+  revision: string;
+  accion: string;
+  avisoFinal: string;
+  pasos: readonly [PasoRegistro, PasoRegistro];
+};
+
+export const vistasRegistro: readonly VistaRegistro[] = [
+  {
+    ruta: '/registro/graduando',
+    enlace: 'Soy graduando',
+    titulo: 'Registro de graduando',
+    revision: 'Revisa tus datos',
+    accion: 'Crear cuenta',
+    avisoFinal: 'La creación de cuentas estará disponible cuando se habilite la verificación por correo.',
+    pasos: [
+      {
+        corto: 'Datos',
+        titulo: 'Datos personales',
+        campos: [
+          { id: 'nombres', etiqueta: 'Nombres', tipo: 'nombre' },
+          { id: 'apellidos', etiqueta: 'Apellidos', tipo: 'nombre' },
+          { id: 'correo', etiqueta: 'Correo electrónico', tipo: 'email', limite: 254 },
+          { id: 'telefono', etiqueta: 'Teléfono', tipo: 'tel', limite: 30 },
+          { id: 'tipoDocumento', etiqueta: 'Documento de identidad', tipo: 'tipoDocumento', opcional: true },
+          { id: 'numeroDocumento', etiqueta: 'Número de documento', tipo: 'numeroDocumento', limite: 32 },
+        ],
+      },
+      {
+        corto: 'Acceso',
+        titulo: 'Acceso y verificación',
+        verificacion: true,
+        campos: [
+          { id: 'contrasena', etiqueta: 'Contraseña', tipo: 'password', limite: 128 },
+          { id: 'confirmacion', etiqueta: 'Confirma la contraseña', tipo: 'password', limite: 128 },
+        ],
+      },
+    ],
+  },
+  {
+    ruta: '/registro/institucion',
+    enlace: 'Soy institución',
+    titulo: 'Registro de institución',
+    revision: 'Revisa los datos de la solicitud',
+    accion: 'Solicitar acceso',
+    avisoFinal: 'Cuando se habilite el envío, la aprobación corresponderá a un administrador autorizado.',
+    pasos: [
+      {
+        corto: 'Institución',
+        titulo: 'Información institucional',
+        campos: [
+          { id: 'razonSocial', etiqueta: 'Razón social', tipo: 'text' },
+          { id: 'nit', etiqueta: 'NIT', tipo: 'nit', limite: 30 },
+          { id: 'sede', etiqueta: 'Sede', tipo: 'text' },
+        ],
+      },
+      {
+        corto: 'Responsable',
+        titulo: 'Persona responsable',
+        verificacion: true,
+        campos: [
+          { id: 'responsable', etiqueta: 'Nombre de la persona responsable', tipo: 'nombre' },
+          { id: 'correo', etiqueta: 'Correo electrónico', tipo: 'email', limite: 254 },
+          { id: 'telefono', etiqueta: 'Teléfono', tipo: 'tel', limite: 30 },
+        ],
+      },
+    ],
+  },
+];
+
+export function validarCampoRegistro(campo: CampoRegistro, datos: DatosRegistro, correoInvalido: boolean) {
+  const original = datos[campo.id] ?? '';
+  const valor = original.trim();
+  if (campo.tipo === 'numeroDocumento') {
+    if (!datos.tipoDocumento) return;
+    if (!original) return 'Ingresa el número del documento seleccionado.';
+    return soloDigitosDocumento(original) ? undefined : errorNumeroDocumento;
+  }
+  if (!valor) return campo.opcional ? undefined : `Completa «${campo.etiqueta}» para continuar.`;
+
+  switch (campo.tipo) {
+    case 'nombre':
+      if (!/^\p{L}[\p{L}\p{M}\p{Zs}\p{Pd}.‘’']*$/u.test(valor)) return 'Usa letras, espacios o signos propios del nombre.';
+      break;
+    case 'email':
+      if (correoInvalido) return 'Ingresa un correo electrónico válido.';
+      break;
+    case 'tel': {
+      const digitos = valor.replace(/\D/g, '').length;
+      if (!/^\+?[\d\s().-]+$/.test(valor) || digitos < 7 || digitos > 15) {
+        return 'Ingresa entre 7 y 15 dígitos. Puedes incluir el indicativo.';
+      }
+      break;
+    }
+    case 'tipoDocumento':
+      if (!tiposDocumento.some(tipo => tipo === valor)) return 'Selecciona un tipo de documento de la lista.';
+      break;
+    case 'nit':
+      if (!permiteEditarNit(original) || original.endsWith('-')) return errorNit;
+      break;
+    case 'password':
+      if (campo.id === 'confirmacion') {
+        if (original !== datos.contrasena) return 'Confirma la contraseña con el mismo valor.';
+      } else if ([...original].length < 12) {
+        return 'Usa al menos 12 caracteres.';
+      } else if (new TextEncoder().encode(original).length > 72) {
+        return 'Usa una contraseña más corta.';
+      }
+      break;
+  }
+}

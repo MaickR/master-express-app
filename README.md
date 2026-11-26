@@ -81,6 +81,8 @@ Consulte el [contrato de identidad y roles](docs/engineering/IDENTIDAD.md) para 
 
 Ejecute cada comando con la ruta al ejecutable de Chrome o Edge. Las suites usan datos ficticios y aíslan Base44. Para autenticación, inicie Vite en `127.0.0.1:5173` con `VITE_BASE44_DATOS_LOCALES=true`. Sirva Laravel en `127.0.0.1:8000` con `--env=testing`, `DB_CONNECTION=mysql_pruebas`, `SESSION_DRIVER=database` y `CACHE_LIMITER=database`. Use una `APP_KEY` exclusiva de QA compartida por la API y el trabajador de correo, y configure los orígenes locales de CORS y Sanctum descritos en el [contrato de autenticación](docs/engineering/AUTENTICACION.md). La suite crea y elimina cuentas ficticias en MySQL aislado y utiliza un sumidero SMTP local.
 
+Verifique que el proceso HTTP use `masterexpress_control_test` antes de ejecutar la suite. El lanzador habitual usa la base de desarrollo y las cuentas creadas por la suite quedan en la base de pruebas. El endpoint de salud comprueba que Laravel responde. Compruebe además que `/sanctum/csrf-cookie` devuelve `204` para validar que la instancia puede emitir cookies. Reserve la cola de recuperación para la ejecución de QA y mantenga la misma clave de cifrado hasta que terminen sus trabajos.
+
 ```text
 node tests/papelera-graduandos.mjs "<ruta al navegador>"
 node tests/vinculo-ceremonias.mjs "<ruta al navegador>"

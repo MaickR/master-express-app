@@ -47,7 +47,7 @@ function GraduandoCard({ g, col, index }) {
               variant="ghost"
               size="sm"
               onClick={() => setExpanded(!expanded)}
-              className="text-xs text-primary hover:text-primary/80 hover:bg-primary/5 gap-1"
+              className="text-xs text-primary hover:text-primary dark:hover:text-primary/80 hover:bg-primary/5 gap-1"
             >
               {expanded ? <><ChevronUp className="w-3.5 h-3.5" />Ocultar</> : <><ChevronDown className="w-3.5 h-3.5" />Ver más</>}
             </Button>
@@ -108,11 +108,11 @@ function GraduandoCard({ g, col, index }) {
             <div className="bg-muted/40 rounded-xl p-4 space-y-2">
               <ReportRow label="Paquete adquirido" value={paqueteLabels[g.paquete] || g.paquete} />
               <ReportRow label="Valor total" value={formatCurrency(g.valor_total)} valueCls="text-foreground" />
-              <ReportRow label="Abono" value={formatCurrency(g.abono)} valueCls="text-green-600" />
+              <ReportRow label="Abono" value={formatCurrency(g.abono)} valueCls="text-exito dark:text-green-600" />
               <ReportRow
                 label="Saldo pendiente"
                 value={formatCurrency(g.saldo)}
-                valueCls={(g.saldo || 0) > 0 ? "text-amber-600" : "text-green-600"}
+                valueCls={(g.saldo || 0) > 0 ? "text-aviso dark:text-amber-600" : "text-exito dark:text-green-600"}
               />
               {g.medio_pago && <ReportRow label="Medio de pago" value={medioPagoLabels[g.medio_pago] || g.medio_pago} />}
               <div className="flex items-baseline gap-1 text-sm pt-1 border-t border-border/30">

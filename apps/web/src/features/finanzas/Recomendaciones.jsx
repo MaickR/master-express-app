@@ -80,7 +80,7 @@ export default function Recomendaciones() {
     setLoading(false);
   };
 
-  const coloresIcono = { warning: "text-amber-500", info: "text-primary", success: "text-green-500" };
+  const coloresIcono = { warning: "text-aviso dark:text-amber-500", info: "text-primary", success: "text-exito dark:text-green-500" };
   const coloresBg = {
     warning: "bg-amber-50 border-amber-200",
     info: "bg-primary/5 border-primary/20",
