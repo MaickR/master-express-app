@@ -1,7 +1,9 @@
 <?php
 
 $origenes = env('SPA_ALLOWED_ORIGINS', env('APP_ENV') === 'local' ? 'http://127.0.0.1:5173' : '');
-$rutasEnsayo = env('APP_ENV') === 'testing' ? ['api/instituciones', 'api/eventos', 'api/eventos/*'] : [];
+$rutasEnsayo = env('APP_ENV') === 'testing'
+    ? ['api/instituciones', 'api/eventos', 'api/eventos/*', 'api/registros', 'api/registros/*', 'api/ceremonias/*/registros']
+    : [];
 
 return [
     'paths' => ['api/mi-sesion', 'api/administracion/cuentas', 'api/administracion/cuentas/*', 'login', 'logout', 'forgot-password', 'reset-password', 'sanctum/csrf-cookie', ...$rutasEnsayo],

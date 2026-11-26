@@ -2,6 +2,9 @@
 
 namespace Tests\MySql;
 
+use App\Actions\ProgramarEvento;
+use App\Models\Graduando;
+use App\Models\Institucion;
 use App\Models\Rol;
 use App\Models\User;
 use Illuminate\Foundation\Bootstrap\SetRequestForConsole;
@@ -13,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
@@ -542,6 +546,45 @@ class SesionTest extends CasoMySql
         $this->solicitar('POST', '/reset-password', $datos, $csrf)
             ->assertTooManyRequests()->assertHeader('Retry-After');
         $this->assertTrue(Hash::check($this->clave, $usuario->fresh()->password));
+    }
+
+    public function test_inscripcion_exige_csrf_y_rechaza_reintentos_de_sesiones_vencidas_o_suspendidas(): void
+    {
+        $administrador = $this->crearUsuario(['administrador']);
+        $colaborador = $this->crearUsuario(['colaborador']);
+        $institucion = Institucion::query()->create(['nombre' => 'Institución ficticia', 'tipo' => 'universidad']);
+        $evento = app(ProgramarEvento::class)->ejecutar($administrador->refresh(), [
+            'operation_id' => (string) Str::uuid(),
+            'institucion_id' => $institucion->id,
+            'fecha' => '2099-02-25',
+            'numero_ceremonias' => 1,
+        ]);
+        $ceremonia = $evento->ceremonias()->sole();
+        $graduando = Graduando::query()->create(['nombre_completo' => 'Graduando ficticio']);
+        $ruta = '/api/ceremonias/'.$ceremonia->id.'/registros';
+        $entrada = [
+            'operation_id' => (string) Str::uuid(),
+            'evento_id' => $evento->id,
+            'graduando_id' => $graduando->id,
+        ];
+
+        $sesion = $this->ingresar($colaborador);
+        $this->solicitar('POST', $ruta, $entrada, $sesion, enviarCsrf: false)->assertStatus(419);
+        $id = $this->solicitar('POST', $ruta, $entrada, $sesion)->assertCreated()->json('data.id');
+        $detalle = '/api/registros/'.$id;
+        $this->solicitar('GET', $detalle, [], $sesion)->assertOk();
+
+        $sesionId = $sesion->getCookie(config('session.cookie'))->getValue();
+        DB::table('sessions')->where('id', $sesionId)->update(['last_activity' => now()->subDays(7)->timestamp]);
+        $this->solicitar('GET', $detalle, [], $sesion)->assertUnauthorized();
+
+        $sesion = $this->ingresar($colaborador);
+        $sesionAdmin = $this->ingresar($administrador);
+        $this->solicitar('POST', self::CUENTAS.'/'.$colaborador->id, ['accion' => 'suspender'], $sesionAdmin)
+            ->assertNoContent();
+        $this->solicitar('GET', $detalle, [], $sesion)->assertUnauthorized();
+        $this->solicitar('POST', $ruta, $entrada, $sesion)->assertStatus(419);
+        $this->assertDatabaseHas('registros', ['id' => $id, 'actor_id' => $colaborador->id]);
     }
 
     private function datosDeRestablecimiento(User $usuario, TestResponse $csrf): array

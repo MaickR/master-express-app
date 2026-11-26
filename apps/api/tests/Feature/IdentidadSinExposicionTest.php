@@ -32,6 +32,9 @@ class IdentidadSinExposicionTest extends TestCase
         $this->assertEqualsCanonicalizing([
             ['api/salud', ['GET', 'HEAD']],
             ['api/mi-sesion', ['GET', 'HEAD']],
+            ['api/registros', ['GET', 'HEAD']],
+            ['api/registros/{registro}', ['GET', 'HEAD']],
+            ['api/ceremonias/{ceremonia}/registros', ['POST']],
             ['api/administracion/cuentas', ['GET', 'HEAD']],
             ['api/administracion/cuentas/{cuenta}', ['POST']],
             ['api/instituciones', ['GET', 'HEAD']],
