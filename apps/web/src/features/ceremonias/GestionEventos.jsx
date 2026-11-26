@@ -8,15 +8,29 @@ import {
 } from "@/features/ceremonias/cliente-eventos";
 import { CalendarDays, Plus, Trash2, GraduationCap, MapPin, ArrowUpDown, FlaskConical } from "lucide-react";
 import { Card, CardContent } from "@/shared/ui/card";
-import { Button } from "@/shared/ui/button";
+import { Button, buttonVariants } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Badge } from "@/shared/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/ui/dialog";
+import { Dialog, DialogContent, DialogDescription as Descripcion, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/ui/dialog";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+
+// * Los componentes JSX compartidos reenvían estas props sin declararlas en sus tipos inferidos.
+/** @type {React.ComponentType<import("@radix-ui/react-dialog").DialogDescriptionProps>} */
+const DescripcionEnsayo = Descripcion;
+/** @type {React.ComponentType<import("@radix-ui/react-label").LabelProps>} */
+const EtiquetaInstitucion = Label;
+/** @type {React.ComponentType<import("@radix-ui/react-select").SelectTriggerProps>} */
+const SelectorInstitucion = SelectTrigger;
+/** @type {React.ComponentType<import("@radix-ui/react-select").SelectContentProps>} */
+const MenuInstituciones = SelectContent;
+/** @type {React.ComponentType<import("@radix-ui/react-select").SelectItemProps>} */
+const OpcionInstitucion = SelectItem;
+/** @type {React.ComponentType<React.ComponentPropsWithoutRef<"button"> & import("class-variance-authority").VariantProps<typeof buttonVariants>>} */
+const BotonEnsayo = Button;
 
 /** @type {{ nombre_institucion: string, tipo_institucion: string, institucion_id?: string, fecha: string, lugar: string, numero_ceremonias: number }} */
 const eventoInicial = {
@@ -333,24 +347,24 @@ export default function GestionEventos({ onUpdate }) {
                   Nuevo Evento de Graduación
                 </DialogTitle>
                 {ensayoLaravel && (
-                  <DialogDescription>Ensayo Laravel con datos ficticios. Base44 no recibe este evento.</DialogDescription>
+                  <DescripcionEnsayo>Ensayo Laravel con datos ficticios. Base44 no recibe este evento.</DescripcionEnsayo>
                 )}
               </DialogHeader>
               <div className="space-y-4 py-4">
                 {ensayoLaravel ? (
                   <>
                     <div className="space-y-2">
-                      <Label htmlFor="institucion">Institución *</Label>
+                      <EtiquetaInstitucion htmlFor="institucion">Institución *</EtiquetaInstitucion>
                       <Select value={newEvento.institucion_id ?? ""} disabled={instituciones.length === 0}
                         onValueChange={v => setNewEvento({ ...newEvento, institucion_id: v })}>
-                        <SelectTrigger id="institucion" {...describirCampo("institucion")}>
+                        <SelectorInstitucion id="institucion" {...describirCampo("institucion")}>
                           <SelectValue placeholder={instituciones.length ? "Seleccionar institución" : "Sin instituciones disponibles"} />
-                        </SelectTrigger>
-                        <SelectContent>
+                        </SelectorInstitucion>
+                        <MenuInstituciones>
                           {instituciones.map(inst => (
-                            <SelectItem key={inst.id} value={String(inst.id)}>{inst.nombre} · {inst.tipo}</SelectItem>
+                            <OpcionInstitucion key={inst.id} value={String(inst.id)}>{inst.nombre} · {inst.tipo}</OpcionInstitucion>
                           ))}
-                        </SelectContent>
+                        </MenuInstituciones>
                       </Select>
                       {avisoCampo("institucion")}
                     </div>
@@ -462,10 +476,10 @@ export default function GestionEventos({ onUpdate }) {
                       </div>
                       {ensayoLaravel ? (
                         <div className="mt-3 space-y-2">
-                          <Button variant="outline" size="sm" aria-expanded={Boolean(abiertas[evento.id])}
+                          <BotonEnsayo variant="outline" size="sm" aria-expanded={Boolean(abiertas[evento.id])}
                             aria-controls={`ceremonias-${evento.id}`} onClick={() => alternarCeremonias(evento.id)}>
                             {abiertas[evento.id] ? "Ocultar" : "Ver"} ceremonias ({evento.numero_ceremonias})
-                          </Button>
+                          </BotonEnsayo>
                           {abiertas[evento.id] && (
                             <div id={`ceremonias-${evento.id}`}>
                               {estadoCeremonias[evento.id] === "cargando" ? (
@@ -473,7 +487,7 @@ export default function GestionEventos({ onUpdate }) {
                               ) : estadoCeremonias[evento.id] ? (
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p role="alert" className="text-sm text-error">{estadoCeremonias[evento.id]}</p>
-                                  <Button variant="outline" size="sm" onClick={() => cargarCeremonias(evento.id)}>Reintentar</Button>
+                                  <BotonEnsayo variant="outline" size="sm" onClick={() => cargarCeremonias(evento.id)}>Reintentar</BotonEnsayo>
                                 </div>
                               ) : (
                                 <div className="flex flex-wrap gap-2">{listaCeremonias(evento.id)}</div>
@@ -501,9 +515,9 @@ export default function GestionEventos({ onUpdate }) {
       {ensayoLaravel && errorCarga && <p role="alert" className="text-sm text-error">{errorCarga}</p>}
       {ensayoLaravel && hayMas && (
         <div className="flex justify-center">
-          <Button variant="outline" onClick={cargarMas} disabled={cargandoMas}>
+          <BotonEnsayo variant="outline" onClick={cargarMas} disabled={cargandoMas}>
             {cargandoMas ? "Cargando…" : "Cargar más eventos"}
-          </Button>
+          </BotonEnsayo>
         </div>
       )}
     </div>

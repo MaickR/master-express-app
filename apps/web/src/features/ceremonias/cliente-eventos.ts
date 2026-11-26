@@ -1,12 +1,14 @@
 import { z } from 'zod';
 import { ErrorSesion, mensajeSesion, solicitar } from '@/features/acceso/cliente-sesion';
 
+type MetadatosVite = ImportMeta & { readonly env: { readonly DEV: boolean; readonly MODE: string } };
+
 /**
  * ! El ensayo con Laravel solo se activa en el servidor local de Vite con `--mode ensayo-laravel`.
  * La compilación fija `DEV` en falso, por lo que la operación real sigue en Base44.
  */
-export const ensayoLaravel: boolean = Boolean(import.meta.env.DEV)
-  && import.meta.env.MODE === 'ensayo-laravel'
+export const ensayoLaravel: boolean = Boolean((import.meta as MetadatosVite).env.DEV)
+  && (import.meta as MetadatosVite).env.MODE === 'ensayo-laravel'
   && window.location.hostname === '127.0.0.1';
 
 const contratoInstitucion = z.object({ id: z.number().int(), nombre: z.string(), tipo: z.string() });
