@@ -2,7 +2,6 @@ import React from "react";
 import { useLocation } from "react-router-dom";
 import { GraduationCap, UserPlus } from "lucide-react";
 import PanelOperativo from "@/shared/components/PanelOperativo";
-import DarkModeToggle from "@/shared/components/DarkModeToggle";
 import { base44, useLocalEntities } from "@/integrations/base44/base44Client";
 import { useQuery } from "@tanstack/react-query";
 
@@ -34,8 +33,7 @@ export default function Layout({ identidad, Pantalla }) {
 
   return (
     <PanelOperativo grupos={navegacionColaborador} activo={activo}
-      rol="Colaborador" nombre={identidad.nombre}
-      herramientas={<DarkModeToggle className="!size-11" />}>
+      rol="Colaborador" nombre={identidad.nombre}>
       {colaboradorId ? <Pantalla key={colaboradorId} colaboradorId={colaboradorId} nombre={identidad.nombre} /> : (
         <div className="panel-pagina">
           <div className="panel-portada">

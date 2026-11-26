@@ -1,0 +1,53 @@
+import type { ComponentProps, ComponentType } from 'react';
+import type * as Radix from '@radix-ui/react-dropdown-menu';
+import { Monitor, Moon, Sun } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
+} from '@/shared/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip';
+import { buttonVariants } from '@/shared/ui/button';
+import { cn } from '@/shared/lib/utils';
+
+const Menu = DropdownMenuContent as ComponentType<ComponentProps<typeof Radix.Content>>;
+const Opcion = DropdownMenuRadioItem as ComponentType<ComponentProps<typeof Radix.RadioItem>>;
+const modos = {
+  light: { etiqueta: 'Claro', Icono: Sun },
+  dark: { etiqueta: 'Oscuro', Icono: Moon },
+  system: { etiqueta: 'Sistema', Icono: Monitor },
+};
+
+export default function SelectorTema({ className }: { className?: string }) {
+  const { theme, setTheme } = useTheme();
+  const modo = theme === 'light' || theme === 'dark' ? theme : 'system';
+  const { etiqueta, Icono } = modos[modo];
+
+  return (
+    <TooltipProvider delayDuration={350}>
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger
+              aria-label={`Tema visual: ${etiqueta}`}
+              className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }),
+                'size-11 shrink-0 [&_svg]:size-[18px]', className)}>
+              <Icono aria-hidden="true" />
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent collisionPadding={8} className="motion-reduce:!animate-none">Cambiar apariencia</TooltipContent>
+        </Tooltip>
+        <Menu align="end" sideOffset={6} collisionPadding={8} aria-label="Tema visual"
+          className="min-w-40 motion-reduce:!animate-none">
+          <DropdownMenuRadioGroup value={modo} onValueChange={setTheme}>
+            {Object.entries(modos).map(([valor, { etiqueta: nombre, Icono: IconoModo }]) => (
+              <Opcion key={valor} value={valor} className="min-h-11 gap-2 data-[highlighted]:outline data-[highlighted]:outline-2 data-[highlighted]:-outline-offset-2 data-[highlighted]:outline-ring">
+                <IconoModo aria-hidden="true" className="size-4" />
+                {nombre}
+              </Opcion>
+            ))}
+          </DropdownMenuRadioGroup>
+        </Menu>
+      </DropdownMenu>
+    </TooltipProvider>
+  );
+}

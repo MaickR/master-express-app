@@ -13,9 +13,9 @@ const formatCurrency = (value) =>
 function ReportRow({ label, value, valueCls = "" }) {
   return (
     <div className="flex items-baseline gap-1 text-sm">
-      <span className="text-muted-foreground whitespace-nowrap">{label}</span>
-      <span className="flex-1 border-b border-dotted border-border mx-1" style={{ minWidth: 20 }}></span>
-      <span className={`font-semibold text-foreground whitespace-nowrap ${valueCls}`}>{value}</span>
+      <span className="min-w-0 break-words text-muted-foreground">{label}</span>
+      <span aria-hidden="true" className="mx-1 min-w-1 flex-1 border-b border-dotted border-border" />
+      <span className={`min-w-0 break-words text-right font-semibold tabular-nums text-foreground ${valueCls}`}>{value}</span>
     </div>
   );
 }
@@ -42,6 +42,7 @@ function GraduandoCard({ g, index }) {
             variant="ghost"
             size="sm"
             onClick={() => setExpanded(!expanded)}
+            aria-expanded={expanded}
             className="panel-texto-accion min-h-11 shrink-0 gap-1 text-xs hover:bg-muted"
           >
             {expanded ? <><ChevronUp className="w-3.5 h-3.5" />Ocultar</> : <><ChevronDown className="w-3.5 h-3.5" />Ver más</>}
@@ -94,17 +95,17 @@ function GraduandoCard({ g, index }) {
             <div className="bg-muted/40 rounded-xl p-4 space-y-2">
               <ReportRow label="Paquete adquirido" value={paqueteLabels[g.paquete] || g.paquete} />
               <ReportRow label="Valor total" value={formatCurrency(g.valor_total)} />
-              <ReportRow label="Abono" value={formatCurrency(g.abono)} valueCls="text-green-600" />
+              <ReportRow label="Abono" value={formatCurrency(g.abono)} valueCls="text-exito" />
               <ReportRow
                 label="Saldo pendiente"
                 value={formatCurrency(g.saldo)}
-                valueCls={(g.saldo || 0) > 0 ? "text-amber-600" : "text-green-600"}
+                valueCls={(g.saldo || 0) > 0 ? "text-aviso" : "text-exito"}
               />
               {g.medio_pago && <ReportRow label="Medio de pago" value={medioPagoLabels[g.medio_pago] || g.medio_pago} />}
               <div className="flex items-baseline gap-1 text-sm pt-1 border-t border-border/30">
-                <span className="text-muted-foreground whitespace-nowrap">Estado de pago</span>
-                <span className="flex-1 border-b border-dotted border-border mx-1" style={{ minWidth: 20 }}></span>
-                <Badge className={`text-xs ${g.estado_pago === 'completo' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                <span className="min-w-0 break-words text-muted-foreground">Estado de pago</span>
+                <span aria-hidden="true" className="mx-1 min-w-1 flex-1 border-b border-dotted border-border" />
+                <Badge variant="outline" className={`shrink-0 border-transparent text-xs ${g.estado_pago === 'completo' ? 'bg-exito-suave text-exito' : 'bg-aviso-suave text-aviso'}`}>
                   {g.estado_pago === 'completo'
                     ? <><CheckCircle className="w-3 h-3 mr-1" />PAGO COMPLETO</>
                     : <><AlertCircle className="w-3 h-3 mr-1" />PENDIENTE</>}
@@ -120,7 +121,7 @@ function GraduandoCard({ g, index }) {
                   {(g.comprobante_urls || g.foto_urls).map((url, i) => (
                     <Button key={i} variant="outline" size="sm"
                       onClick={() => window.open(url, '_blank')}
-                      className="h-7 text-xs border-green-200 text-green-700 hover:bg-green-50">
+                      className="min-h-11 text-xs text-exito hover:bg-exito-suave hover:text-exito">
                       <Image className="w-3 h-3 mr-1" />Comp. {i + 1}
                     </Button>
                   ))}
