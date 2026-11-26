@@ -4,12 +4,23 @@ namespace Tests\MySql;
 
 use App\Models\Rol;
 use App\Models\User;
+use Illuminate\Foundation\Bootstrap\SetRequestForConsole;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Log\Logger as LoggerLaravel;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Testing\TestResponse;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
+use PHPUnit\Framework\Attributes\TestWith;
+use RuntimeException;
+use Symfony\Component\Mailer\Exception\TransportException;
+use Symfony\Component\Mailer\SentMessage;
+use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 
 class SesionTest extends CasoMySql
 {
@@ -17,7 +28,7 @@ class SesionTest extends CasoMySql
 
     private const string ORIGEN_API = 'http://127.0.0.1:8000';
 
-    protected array $tablas = ['users', 'roles', 'rol_user', 'sessions', 'password_reset_tokens'];
+    protected array $tablas = ['users', 'roles', 'rol_user', 'sessions', 'password_reset_tokens', 'jobs', 'failed_jobs'];
 
     private string $clave;
 
@@ -261,6 +272,101 @@ class SesionTest extends CasoMySql
         $mensajes = Mail::mailer('array')->getSymfonyTransport()->messages();
         $this->assertCount(1, $mensajes);
         $this->assertSame($usuario->email, $mensajes->first()->getEnvelope()->getRecipients()[0]->getAddress());
+    }
+
+    public function test_el_fallo_smtp_se_persiste_sin_reintentar_ni_exponer_el_enlace(): void
+    {
+        $usuario = $this->crearUsuario(['administrador']);
+        $transporte = new class($this->clave) extends EsmtpTransport
+        {
+            public int $intentos = 0;
+
+            public ?string $token = null;
+
+            public function __construct(private readonly string $secreto)
+            {
+                parent::__construct('127.0.0.1', 2525, false);
+            }
+
+            protected function doSend(SentMessage $mensaje): void
+            {
+                $this->intentos++;
+                $original = $mensaje->getOriginalMessage();
+                preg_match('/#token=([a-f0-9]{64})/', $original->getHtmlBody(), $coincidencia);
+                $this->token = $coincidencia[1] ?? null;
+
+                throw new TransportException('SMTP 550 QA '.$this->secreto.' '.$original->getHtmlBody());
+            }
+        };
+        Mail::extend('smtp-qa', fn () => $transporte);
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.transport' => 'smtp-qa']);
+
+        $diagnostico = $this->comprobarFalloDeCorreo($usuario->email, 'El transporte de correo de recuperación no confirmó la entrega.');
+
+        $this->assertSame(1, $transporte->intentos);
+        $this->assertNotNull($transporte->token);
+        $this->assertFalse(str_contains($diagnostico, $transporte->token), 'El diagnóstico expuso el token.');
+        $this->assertFalse(str_contains($diagnostico, 'SMTP 550 QA'), 'El diagnóstico expuso el error SMTP original.');
+        $this->assertDatabaseHas('password_reset_tokens', ['email' => $usuario->email]);
+    }
+
+    #[TestWith(['smtp'])]
+    #[TestWith(['log'])]
+    public function test_el_fallo_de_configuracion_se_persiste_sin_exponer_sus_credenciales(string $mailer): void
+    {
+        $usuario = $this->crearUsuario(['administrador']);
+        Mail::extend('smtp-qa-invalido', fn () => throw new RuntimeException('Credencial SMTP QA '.$this->clave));
+        config(['mail.default' => $mailer, 'mail.mailers.smtp.transport' => 'smtp-qa-invalido']);
+
+        $diagnostico = $this->comprobarFalloDeCorreo($usuario->email, 'La configuración del correo de recuperación es inválida.');
+
+        $this->assertFalse(str_contains($diagnostico, 'Credencial SMTP QA'), 'El diagnóstico expuso el error de configuración original.');
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => $usuario->email]);
+    }
+
+    private function comprobarFalloDeCorreo(string $correo, string $mensaje): string
+    {
+        config([
+            'auth.cola_recuperacion' => 'database',
+            'queue.connections.database.connection' => 'mysql_pruebas',
+            'queue.failed.driver' => 'database-uuids',
+            'queue.failed.database' => 'mysql_pruebas',
+        ]);
+        $captura = new TestHandler;
+        Log::swap(new LoggerLaravel(new Logger('correo-qa', [$captura])));
+        $cola = 'correo-qa-'.bin2hex(random_bytes(8));
+        $ultimo = DB::table('jobs')->max('id') ?? 0;
+
+        $csrf = $this->solicitar('GET', '/sanctum/csrf-cookie');
+        $this->solicitar('POST', '/forgot-password', ['email' => $correo], $csrf)->assertNoContent(202);
+        $trabajo = DB::table('jobs')->where('queue', 'recuperacion')->where('id', '>', $ultimo)->sole();
+        $payload = json_decode($trabajo->payload, true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(1, $payload['maxTries']);
+        $this->assertFalse(str_contains($trabajo->payload, $correo), 'El trabajo expuso el destinatario.');
+        $this->assertTrue(str_contains($this->app['encrypter']->decrypt($payload['data']['command']), $correo));
+        DB::table('jobs')->where('id', $trabajo->id)->update(['queue' => $cola]);
+
+        (new SetRequestForConsole)->bootstrap($this->app);
+        $opciones = ['connection' => 'database', '--once' => true, '--queue' => $cola, '--tries' => 5];
+        Artisan::call('queue:work', $opciones);
+        $salida = Artisan::output();
+
+        $fallo = DB::table('failed_jobs')->where('uuid', $payload['uuid'])->first();
+        $this->assertNotNull($fallo, 'El trabajador debe registrar el job en failed_jobs.');
+        $this->assertSame($cola, $fallo->queue);
+        $this->assertTrue($trabajo->payload === $fallo->payload, 'El trabajo fallido debe conservar el payload cifrado.');
+        $this->assertTrue(str_contains($fallo->exception, $mensaje), 'El registro omitió el diagnóstico seguro.');
+        $this->assertTrue($captura->hasErrorThatContains($mensaje), 'El trabajador omitió el diagnóstico seguro en los logs.');
+        $registros = implode('', array_column($captura->getRecords(), 'formatted'));
+        $diagnostico = $salida.$fallo->payload.$fallo->exception.$registros;
+        $this->assertFalse(str_contains($diagnostico, $correo), 'El diagnóstico expuso el destinatario.');
+        $this->assertFalse(str_contains($diagnostico, $this->clave), 'El diagnóstico expuso una credencial.');
+
+        Artisan::call('queue:work', $opciones);
+        $this->assertDatabaseMissing('jobs', ['queue' => $cola]);
+        $this->assertSame(1, DB::table('failed_jobs')->where('queue', $cola)->count());
+
+        return $diagnostico;
     }
 
     public function test_restablecer_valida_consume_actualiza_y_revoca_sin_cambiar_roles(): void
