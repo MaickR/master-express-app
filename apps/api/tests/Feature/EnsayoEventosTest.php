@@ -29,6 +29,26 @@ class EnsayoEventosTest extends TestCase
             ->assertHeaderMissing('Access-Control-Allow-Origin');
     }
 
+    public function test_cors_de_inscripciones_respeta_el_origen_configurado(): void
+    {
+        config(['cors.allowed_origins' => ['http://127.0.0.1:5173', 'http://127.0.0.1:8000']]);
+
+        $this->options('/api/ceremonias/1/registros', [], [
+            'Origin' => 'http://127.0.0.1:5173',
+            'Access-Control-Request-Method' => 'POST',
+            'Access-Control-Request-Headers' => 'content-type,x-xsrf-token',
+        ])->assertNoContent()
+            ->assertHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:5173')
+            ->assertHeader('Access-Control-Allow-Credentials', 'true');
+
+        $this->getJson('/api/registros/1', ['Origin' => 'http://127.0.0.1:5173'])
+            ->assertUnauthorized()
+            ->assertHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:5173');
+        $this->getJson('/api/registros', ['Origin' => 'http://127.0.0.1:5174'])
+            ->assertUnauthorized()
+            ->assertHeaderMissing('Access-Control-Allow-Origin');
+    }
+
     public function test_el_comando_rechaza_conexiones_distintas_a_la_base_aislada(): void
     {
         $this->artisan('qa:ensayo-eventos', ['accion' => 'preparar'])
