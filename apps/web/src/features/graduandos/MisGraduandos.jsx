@@ -13,9 +13,9 @@ const formatCurrency = (value) =>
 function ReportRow({ label, value, valueCls = "" }) {
   return (
     <div className="flex items-baseline gap-1 text-sm">
-      <span className="text-muted-foreground whitespace-nowrap">{label}</span>
-      <span className="flex-1 border-b border-dotted border-border mx-1" style={{ minWidth: 20 }}></span>
-      <span className={`font-semibold text-foreground whitespace-nowrap ${valueCls}`}>{value}</span>
+      <span className="min-w-0 break-words text-muted-foreground">{label}</span>
+      <span aria-hidden="true" className="mx-1 min-w-1 flex-1 border-b border-dotted border-border" />
+      <span className={`min-w-0 break-words text-right font-semibold tabular-nums text-foreground ${valueCls}`}>{value}</span>
     </div>
   );
 }
@@ -103,9 +103,9 @@ function GraduandoCard({ g, index }) {
               />
               {g.medio_pago && <ReportRow label="Medio de pago" value={medioPagoLabels[g.medio_pago] || g.medio_pago} />}
               <div className="flex items-baseline gap-1 text-sm pt-1 border-t border-border/30">
-                <span className="text-muted-foreground whitespace-nowrap">Estado de pago</span>
-                <span className="flex-1 border-b border-dotted border-border mx-1" style={{ minWidth: 20 }}></span>
-                <Badge variant="outline" className={`border-transparent text-xs ${g.estado_pago === 'completo' ? 'bg-exito-suave text-exito' : 'bg-aviso-suave text-aviso'}`}>
+                <span className="min-w-0 break-words text-muted-foreground">Estado de pago</span>
+                <span aria-hidden="true" className="mx-1 min-w-1 flex-1 border-b border-dotted border-border" />
+                <Badge variant="outline" className={`shrink-0 border-transparent text-xs ${g.estado_pago === 'completo' ? 'bg-exito-suave text-exito' : 'bg-aviso-suave text-aviso'}`}>
                   {g.estado_pago === 'completo'
                     ? <><CheckCircle className="w-3 h-3 mr-1" />PAGO COMPLETO</>
                     : <><AlertCircle className="w-3 h-3 mr-1" />PENDIENTE</>}

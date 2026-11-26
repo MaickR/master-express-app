@@ -17,13 +17,15 @@ assert(navegador, "Indica la ruta al ejecutable de Chrome o Edge.");
 const proyecto = fileURLToPath(new URL("..", import.meta.url));
 const web = join(proyecto, "apps", "web");
 const archivoCss = join(web, "src", "app", "index.css");
-const [css, html, logo] = await Promise.all([
+const rutaFuente = "/fuentes/inter-latin-v20.woff2";
+const [css, html, logo, fuente] = await Promise.all([
   readFile(archivoCss, "utf8"),
   readFile(join(web, "index.html"), "utf8"),
   readFile(join(web, "public", "master-express.png")),
+  readFile(join(web, "public", rutaFuente.slice(1))),
 ]);
 const estilos = await postcss([tailwindcss({ config: join(web, "tailwind.config.js") })])
-  .process(css.replace(/^@import .*;\r?\n/, ""), { from: archivoCss });
+  .process(css, { from: archivoCss });
 
 const clienteLocal = `
   import { createLocalEntities } from "@/integrations/base44/localEntities";
@@ -97,6 +99,7 @@ const hashTema = createHash("sha256").update(inicioTema.replace(/\r\n/g, "\n")).
 const recursos = {
   "/prueba.js": ["text/javascript", bundle.contents],
   "/prueba.css": ["text/css", estilos.css],
+  [rutaFuente]: ["font/woff2", fuente],
   "/master-express.png": ["image/png", logo],
 };
 const claveFicticia = randomBytes(16).toString("hex");
@@ -133,15 +136,15 @@ const servidor = createServer(async (peticion, respuesta) => {
     : pagina;
   const [tipo, contenido] = recurso || ["text/html; charset=utf-8", documento];
   respuesta.setHeader("Content-Type", tipo);
-  respuesta.setHeader("Content-Security-Policy", `default-src 'none'; script-src 'self' 'sha256-${hashTema}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'`);
+  respuesta.setHeader("Content-Security-Policy", `default-src 'none'; script-src 'self' 'sha256-${hashTema}'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'`);
   respuesta.end(contenido);
 });
 const perfil = await mkdtemp(join(tmpdir(), "me-interfaz-"));
 const errores = [];
 let proceso, conexion;
 
-async function hasta(comprobar, detalle) {
-  for (let intento = 0; intento < 80; intento++) {
+async function hasta(comprobar, detalle, intentos = 80) {
+  for (let intento = 0; intento < intentos; intento++) {
     const resultado = await comprobar();
     if (resultado) return resultado;
     await esperarMs(80);
@@ -162,7 +165,7 @@ try {
     if (falloProceso) throw falloProceso;
     const contenido = await readFile(join(perfil, "DevToolsActivePort"), "utf8").catch(() => "");
     return Number(contenido.split("\n")[0]);
-  }, "Chrome no habilitó su puerto local de depuración.");
+  }, "El navegador no habilitó su puerto local de depuración.", 250);
   const paginas = await (await fetch(`http://127.0.0.1:${puerto}/json/list`)).json();
   conexion = new WebSocket(paginas.find(p => p.type === "page").webSocketDebuggerUrl);
   await new Promise((resolver, rechazar) => {
@@ -190,7 +193,7 @@ try {
   });
   const leer = async (funcion, ...args) => {
     const { result, exceptionDetails } = await enviar("Runtime.evaluate", {
-      expression: `(${funcion})(...${JSON.stringify(args)})`, returnByValue: true,
+      expression: `(${funcion})(...${JSON.stringify(args)})`, returnByValue: true, awaitPromise: true,
     });
     if (exceptionDetails) throw new Error(exceptionDetails.exception?.description || exceptionDetails.text);
     return result.value;
@@ -211,7 +214,7 @@ try {
     { name: "prefers-color-scheme", value: tema },
   ] });
   const tecla = async (key, windowsVirtualKeyCode) => {
-    const parametros = { key, code: key, nativeVirtualKeyCode: windowsVirtualKeyCode, windowsVirtualKeyCode };
+    const parametros = { key, code: key === " " ? "Space" : key, nativeVirtualKeyCode: windowsVirtualKeyCode, windowsVirtualKeyCode };
     await enviar("Input.dispatchKeyEvent", key === "Enter"
       ? { ...parametros, type: "keyDown", text: "\r", unmodifiedText: "\r" }
       : { ...parametros, type: "rawKeyDown" });
@@ -227,16 +230,32 @@ try {
     const raiz = document.documentElement;
     return raiz.classList.contains("dark") === (t === "dark") && getComputedStyle(raiz).colorScheme === t;
   }, tema);
+  const activadorTema = '[aria-label^="Tema visual:"]';
+  const iconosTema = { Claro: "sun", Oscuro: "moon", Sistema: "monitor" };
+  const comprobarActivador = async (nombre) => {
+    verificar(await leer(([selector, etiqueta, icono]) => {
+      const boton = document.querySelector(selector);
+      return boton?.getAttribute("aria-label") === `Tema visual: ${etiqueta}`
+        && boton.textContent.trim() === "" && boton.offsetWidth === 44 && boton.offsetHeight === 44
+        && Boolean(boton.querySelector(`svg.lucide-${icono}[aria-hidden="true"]`));
+    }, [activadorTema, nombre, iconosTema[nombre]]), `El botón compacto muestra y anuncia ${nombre}`);
+  };
+  const comprobarMenuTema = async (seleccionado) => {
+    const opciones = await leer(iconos => [...document.querySelectorAll('[role="menuitemradio"]')].map(opcion => {
+      const nombre = opcion.textContent.trim();
+      return [nombre, Boolean(opcion.querySelector(`svg.lucide-${iconos[nombre]}`)),
+        opcion.getAttribute("aria-checked") === "true", Boolean(opcion.querySelector("svg.lucide-circle"))];
+    }), iconosTema);
+    assert.deepEqual(opciones, Object.keys(iconosTema).map(nombre => [nombre, true, nombre === seleccionado, nombre === seleccionado]));
+  };
   const cambiarTema = async (nombre, tema) => {
-    const activador = '[aria-label^="Tema visual:"]';
-    await enfoque(activador);
+    await enfoque(activadorTema);
     await tecla("Enter", 13);
     await hasta(() => texto(nombre, '[role="menu"]'), "El selector no abrió con Enter.");
     await comprobarContraste("El menú de tema en portal usa los colores del documento y alcanza 4.5:1");
     await clicTexto(nombre, '[role="menuitemradio"]');
     await hasta(() => aplicado(tema), `No se aplicó ${tema}.`);
-    verificar(await leer((s, valor) => document.querySelector(s)?.getAttribute("aria-label") === `Tema visual: ${valor}`,
-      activador, nombre), `El selector anuncia la preferencia ${nombre}`);
+    await comprobarActivador(nombre);
   };
   const ancho = (esperado) => leer(w => {
     const documento = document.documentElement;
@@ -357,18 +376,69 @@ try {
   };
 
   await enviar("Runtime.enable");
+  await enviar("DOM.enable");
+  await enviar("CSS.enable");
   await enviar("Page.bringToFront");
   await emularSistema("light");
   await ajustar(1440, 1050);
   await ir("/");
   await hasta(() => texto("Iniciar sesión"), "No apareció el ingreso.");
   await hasta(() => leer(() => document.querySelector("header img")?.naturalWidth > 0), "No cargó la marca en el ingreso.");
+  await hasta(() => leer(() => document.fonts.status === "loaded"), "No terminó la carga tipográfica.");
+  const { root } = await enviar("DOM.getDocument");
+  for (const selector of [".acceso h1", ".acceso section p", "label[for='correo']"]) {
+    const { nodeId } = await enviar("DOM.querySelector", { nodeId: root.nodeId, selector });
+    const { fonts } = await enviar("CSS.getPlatformFontsForNode", { nodeId });
+    verificar(fonts.some(fuente => fuente.familyName === "Inter" && fuente.isCustomFont && fuente.glyphCount > 0),
+      `Inter local renderiza glifos en ${selector}`);
+  }
+  const desplazamiento = await leer(async () => {
+    let total = 0;
+    const acumular = entradas => {
+      for (const entrada of entradas) if (!entrada.hadRecentInput) total += entrada.value;
+    };
+    const observador = new PerformanceObserver(lista => acumular(lista.getEntries()));
+    observador.observe({ type: "layout-shift", buffered: true });
+    await new Promise(resolver => requestAnimationFrame(() => requestAnimationFrame(resolver)));
+    acumular(observador.takeRecords());
+    observador.disconnect();
+    return total;
+  });
+  verificar(desplazamiento < .02, `CLS del acceso antes de interacción: ${desplazamiento.toFixed(4)}`);
   verificar(await aplicado("light"), "El ingreso inicia en claro con el sistema claro");
   await tecla("Tab", 9);
   verificar(await leer(() => document.activeElement?.matches('button[aria-label^="Tema visual:"]:focus-visible')
     && getComputedStyle(document.activeElement).outlineWidth === "2px"), "El primer Tab enfoca el selector con contorno visible");
+  await comprobarActivador("Sistema");
+  await hasta(() => texto("Cambiar apariencia", '[role="tooltip"]'), "La ayuda del tema no es accesible al enfocar.");
+  await tecla(" ", 32);
+  await hasta(() => texto("Claro", '[role="menu"]'), "El selector no abrió con Espacio.");
+  await comprobarMenuTema("Sistema");
+  await tecla("ArrowDown", 40);
+  verificar(await leer(() => document.activeElement?.matches('[role="menuitemradio"]')), "El menú responde a las flechas del teclado");
+  await tecla("Escape", 27);
+  verificar(await hasta(() => leer(s => !document.querySelector('[role="menu"]')
+    && document.activeElement.matches(s), activadorTema), "Escape no devolvió el foco al selector."),
+  "Escape cierra el menú de tema y devuelve el foco");
+  const botonTema = await leer(s => {
+    const { x, y, width, height } = document.querySelector(s).getBoundingClientRect();
+    return { x: x + width / 2, y: y + height / 2 };
+  }, activadorTema);
+  await enfoque("#correo");
+  await enviar("Input.dispatchMouseEvent", { type: "mouseMoved", ...botonTema });
+  verificar(await hasta(() => texto("Cambiar apariencia", '[role="tooltip"]'), "No apareció el tooltip al pasar el puntero."),
+    "La ayuda de apariencia se muestra al pasar el puntero en escritorio");
+  await tecla("Escape", 27);
+  await hasta(() => leer(() => !document.querySelector('[role="tooltip"]')), "Escape no cerró la ayuda del selector.");
+  await enviar("Input.dispatchMouseEvent", { type: "mouseMoved", x: 1, y: 1 });
+  await leer(() => { document.activeElement.blur(); });
   await comprobarIngreso("claro");
   await cambiarTema("Oscuro", "dark");
+  await enfoque(activadorTema);
+  await tecla("Enter", 13);
+  await hasta(() => texto("Oscuro", '[role="menu"]'), "El selector no abrió con Enter.");
+  await comprobarMenuTema("Oscuro");
+  await tecla("Escape", 27);
   await comprobarIngreso("oscuro");
   await ir("/?sin-react");
   await hasta(() => leer(() => location.search === "?sin-react" && document.readyState === "complete"),

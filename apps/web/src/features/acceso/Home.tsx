@@ -27,7 +27,7 @@ export function MarcoAcceso({ children }: { children: ReactNode }) {
               <p className="mt-1 text-xs leading-snug text-muted-foreground sm:text-sm">Gestión de ceremonias de grado</p>
             </div>
           </div>
-          <SelectorTema mostrarEtiqueta className="border border-border bg-card text-card-foreground" />
+          <SelectorTema className="border border-border bg-card text-card-foreground" />
         </header>
         <section className="px-4 pb-6 pt-5 sm:px-12 sm:pb-10 sm:pt-9">
           {children}

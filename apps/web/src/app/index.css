@@ -1,4 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@font-face {
+  font-family: Inter;
+  src: url('/fuentes/inter-latin-v20.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: optional;
+}
 
 @tailwind base;
 @tailwind components;
@@ -50,8 +56,7 @@
     --chart-4: 280 55% 55%;
     --chart-5: 40 70% 55%;
     --radius: 0.75rem;
-    --font-heading: 'Inter', sans-serif;
-    --font-body: 'Inter', sans-serif;
+    --font-interfaz: Inter, Arial, sans-serif;
   }
   .dark {
     color-scheme: dark;
@@ -125,14 +130,6 @@
     min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     min-height: -webkit-fill-available;
   }
-}
-
-.font-heading {
-  font-family: var(--font-heading);
-}
-
-.font-body {
-  font-family: var(--font-body);
 }
 
 @layer components {

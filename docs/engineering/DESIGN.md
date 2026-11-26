@@ -4,7 +4,15 @@
 
 - Se usa el logotipo del sitio corporativo (`assets/img/logo.png`), ya incorporado como `apps/web/public/master-express.png`. Ambos archivos tienen el mismo SHA-256.
 - La hoja `assets/styles.css` del sitio corporativo aporta tinta `#16181D`, papel `#FBFAF7`, neutros oscuros `#121417` y `#1B1E23`, y dorados `#9A6B34` y `#E7C797`. El dorado claro destaca la marca y el destino activo. La acción principal usa un marrón más oscuro en modo claro para sostener el contraste con el texto blanco.
-- Las variantes de interfaz y los colores de estado son una propuesta provisional. Se conserva Inter con alternativa local sans serif.
+- Las variantes de interfaz y los colores de estado son una propuesta provisional.
+
+## Tipografía
+
+Inter es la familia de interfaz para cuerpo, encabezados y controles. `--font-interfaz` define `Inter, Arial, sans-serif` y alimenta los alias `font-body` y `font-heading` de Tailwind. Se conservan la escala existente y los pesos 400 para contenido, 500 para etiquetas, 600 para énfasis y 700 para títulos e indicadores. Los indicadores usan `tabular-nums` para alinear las cifras.
+
+La auditoría anterior al cambio encontró Inter renderizada desde Google Fonts en Chrome y Arial cuando se bloqueó esa red, aunque `getComputedStyle` seguía declarando Inter. DM Sans cubrió las muestras de texto del acceso y midió cerca de Inter en las etiquetas de 14 px. Se conservó Inter por continuidad con las vistas aprobadas, su legibilidad a tamaños de interfaz y sus cifras tabulares.
+
+Se sirve un solo WOFF2 latino variable de Inter v20 desde el mismo origen, con precarga y `font-display: optional`. Si el archivo no está disponible al pintar, se conserva el fallback durante esa navegación para evitar un salto tardío. El archivo original procede de [Google Fonts](https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2) y se distribuye con [su licencia OFL 1.1](../../apps/web/public/fuentes/inter-OFL.txt). Las plantillas de correo heredadas conservan su tipografía propia.
 
 ## Tokens semánticos
 
@@ -22,6 +30,7 @@ Los tokens se aplican en `html`. Menús, selectores y diálogos de Radix heredan
 ## Preferencia de tema
 
 - `ProveedorTema` monta una instancia de `next-themes` sobre toda la app usando la dependencia ya instalada. `SelectorTema` reutiliza el menú de radio shadcn/Radix en el acceso y la cabecera de ambos paneles.
+- El botón de 44 × 44 px muestra un sol, una luna o un monitor según la preferencia elegida. El botón anuncia el modo y ofrece una ayuda al pasar el puntero en escritorio. El menú usa texto, iconos e indicador de selección, con navegación por teclado y retorno del foco al cerrar con Escape.
 - Claro y Oscuro fijan la apariencia. Sistema es el valor inicial y sigue los cambios de `prefers-color-scheme` en vivo. La clave visual `theme` conserva `light`, `dark` o `system`, incluidos los dos valores del control previo.
 - El inicio de `index.html` establece la clase `dark` y `color-scheme` antes de cargar React. Si el servidor entrega una política CSP restrictiva, debe autorizar ese script por hash o nonce. El tema se aplica sin remontar el proveedor de sesión.
 
