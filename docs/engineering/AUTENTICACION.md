@@ -11,11 +11,19 @@ Envíe `Accept: application/json` y habilite credenciales en todas las peticione
 | `GET /sanctum/csrf-cookie` | `204`. Inicializa la sesión y emite la cookie `XSRF-TOKEN`. | |
 | `POST /login` | `204`. Recibe `email`, `password` y el booleano opcional `remember`. Rota la sesión y actualiza `XSRF-TOKEN`. | `422` para entrada inválida o acceso rechazado, `409` si ya hay sesión, `419` por falta de CSRF y `429` por exceso de intentos. |
 | `GET /api/mi-sesion` | `200`. Devuelve `data.id`, `data.nombre`, `data.correo` y `data.roles`. | `401` para acceso anónimo o sesión expirada. `403` si se revocaron todos los roles de acceso, con invalidación de esa sesión. |
+| `GET /api/administracion/cuentas` | `200`. Devuelve `data` con ID, nombre, correo y estado activo de cada cuenta interna y `hayMas` para paginar. | `401` sin sesión vigente y `403` sin rol Administrador. |
+| `POST /api/administracion/cuentas/{cuenta}` | `204`. El cuerpo acepta solo `accion` con `suspender`, `reactivar` o `revocar-sesiones`. | `401` sin sesión vigente, `403` sin rol Administrador, `404` si la cuenta no existe o está fuera del personal interno, `409` al intentar suspender al último administrador activo, `419` sin CSRF y `422` si el cuerpo es inválido. |
 | `POST /logout` | `204`. Invalida la sesión y renueva `XSRF-TOKEN`. | `401` sin sesión si CSRF es válido y `419` si CSRF falta o está vencido. |
 | `POST /forgot-password` | `202` sin cuerpo para todo correo sintácticamente válido. Recibe `email` y encola la solicitud. | `419` sin CSRF, `422` para formato inválido y `429` al superar los límites. |
 | `POST /reset-password` | `204`. Recibe `email`, `token`, `password` y `password_confirmation`. Consume el token y revoca las sesiones previas. | `419` sin CSRF, `422` para enlace inválido, vencido o consumido, o formulario inválido, y `429` por exceso de intentos. |
 
 Cada consulta vuelve a leer de `rol_user` los roles habilitados en el hito. Puede devolver `administrador`, `colaborador` o ambos. Una cuenta sin ninguno de los dos recibe el mismo mensaje que un correo inexistente o una contraseña incorrecta. El ingreso permite cinco intentos por correo normalizado e IP y treinta por IP por minuto. `429` publica `Retry-After`.
+
+El panel de Administración ofrece **Cuentas internas** para cuentas con rol Administrador o Colaborador. Suspender rechaza futuros ingresos con el mensaje genérico de credenciales y revoca todas las sesiones y cookies de recuerdo previas. Reactivar solo habilita nuevos ingresos. Revocar sesiones deja el estado de la cuenta intacto y puede aplicarse a la propia cuenta. Un administrador puede suspender su propio acceso si queda otro administrador activo. Las operaciones conservan las asignaciones y la recuperación de contraseña. La recuperación cambia la contraseña, mientras que la reactivación sigue reservada a Administración.
+
+La migración inicializa las cuentas existentes como activas y sus sesiones preexistentes con versión implícita cero. Cada revocación invalida el recuerdo, borra las sesiones de base de datos e incrementa la versión de sesión en la cuenta. El middleware rechaza una versión anterior aunque una petición en curso vuelva a guardar esa sesión. Configure la tabla de sesiones en la misma conexión de identidad para compartir la transacción.
+
+`eventos_de_cuenta` guarda el ID del actor, el ID de la cuenta, la acción y la fecha de cada cambio aplicado. Suspender una cuenta ya suspendida o reactivar una cuenta ya activa devuelve `204` sin un evento adicional. Las referencias impiden borrar físicamente cuentas que figuran en el historial.
 
 ## Política de sesión
 

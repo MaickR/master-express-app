@@ -18,6 +18,7 @@ import Reportes from "@/features/reportes/Reportes";
 import ResumenFinanciero from "@/features/finanzas/ResumenFinanciero";
 import Recomendaciones from "@/features/finanzas/Recomendaciones";
 import GestionAdministradores from "@/features/personal/GestionAdministradores";
+import GestionCuentasInternas from "@/features/personal/GestionCuentasInternas";
 import ExportarExcel from "@/features/graduandos/ExportarExcel";
 import GestionCorreos from "@/features/correo/GestionCorreos";
 import PapeleraGraduandos from "@/features/graduandos/PapeleraGraduandos";
@@ -33,6 +34,7 @@ const TABS = [
   { id: "reportes",      label: "Reportes",                icon: BarChart3,     group: "datos" },
   { id: "exportar",      label: "Exportar a Excel",        icon: ClipboardList, group: "datos" },
   { id: "administradores", label: "Administradores",       icon: Shield,        group: "gestion" },
+  { id: "cuentas-internas", label: "Cuentas internas",       icon: Shield,        group: "gestion" },
   { id: "correos",         label: "Correos Electrónicos", icon: Mail,          group: "datos" },
   { id: "papelera",        label: "Papelera",             icon: Trash2,        group: "datos" },
 ];
@@ -105,6 +107,7 @@ export default function AdminDashboard({ identidad }) {
       case "reportes":        return <Reportes />;
       case "exportar":        return <ExportarExcel />;
       case "administradores": return <GestionAdministradores />;
+      case "cuentas-internas": return <GestionCuentasInternas actorId={identidad.id} />;
       case "correos":         return <GestionCorreos />;
       case "papelera":        return <PapeleraGraduandos />;
       default:                return null;

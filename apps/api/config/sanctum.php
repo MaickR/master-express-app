@@ -2,13 +2,13 @@
 
 use App\Http\Middleware\AutenticarSesionSpa;
 use Illuminate\Cookie\Middleware\EncryptCookies;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 
 return [
     'middleware' => [
         'authenticate_session' => AutenticarSesionSpa::class,
         'encrypt_cookies' => EncryptCookies::class,
-        'validate_csrf_token' => ValidateCsrfToken::class,
+        'validate_csrf_token' => PreventRequestForgery::class,
     ],
     'stateful' => explode(',', env(
         'SANCTUM_STATEFUL_DOMAINS',

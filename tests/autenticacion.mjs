@@ -42,6 +42,10 @@ try {
         exit(2);
     }
     $db->transaction(function () use ($entrada, $db) {
+        if ($entrada['accion'] === 'limpiar') {
+            $ids = App\Models\User::query()->whereIn('email', array_column($entrada['cuentas'], 'email'))->pluck('id');
+            $db->table('eventos_de_cuenta')->whereIn('actor_id', $ids)->whereIn('cuenta_id', $ids)->delete();
+        }
         foreach ($entrada['cuentas'] as $cuenta) {
             $usuarios = App\Models\User::query()->where('email', $cuenta['email'])->where('name', $cuenta['nombre']);
             if ($entrada['accion'] === 'limpiar') {
@@ -227,7 +231,7 @@ try {
     const { data } = await cdp('Page.captureScreenshot', { format: 'png' });
     await writeFile(join(capturas, nombre + '.png'), Buffer.from(data, 'base64'));
   };
-  const texto = esperada => leer(valor => document.body.textContent.includes(valor), esperada);
+  const texto = esperada => leer(valor => document.body?.textContent.includes(valor) ?? false, esperada);
   const seleccionar = selector => leer(valor => Boolean(document.querySelector(valor)), selector);
   const clic = selector => leer(valor => document.querySelector(valor).click(), selector);
   const mensaje = () => leer(() => document.querySelector('[role="alert"]')?.textContent.trim());
@@ -350,6 +354,37 @@ try {
   assert.equal(envios - enviosPrevios, 1);
   console.log('PASS Cambio de tema conserva la sesión real de Laravel y el panel.');
   await pantalla('03-panel-administrador-1440');
+  await hasta(() => leer(() => {
+    const boton = [...document.querySelectorAll('button')].find(item => item.textContent.trim() === 'Cuentas internas');
+    if (!boton) return false;
+    boton.click();
+    return true;
+  }), 'No apareció el acceso a Cuentas internas.');
+  const estadoCuenta = (correo, estado) => leer(([email, esperado]) =>
+    [...document.querySelectorAll('section[aria-label="Gestión de cuentas internas"] li')]
+      .some(fila => fila.textContent.includes(email) && [...fila.querySelectorAll('p')].some(p => p.textContent === esperado)),
+  [correo, estado]);
+  const pulsarAccion = (correo, accion) => hasta(() => leer(([email, operacion]) => {
+    window.confirm = () => true;
+    const fila = [...document.querySelectorAll('section[aria-label="Gestión de cuentas internas"] li')]
+      .find(item => item.textContent.includes(email));
+    const boton = [...(fila?.querySelectorAll('button') ?? [])].find(item => item.textContent.trim() === operacion);
+    if (!boton || boton.disabled) return false;
+    boton.click();
+    return true;
+  }, [correo, accion]), 'No estuvo disponible la acción ' + accion);
+
+  await hasta(() => estadoCuenta(cuentas[2].email, 'Activa'), 'No se listó la cuenta interna.');
+  await pulsarAccion(cuentas[2].email, 'Suspender');
+  await hasta(() => estadoCuenta(cuentas[2].email, 'Suspendida'), 'La lista no reflejó la suspensión.');
+  await pulsarAccion(cuentas[0].email, 'Suspender');
+  await hasta(() => texto('Debe quedar al menos un administrador activo.'), 'No se mostró la protección del último administrador.');
+  await pulsarAccion(cuentas[2].email, 'Reactivar');
+  await hasta(() => estadoCuenta(cuentas[2].email, 'Activa'), 'La lista no reflejó la reactivación.');
+  await pulsarAccion(cuentas[2].email, 'Revocar sesiones');
+  await hasta(() => texto('Sesiones revocadas.'), 'No se confirmó la revocación desde el panel.');
+  console.log('PASS ME-SEC1A Administración refleja suspensión, reactivación, revocación y protección del último administrador.');
+
   await navegar('/AdminDashboard');
   await panel('/AdminDashboard', 'Panel de administración');
   await navegar('/ColaboradorDashboard');

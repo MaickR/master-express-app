@@ -15,6 +15,13 @@ export type Identidad = z.infer<typeof contratoSesion>['data'];
 export type Credenciales = { email: string; password: string; remember?: boolean };
 export type DatosRestablecimiento = { email: string; token: string; password: string; password_confirmation: string };
 
+const contratoCuentas = z.object({
+  data: z.array(z.object({ id: z.number().int(), nombre: z.string(), correo: z.string(), activa: z.boolean() })),
+  hayMas: z.boolean(),
+});
+const rutaCuentas = '/api/administracion/cuentas';
+export type AccionDeCuenta = 'suspender' | 'reactivar' | 'revocar-sesiones';
+
 export class ErrorSesion extends Error {
   constructor(readonly estado: number, readonly espera?: number, readonly campos: readonly string[] = []) {
     super('Falló la operación de sesión.');
@@ -74,6 +81,19 @@ export async function consultarSesion(signal: AbortSignal): Promise<Identidad> {
   const resultado = contratoSesion.safeParse(await respuesta.json().catch(() => null));
   if (!resultado.success) throw new ErrorSesion(0);
   return resultado.data.data;
+}
+
+export async function consultarCuentas(pagina: number, signal: AbortSignal) {
+  const respuesta = await solicitar(`${rutaCuentas}?page=${pagina}`, signal);
+  const resultado = contratoCuentas.safeParse(await respuesta.json().catch(() => null));
+  if (!resultado.success) throw new ErrorSesion(0);
+  return resultado.data;
+}
+
+export async function operarCuenta(id: number, accion: AccionDeCuenta): Promise<void> {
+  const signal = AbortSignal.timeout(15000);
+  await solicitar('/sanctum/csrf-cookie', signal);
+  await solicitar(`${rutaCuentas}/${id}`, signal, { accion });
 }
 
 export async function iniciarSesion(datos: Credenciales, signal: AbortSignal): Promise<Identidad> {

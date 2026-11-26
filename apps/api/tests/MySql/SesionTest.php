@@ -28,7 +28,9 @@ class SesionTest extends CasoMySql
 
     private const string ORIGEN_API = 'http://127.0.0.1:8000';
 
-    protected array $tablas = ['users', 'roles', 'rol_user', 'sessions', 'password_reset_tokens', 'jobs', 'failed_jobs'];
+    private const string CUENTAS = '/api/administracion/cuentas';
+
+    protected array $tablas = ['users', 'roles', 'rol_user', 'sessions', 'password_reset_tokens', 'jobs', 'failed_jobs', 'eventos_de_cuenta'];
 
     private string $clave;
 
@@ -272,6 +274,125 @@ class SesionTest extends CasoMySql
         $mensajes = Mail::mailer('array')->getSymfonyTransport()->messages();
         $this->assertCount(1, $mensajes);
         $this->assertSame($usuario->email, $mensajes->first()->getEnvelope()->getRecipients()[0]->getAddress());
+    }
+
+    public function test_administrador_suspende_y_reactiva_sin_restaurar_credenciales_anteriores(): void
+    {
+        $administrador = $this->crearUsuario(['administrador']);
+        $cuenta = $this->crearUsuario(['colaborador', 'finanzas']);
+        $actor = $this->ingresar($administrador);
+        $anterior = $this->ingresar($cuenta, recordar: true);
+        $otraSesion = $this->ingresar($cuenta);
+        $nombreCookie = Auth::guard('web')->getRecallerName();
+        $recuerdo = [$nombreCookie => $anterior->getCookie($nombreCookie, false)->getValue()];
+        $idSesion = $anterior->getCookie(config('session.cookie'))->getValue();
+        $sesionEnVuelo = (array) DB::table('sessions')->where('id', $idSesion)->first();
+        $roles = $cuenta->roles()->orderBy('codigo')->pluck('codigo')->all();
+        $ruta = self::CUENTAS.'/'.$cuenta->id;
+
+        $this->solicitar('GET', self::CUENTAS, [], $actor)->assertOk()->assertJsonFragment([
+            'id' => $cuenta->id, 'nombre' => $cuenta->name, 'correo' => $cuenta->email, 'activa' => true,
+        ])->assertJsonMissingPath('data.0.version_sesion')->assertJsonMissingPath('data.0.remember_token');
+        $this->solicitar('POST', $ruta, ['accion' => 'suspender'], $actor)->assertNoContent();
+        $this->solicitar('POST', $ruta, ['accion' => 'suspender'], $actor)->assertNoContent();
+        $this->assertFalse($cuenta->refresh()->activa);
+        $this->assertDatabaseMissing('sessions', ['user_id' => $cuenta->id]);
+        $this->solicitar('GET', '/api/mi-sesion', [], $otraSesion)->assertUnauthorized();
+        $this->solicitar('GET', '/api/mi-sesion', cookiesExtra: $recuerdo)->assertUnauthorized();
+        $csrf = $this->solicitar('GET', '/sanctum/csrf-cookie');
+        $this->solicitar('POST', '/login', ['email' => $cuenta->email, 'password' => $this->clave], $csrf)
+            ->assertUnprocessable()->assertJsonPath('message', 'Las credenciales no permiten iniciar sesión.');
+
+        $this->solicitar('POST', $ruta, ['accion' => 'reactivar'], $actor)->assertNoContent();
+        $this->assertTrue($cuenta->refresh()->activa);
+        $this->assertSame($roles, $cuenta->roles()->orderBy('codigo')->pluck('codigo')->all());
+        $this->solicitar('GET', '/api/mi-sesion', cookiesExtra: $recuerdo)->assertUnauthorized();
+        // Representa una petición anterior que terminó de escribir después de revocar.
+        DB::table('sessions')->insert($sesionEnVuelo);
+        $this->solicitar('GET', '/api/mi-sesion', [], $anterior)->assertUnauthorized();
+        $this->solicitar('GET', '/api/mi-sesion', [], $this->ingresar($cuenta))->assertOk();
+
+        $eventos = DB::table('eventos_de_cuenta')->where('cuenta_id', $cuenta->id)->orderBy('id')->get();
+        $this->assertSame(['suspender', 'reactivar'], $eventos->pluck('accion')->all());
+        foreach ($eventos as $evento) {
+            $this->assertEqualsCanonicalizing(['id', 'actor_id', 'cuenta_id', 'accion', 'created_at'], array_keys((array) $evento));
+            $this->assertSame($administrador->id, (int) $evento->actor_id);
+            $this->assertSame($cuenta->id, (int) $evento->cuenta_id);
+            $this->assertNotEmpty($evento->created_at);
+        }
+    }
+
+    public function test_revocacion_administrativa_cierra_sesiones_y_recuerdo_con_cuenta_activa(): void
+    {
+        $administrador = $this->crearUsuario(['administrador']);
+        $actor = $this->ingresar($administrador);
+        $cuenta = $this->crearUsuario(['colaborador']);
+        $destino = $this->ingresar($cuenta, recordar: true);
+        $nombreCookie = Auth::guard('web')->getRecallerName();
+        $recuerdo = [$nombreCookie => $destino->getCookie($nombreCookie, false)->getValue()];
+
+        $this->solicitar('POST', self::CUENTAS.'/'.$cuenta->id, ['accion' => 'revocar-sesiones'], $actor)->assertNoContent();
+        $this->assertTrue($cuenta->refresh()->activa);
+        $this->assertDatabaseMissing('sessions', ['user_id' => $cuenta->id]);
+        $this->solicitar('GET', '/api/mi-sesion', [], $destino)->assertUnauthorized();
+        $this->solicitar('GET', '/api/mi-sesion', cookiesExtra: $recuerdo)->assertUnauthorized();
+        $this->solicitar('GET', '/api/mi-sesion', [], $this->ingresar($cuenta))->assertOk();
+        $this->assertDatabaseHas('eventos_de_cuenta', [
+            'actor_id' => $administrador->id, 'cuenta_id' => $cuenta->id, 'accion' => 'revocar-sesiones',
+        ]);
+
+        $revocada = $this->solicitar('POST', self::CUENTAS.'/'.$administrador->id, ['accion' => 'revocar-sesiones'], $actor);
+        $revocada->assertNoContent();
+        $this->assertNotSame($actor->getCookie(config('session.cookie'))->getValue(), $revocada->getCookie(config('session.cookie'))->getValue());
+        $this->solicitar('GET', self::CUENTAS, [], $revocada)->assertUnauthorized();
+    }
+
+    public function test_cuentas_internas_exigen_administrador_csrf_y_acciones_acotadas(): void
+    {
+        $administrador = $this->crearUsuario(['administrador']);
+        $colaborador = $this->crearUsuario(['colaborador']);
+        $externa = $this->crearUsuario(['institucion']);
+        $actor = $this->ingresar($administrador);
+        $intruso = $this->ingresar($colaborador);
+        $ruta = self::CUENTAS.'/'.$administrador->id;
+
+        $this->solicitar('GET', self::CUENTAS)->assertUnauthorized();
+        $this->solicitar('GET', self::CUENTAS, [], $intruso)->assertForbidden();
+        $this->solicitar('GET', self::CUENTAS, [], $actor)->assertOk()
+            ->assertJsonMissing(['correo' => $externa->email]);
+        foreach (['suspender', 'reactivar', 'revocar-sesiones'] as $accion) {
+            $this->solicitar('POST', $ruta, ['accion' => $accion], $intruso)->assertForbidden();
+        }
+        $this->solicitar('POST', $ruta, ['accion' => 'suspender'], $actor, enviarCsrf: false)->assertStatus(419);
+        $this->solicitar('OPTIONS', $ruta)->assertNoContent()
+            ->assertHeader('Access-Control-Allow-Origin', self::ORIGEN_WEB);
+        $this->solicitar('POST', $ruta, ['accion' => 'eliminar'], $actor)->assertUnprocessable()
+            ->assertJsonValidationErrors('operacion.accion');
+        $this->solicitar('POST', $ruta, ['accion' => 'suspender', 'roles' => ['administrador'], 'cuenta' => $externa->id], $actor)
+            ->assertUnprocessable()->assertJsonValidationErrors('operacion');
+        $this->solicitar('POST', self::CUENTAS.'/'.$externa->id, ['accion' => 'suspender'], $actor)->assertNotFound();
+        $this->solicitar('POST', self::CUENTAS.'/0', ['accion' => 'suspender'], $actor)->assertNotFound();
+        $this->solicitar('POST', self::CUENTAS.'/99999999999999999999', ['accion' => 'suspender'], $actor)->assertNotFound();
+        $this->assertTrue($administrador->refresh()->activa);
+        $this->assertTrue($externa->refresh()->activa);
+        $this->assertSame(['colaborador'], $colaborador->codigosDeAcceso());
+        $this->assertDatabaseMissing('eventos_de_cuenta', ['cuenta_id' => $administrador->id]);
+        $this->assertDatabaseMissing('eventos_de_cuenta', ['cuenta_id' => $externa->id]);
+    }
+
+    public function test_ultimo_administrador_activo_no_se_puede_suspender(): void
+    {
+        $primero = $this->crearUsuario(['administrador', 'colaborador']);
+        $segundo = $this->crearUsuario(['administrador']);
+        $actor = $this->ingresar($primero);
+
+        $this->solicitar('POST', self::CUENTAS.'/'.$segundo->id, ['accion' => 'suspender'], $actor)->assertNoContent();
+        $this->solicitar('POST', self::CUENTAS.'/'.$primero->id, ['accion' => 'suspender'], $actor)
+            ->assertConflict()->assertJsonPath('message', 'Debe quedar al menos un administrador activo.');
+        $this->assertTrue($primero->refresh()->activa);
+        $this->assertFalse($segundo->refresh()->activa);
+        $this->assertDatabaseMissing('eventos_de_cuenta', ['cuenta_id' => $primero->id]);
+        $this->solicitar('GET', self::CUENTAS, [], $actor)->assertOk();
     }
 
     public function test_el_fallo_smtp_se_persiste_sin_reintentar_ni_exponer_el_enlace(): void

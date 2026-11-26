@@ -12,6 +12,8 @@ class VigenciaSesionRecordada
 {
     public const string VENCIMIENTO = 'sesion_recordada_vence';
 
+    public const string VERSION = 'version_sesion';
+
     public function handle(Request $request, Closure $next): Response
     {
         $guard = Auth::guard('web');
@@ -27,15 +29,21 @@ class VigenciaSesionRecordada
             Cookie::queue(Cookie::forget($nombre));
         }
 
-        if ($sesion->has(self::VENCIMIENTO) && $sesion->get(self::VENCIMIENTO) <= $ahora) {
+        $teniaSesion = $sesion->has($guard->getName());
+        $usuario = $guard->user();
+        $restaurada = ! $teniaSesion && $usuario && $guard->viaRemember();
+        $revocada = $usuario && (! $usuario->activa
+            || (! $restaurada && $sesion->get(self::VERSION, 0) !== $usuario->version_sesion));
+
+        if ($revocada || ($sesion->has(self::VENCIMIENTO) && $sesion->get(self::VENCIMIENTO) <= $ahora)) {
             $request->cookies->remove($nombre);
             $guard->logoutCurrentDevice();
             $sesion->invalidate();
             $sesion->regenerateToken();
             Cookie::queue(Cookie::forget($nombre));
-        } elseif (! $sesion->has($guard->getName()) && $vence > $ahora
-            && ($usuario = $guard->user()) && $guard->viaRemember()) {
+        } elseif ($restaurada) {
             $sesion->put(self::VENCIMIENTO, $vence);
+            $sesion->put(self::VERSION, $usuario->version_sesion);
             $sesion->put('password_hash_web', $guard->hashPasswordForCookie($usuario->getAuthPassword()));
         }
 
