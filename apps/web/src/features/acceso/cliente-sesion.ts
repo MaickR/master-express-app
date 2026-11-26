@@ -12,10 +12,11 @@ const contratoSesion = z.object({
   }),
 });
 export type Identidad = z.infer<typeof contratoSesion>['data'];
-export type Credenciales = { email: string; password: string };
+export type Credenciales = { email: string; password: string; remember?: boolean };
+export type DatosRestablecimiento = { email: string; token: string; password: string; password_confirmation: string };
 
 export class ErrorSesion extends Error {
-  constructor(readonly estado: number, readonly espera?: number) {
+  constructor(readonly estado: number, readonly espera?: number, readonly campos: readonly string[] = []) {
     super('Falló la operación de sesión.');
   }
 }
@@ -58,7 +59,11 @@ async function solicitar(ruta: string, signal: AbortSignal, cuerpo?: object): Pr
 
   if (!respuesta.ok) {
     const segundos = Number(respuesta.headers.get('Retry-After'));
-    throw new ErrorSesion(respuesta.status, segundos > 0 && Number.isFinite(segundos) ? segundos : undefined);
+    const validacion = respuesta.status === 422 ? await respuesta.json().catch(() => null) : null;
+    const campos = ['email', 'password', 'password_confirmation', 'token'].filter(campo =>
+      validacion?.errors && Object.hasOwn(validacion.errors, campo),
+    );
+    throw new ErrorSesion(respuesta.status, segundos > 0 && Number.isFinite(segundos) ? segundos : undefined, campos);
   }
 
   return respuesta;
@@ -77,8 +82,19 @@ export async function iniciarSesion(datos: Credenciales, signal: AbortSignal): P
     await solicitar('/login', signal, datos);
   } catch (error) {
     if (!(error instanceof ErrorSesion) || error.estado !== 409) throw error;
+    try {
+      return await consultarSesion(signal);
+    } catch (reconciliacion) {
+      if (reconciliacion instanceof ErrorSesion && reconciliacion.estado === 401) throw error;
+      throw reconciliacion;
+    }
   }
   return consultarSesion(signal);
+}
+
+export async function recuperarContrasena(datos: { email: string } | DatosRestablecimiento, signal: AbortSignal) {
+  await solicitar('/sanctum/csrf-cookie', signal);
+  await solicitar('token' in datos ? '/reset-password' : '/forgot-password', signal, datos);
 }
 
 export async function terminarSesion(signal: AbortSignal): Promise<void> {
@@ -95,12 +111,13 @@ export function mensajeSesion(error: unknown): string {
     switch (error.estado) {
       case 401: return 'Tu sesión terminó. Inicia sesión de nuevo.';
       case 403: return 'Tu cuenta no tiene acceso a MasterExpress Control.';
+      case 409: return 'Ya hay una sesión iniciada. Recarga la página para continuar.';
       case 419: return 'La protección de la sesión venció. Inténtalo de nuevo.';
       case 422: return 'El correo o la contraseña no permiten iniciar sesión.';
       case 429: return error.espera
         ? `Demasiados intentos. Espera ${Math.ceil(error.espera)} segundos antes de volver a intentar.`
         : 'Demasiados intentos. Espera un momento antes de volver a intentar.';
-      case 0: return 'No pudimos conectar con Laravel. Comprueba la conexión y vuelve a intentar.';
+      case 0: return 'No pudimos conectar con el servicio. Comprueba la conexión y vuelve a intentar.';
     }
   }
   return 'El servicio de acceso no pudo completar la solicitud. Inténtalo de nuevo.';

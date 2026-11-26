@@ -42,7 +42,7 @@ La iluminación del fondo usa dos gradientes radiales estáticos, cálidos sobre
 
 El formulario mantiene etiquetas persistentes, controles de 48 a 56 px, foco visible y avisos asociados a los campos. En pantallas estrechas, la cabecera y el formulario siguen el mismo orden y el selector mantiene su nombre accesible.
 
-Cuando existan los servicios correspondientes, «¿Olvidaste tu contraseña?» se ubicará junto a la etiqueta Contraseña y «Mantener sesión iniciada» irá debajo del campo, antes de la acción principal. Las acciones de institución y graduando podrán agruparse debajo del formulario como accesos externos, con un separador y espacio para apilarse en móvil. Estas ubicaciones quedan reservadas en el diseño sin mostrar controles inactivos.
+«¿Olvidaste tu contraseña?» está junto a la etiqueta Contraseña. «Mantener sesión iniciada» está debajo del campo, antes de la acción principal, y comienza desmarcada. La solicitud y el restablecimiento conservan el marco corporativo y el selector de tema. Las acciones futuras de institución y graduando podrán agruparse debajo del formulario como accesos externos.
 
 ## Estructura y componentes
 

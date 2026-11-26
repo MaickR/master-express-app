@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from '@/shared/ui/use-toast';
 import { consultarSesion, ErrorSesion, iniciarSesion, mensajeSesion, terminarSesion, type Credenciales } from './cliente-sesion';
 import { ContextoSesion, type EstadoSesion } from './contexto-sesion';
 
@@ -29,7 +30,9 @@ export default function ProveedorSesion({ children }: { children: ReactNode }) {
             : anterior.tipo === 'anonimo' ? anterior.aviso : undefined,
         }));
       } else {
-        establecerEstado({ tipo: 'error', mensaje: mensajeSesion(error) });
+        establecerEstado(anterior => anterior.tipo === 'anonimo' || anterior.tipo === 'comprobando'
+          ? { tipo: 'anonimo', aviso: mensajeSesion(error) }
+          : { tipo: 'error', mensaje: mensajeSesion(error) });
       }
     } finally {
       if (consulta.current === control) consulta.current = undefined;
@@ -84,6 +87,7 @@ export default function ProveedorSesion({ children }: { children: ReactNode }) {
     establecerEstado({ tipo: 'comprobando' });
     try {
       await terminarSesion(signal);
+      toast({ title: 'Cerraste sesión' });
       return { tipo: 'anonimo' };
     } catch (error) {
       return { tipo: 'error', mensaje: `No se pudo confirmar el cierre de sesión. ${mensajeSesion(error)}` };

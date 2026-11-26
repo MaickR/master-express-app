@@ -4,6 +4,10 @@ use App\Models\User;
 
 return [
 
+    'duracion_recuerdo' => 1440,
+    'cola_recuperacion' => 'database',
+    'url_spa' => env('APP_ENV') === 'production' ? env('APP_URL') : 'http://127.0.0.1:5173',
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Defaults
@@ -96,7 +100,7 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
-            'expire' => 60,
+            'expire' => 30,
             'throttle' => 60,
         ],
     ],
