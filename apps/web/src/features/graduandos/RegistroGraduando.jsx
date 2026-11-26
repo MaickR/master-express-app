@@ -539,7 +539,7 @@ export default function RegistroGraduando({ colaboradorId }) {
 
             {/* Submit */}
             {errorVinculo && <p role="alert" className="text-sm text-destructive">{errorVinculo}</p>}
-            <div className="pt-6 border-t border-border flex justify-end gap-3">
+            <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-6 dark:flex-nowrap">
               <Link to="/ColaboradorDashboard">
                 <Button variant="outline">Cancelar</Button>
               </Link>

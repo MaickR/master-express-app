@@ -1,4 +1,4 @@
-import type { ComponentProps, ComponentType } from 'react';
+import { useState, type ComponentProps, type ComponentType } from 'react';
 import type * as Radix from '@radix-ui/react-dropdown-menu';
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
@@ -19,12 +19,13 @@ const modos = {
 
 export default function SelectorTema({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme();
+  const [menuAbierto, establecerMenuAbierto] = useState(false);
   const modo = theme === 'light' || theme === 'dark' ? theme : 'system';
   const { etiqueta, Icono } = modos[modo];
 
   return (
     <TooltipProvider delayDuration={350}>
-      <DropdownMenu>
+      <DropdownMenu open={menuAbierto} onOpenChange={establecerMenuAbierto}>
         <Tooltip>
           <TooltipTrigger asChild>
             <DropdownMenuTrigger
@@ -37,7 +38,12 @@ export default function SelectorTema({ className }: { className?: string }) {
           <TooltipContent collisionPadding={8} className="motion-reduce:!animate-none">Cambiar apariencia</TooltipContent>
         </Tooltip>
         <Menu align="end" sideOffset={6} collisionPadding={8} aria-label="Tema visual"
-          className="min-w-40 motion-reduce:!animate-none">
+          className="min-w-40 motion-reduce:!animate-none" onKeyDown={evento => {
+            if (evento.key === 'Escape' && !evento.defaultPrevented) {
+              evento.preventDefault();
+              establecerMenuAbierto(false);
+            }
+          }}>
           <DropdownMenuRadioGroup value={modo} onValueChange={setTheme}>
             {Object.entries(modos).map(([valor, { etiqueta: nombre, Icono: IconoModo }]) => (
               <Opcion key={valor} value={valor} className="min-h-11 gap-2 data-[highlighted]:outline data-[highlighted]:outline-2 data-[highlighted]:-outline-offset-2 data-[highlighted]:outline-ring">

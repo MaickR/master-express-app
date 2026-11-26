@@ -339,8 +339,19 @@ try {
             .reduce((suma, canal) => suma + Number(canal) / 3, 0);
         const superficies = [document.querySelector('.acceso'), marco, cabecera, marco.querySelector('#correo')];
         const rect = marco.getBoundingClientRect();
+        const marca = cabecera.getBoundingClientRect();
+        const formulario = marco.querySelector('section').getBoundingClientRect();
+        const zonasTactiles = [
+          cabecera.querySelector('button'),
+          marco.querySelector('[aria-controls="contrasena"]'),
+          marco.querySelector('a[href="/recuperar-contrasena"]'),
+          marco.querySelector('input[name="remember"]').closest('label'),
+          boton,
+        ];
         return {
-          alineado: Math.abs(rect.left + rect.width / 2 - innerWidth / 2) < 3,
+          distribucion: innerWidth >= 1024 ? marca.right <= formulario.left : marca.bottom <= formulario.top,
+          zonasTactiles: zonasTactiles.every(elemento => elemento.getBoundingClientRect().height >= 44),
+          alineado: Math.abs(rect.left + rect.width / 2 - document.documentElement.clientWidth / 2) < 3,
           superficie: superficies.every(elemento => modo === 'claro'
             ? luminanciaMedia(elemento, 'backgroundColor') > 200
             : luminanciaMedia(elemento, 'backgroundColor') < 70),
@@ -348,7 +359,9 @@ try {
           formulario: boton.getBoundingClientRect().bottom < innerHeight && boton.offsetHeight >= 44,
         };
       }, tema);
-      assert.deepEqual(composicion, { alineado: true, superficie: true, marca: true, formulario: true });
+      assert.deepEqual(composicion, {
+        distribucion: true, zonasTactiles: true, alineado: true, superficie: true, marca: true, formulario: true,
+      });
       console.log(`PASS Ingreso ${tema} centrado, coherente y visible a ${width} × ${height}`);
       await pantalla(`login-${tema}-${width}`);
     }
@@ -434,11 +447,18 @@ try {
   await leer(() => { document.activeElement.blur(); });
   await comprobarIngreso("claro");
   await cambiarTema("Oscuro", "dark");
+  await hasta(() => leer(s => !document.querySelector('[role="menu"]') && document.activeElement.matches(s),
+    activadorTema), "El menú no devolvió el foco después de seleccionar Oscuro.");
+  verificar(!(await texto("Cambiar apariencia", '[role="tooltip"]')),
+    "Seleccionar un tema devuelve el foco sin volver a mostrar el tooltip");
   await enfoque(activadorTema);
   await tecla("Enter", 13);
   await hasta(() => texto("Oscuro", '[role="menu"]'), "El selector no abrió con Enter.");
   await comprobarMenuTema("Oscuro");
   await tecla("Escape", 27);
+  await hasta(() => leer(s => !document.querySelector('[role="menu"]') && document.activeElement.matches(s),
+    activadorTema), "Escape no cerró el menú reabierto ni devolvió el foco.");
+  await leer(() => document.activeElement.blur());
   await comprobarIngreso("oscuro");
   await ir("/?sin-react");
   await hasta(() => leer(() => location.search === "?sin-react" && document.readyState === "complete"),

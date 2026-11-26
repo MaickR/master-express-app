@@ -13,6 +13,20 @@ module.exports = {
 			heading: ['var(--font-interfaz)'],
 			body: ['var(--font-interfaz)'],
   		},
+      textColor: {
+        primary: {
+          DEFAULT: 'hsl(var(--interactivo))',
+          foreground: 'hsl(var(--primary-foreground))'
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--texto-acento))',
+          foreground: 'hsl(var(--accent-foreground))'
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--texto-secundario))',
+          foreground: 'hsl(var(--secondary-foreground))'
+        },
+      },
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
@@ -48,6 +62,7 @@ module.exports = {
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
 			'marca-placa': 'hsl(var(--marca-placa))',
+			insignia: { DEFAULT: 'hsl(var(--insignia))', foreground: 'hsl(var(--insignia-foreground))' },
 			exito: { DEFAULT: 'hsl(var(--exito))', suave: 'hsl(var(--exito-suave))' },
 			aviso: { DEFAULT: 'hsl(var(--aviso))', suave: 'hsl(var(--aviso-suave))' },
 			error: { DEFAULT: 'hsl(var(--error))', suave: 'hsl(var(--error-suave))' },

@@ -42,6 +42,15 @@ try {
         exit(2);
     }
     $db->transaction(function () use ($entrada, $db) {
+        if ($entrada['accion'] === 'vencer-enlace') {
+            $correo = $entrada['cuentas'][0]['email'];
+            $cambios = $db->table('password_reset_tokens')->where('email', $correo)
+                ->update(['created_at' => now()->subMinutes(config('auth.passwords.users.expire') + 1)]);
+            if ($cambios !== 1) {
+                throw new RuntimeException('No se encontró el enlace ficticio que se va a vencer.');
+            }
+            return;
+        }
         if ($entrada['accion'] === 'limpiar') {
             $ids = App\Models\User::query()->whereIn('email', array_column($entrada['cuentas'], 'email'))->pluck('id');
             $db->table('eventos_de_cuenta')->whereIn('actor_id', $ids)->whereIn('cuenta_id', $ids)->delete();
@@ -298,8 +307,6 @@ try {
   await tecla('Tab', 'Tab', 9);
   assert.equal(await leer(() => document.activeElement.id), 'correo');
   await tecla('Tab', 'Tab', 9);
-  assert.equal(await leer(() => document.activeElement.textContent.trim()), '¿Olvidaste tu contraseña?');
-  await tecla('Tab', 'Tab', 9);
   assert.equal(await leer(() => document.activeElement.id), 'contrasena');
   await tecla('Tab', 'Tab', 9);
   assert.equal(await leer(() => document.activeElement.getAttribute('aria-label')), 'Mostrar contraseña');
@@ -307,6 +314,8 @@ try {
   assert.equal(await leer(() => document.querySelector('#contrasena').type), 'text');
   await tecla(' ', 'Space', 32);
   assert.equal(await leer(() => document.querySelector('#contrasena').type), 'password');
+  await tecla('Tab', 'Tab', 9);
+  assert.equal(await leer(() => document.activeElement.textContent.trim()), '¿Olvidaste tu contraseña?');
   await tecla('Tab', 'Tab', 9);
   assert.equal(await leer(() => document.activeElement.name), 'remember');
   assert.equal(await leer(() => document.activeElement.checked), false);
@@ -492,15 +501,19 @@ try {
     document.querySelector('#email').value = dato;
     document.querySelector('form').requestSubmit();
   }, email);
+  const recibirEnlace = async () => {
+    await procesarCorreo();
+    assert.equal(mensajes.length, 1, 'No se recibió el correo de QA.');
+    const [correoLocal] = mensajes.splice(0, 1);
+    const enlace = correoLocal.replace(/=\r\n/g, '').replaceAll('=3D', '=').replaceAll('&amp;', '&')
+      .match(/http:\/\/127\.0\.0\.1:5173\/restablecer-contrasena#token=[a-f0-9]{64}&email=[^\s"<]+/)?.[0];
+    assert(Boolean(enlace), 'No se encontró el enlace en el correo local.');
+    return enlace;
+  };
   await solicitarEnlace(cuentas[0].email);
   await hasta(() => texto('Revisa tu correo'), 'No se confirmó la solicitud.');
   const avisoNeutral = await leer(() => document.querySelector('main [role="status"]').textContent);
-  await procesarCorreo();
-  assert.equal(mensajes.length, 1, 'No se recibió el correo de QA.');
-  const enlace = mensajes[0].replace(/=\r\n/g, '').replaceAll('=3D', '=').replaceAll('&amp;', '&')
-    .match(/http:\/\/127\.0\.0\.1:5173\/restablecer-contrasena#token=[a-f0-9]{64}&email=[^\s"<]+/)?.[0];
-  assert(Boolean(enlace), 'No se encontró el enlace en el correo local.');
-  mensajes.length = 0;
+  const enlace = await recibirEnlace();
   await navegar('/recuperar-contrasena');
   await hasta(() => seleccionar('#email'), 'No regresó el formulario.');
   await solicitarEnlace(correo('recuperacion-ausente'));
@@ -512,6 +525,15 @@ try {
   await cdp('Page.navigate', { url: enlace });
   await hasta(() => seleccionar('#password'), 'El enlace no abrió el formulario de restablecimiento.');
   assert.equal(await leer(() => location.hash + location.search), '');
+  for (const id of ['password', 'password_confirmation']) {
+    const campoOculto = () => leer(campo => document.getElementById(campo).type, id);
+    const alternar = () => leer(campo => document.querySelector('button[aria-controls="' + campo + '"]').click(), id);
+    assert.equal(await campoOculto(), 'password');
+    await alternar();
+    assert.equal(await campoOculto(), 'text');
+    await alternar();
+    assert.equal(await campoOculto(), 'password');
+  }
   const claveNueva = randomBytes(18).toString('hex');
   const restablecer = confirmacion => leer(datos => {
     document.querySelector('#password').value = datos.claveNueva;
@@ -527,11 +549,22 @@ try {
   await hasta(() => seleccionar('#password'), 'No abrió el enlace usado.');
   await restablecer(claveNueva);
   await hasta(() => texto('El enlace no es válido o venció'), 'La interfaz no informó del token consumido.');
+
+  await clic('a[href="/recuperar-contrasena"]');
+  await hasta(() => seleccionar('#email'), 'No abrió la solicitud de un enlace nuevo.');
+  await solicitarEnlace(cuentas[0].email);
+  await hasta(() => texto('Revisa tu correo'), 'No se confirmó la solicitud de un enlace nuevo.');
+  const enlaceVencido = await recibirEnlace();
+  administrarCuentas('vencer-enlace');
+  await cdp('Page.navigate', { url: enlaceVencido });
+  await hasta(() => seleccionar('#password'), 'No abrió el formulario del enlace vencido.');
+  await restablecer(claveNueva);
+  await hasta(() => texto('El enlace no es válido o venció'), 'La interfaz no informó del token vencido.');
   await clic('a[href="/"]');
   await loginVisible();
   await digitar(cuentas[0].email, clave);
   await hasta(async () => /correo o la contraseña/.test(await mensaje()), 'La contraseña anterior siguió funcionando.');
-  console.log('PASS N–Q Restablecimiento desde correo local, validación, confirmación, token usado y temas.');
+  console.log('PASS N–Q Restablecimiento desde correo local, validación, confirmación, tokens usado y vencido, y temas.');
 
   const cookies = async () => (await cdp('Network.getCookies', { urls: [web, api] })).cookies;
   await digitar(cuentas[0].email, claveNueva);
@@ -563,7 +596,8 @@ try {
   await loginVisible();
   assert(!(await cookies()).some(cookie => cookie.name.startsWith('remember_web_')));
   const token = new URLSearchParams(new URL(enlace).hash.slice(1)).get('token');
-  assert(!consola.some(linea => [clave, claveNueva, token].some(secreto => linea.includes(secreto))),
+  const tokenVencido = new URLSearchParams(new URL(enlaceVencido).hash.slice(1)).get('token');
+  assert(!consola.some(linea => [clave, claveNueva, token, tokenVencido].some(secreto => linea.includes(secreto))),
     'La consola contiene datos sensibles.');
   console.log('PASS R–X Cookies reales, pérdida de la cookie ordinaria, restauración recordada, logout y consola sin datos sensibles.');
 } finally {

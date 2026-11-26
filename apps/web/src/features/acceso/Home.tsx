@@ -1,36 +1,41 @@
 import { useEffect, useRef, useState, type ComponentProps, type ComponentType, type FormEvent, type ReactNode } from 'react';
-import { ArrowRight, Eye, EyeOff, LoaderCircle } from 'lucide-react';
+import { ArrowRight, LoaderCircle } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import Button from '@/features/acceso/BotonAcceso';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import SelectorTema from '@/shared/components/selector-tema';
 import { ErrorSesion, mensajeSesion } from './cliente-sesion';
-import AvisoAcceso from './aviso-acceso';
+import AvisoAcceso, { tonoFalloAcceso, type TonoAcceso } from './aviso-acceso';
+import CampoContrasena from './campo-contrasena';
 import { useSesion } from './contexto-sesion';
 import { paneles } from './destinos';
+import { vistasRegistro } from './vistas-registro';
 
 const Campo = Input as ComponentType<ComponentProps<'input'>>;
 const Etiqueta = Label as ComponentType<ComponentProps<'label'>>;
 
 export function MarcoAcceso({ children }: { children: ReactNode }) {
   return (
-    <main className="acceso grid min-h-dvh place-items-center px-3 py-2 sm:px-8 sm:py-10">
-      <div className="acceso__panel w-full max-w-xl rounded-2xl border border-border bg-card text-card-foreground">
-        <header className="acceso__marca flex items-center justify-between gap-2 rounded-t-2xl border-b border-border bg-muted px-4 py-2 sm:gap-5 sm:px-12 sm:py-6">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-5">
+
+    <main className="acceso grid min-h-dvh place-items-center px-3 py-3 sm:px-8 sm:py-8">
+      <div className="acceso__panel grid w-full min-w-0 text-card-foreground">
+        <header className="acceso__marca flex min-w-0 items-center justify-between gap-2">
+          <div className="acceso__identidad flex min-w-0 items-center gap-3 lg:flex-col lg:items-start lg:gap-6">
             <img src="/master-express.png" alt="" width={72} height={72}
-              className="size-12 shrink-0 rounded-xl border border-border bg-marca-placa object-contain p-1.5 sm:size-[72px] sm:p-2" />
+              className="size-11 shrink-0 rounded-xl border border-border bg-marca-placa object-contain p-1 sm:size-14 lg:size-[76px] lg:p-2" />
             <div className="min-w-0">
-              <p className="font-heading text-base font-bold leading-tight tracking-tight sm:text-2xl">
-                MasterExpress <span className="text-primary">Control</span>
+              <p className="acceso__nombre font-heading text-sm font-bold leading-tight tracking-tight sm:text-xl lg:text-[2rem]">
+                MasterExpress <span>Control</span>
               </p>
-              <p className="mt-1 text-xs leading-snug text-muted-foreground sm:text-sm">Gestión de ceremonias de grado</p>
+              <p className="mt-1 text-xs leading-snug text-muted-foreground sm:text-sm lg:mt-3 lg:max-w-[23ch] lg:text-base">
+                Cada ceremonia, organizada de principio a fin.
+              </p>
             </div>
           </div>
-          <SelectorTema className="border border-border bg-card text-card-foreground" />
+          <SelectorTema className="acceso__tema border border-border bg-card text-card-foreground hover:bg-accent" />
         </header>
-        <section className="px-4 pb-4 pt-4 sm:px-12 sm:pb-10 sm:pt-9">
+        <section className="acceso__contenido min-w-0">
           {children}
         </section>
       </div>
@@ -71,16 +76,25 @@ function FormularioAcceso({ aviso }: { aviso?: string }) {
   const contrasena = useRef<HTMLInputElement>(null);
   const solicitando = useRef(false);
   const [ocupado, establecerOcupado] = useState(false);
-  const [visible, establecerVisible] = useState(false);
   const [campoInvalido, establecerCampoInvalido] = useState<'correo' | 'contrasena'>();
   const [error, establecerError] = useState('');
+  const [tono, establecerTono] = useState<TonoAcceso>('error');
   const [reintentarEn, establecerReintentarEn] = useState(0);
 
   useEffect(() => {
     if (!reintentarEn) return;
-    const temporizador = window.setTimeout(() => establecerReintentarEn(0), reintentarEn);
+    const temporizador = window.setTimeout(() => {
+      establecerReintentarEn(0);
+      establecerError('');
+    }, reintentarEn);
     return () => window.clearTimeout(temporizador);
   }, [reintentarEn]);
+
+  const limpiarErrorCampo = (campo: typeof campoInvalido) => {
+    if (campo !== campoInvalido) return;
+    establecerCampoInvalido(undefined);
+    establecerError('');
+  };
 
   const enviar = async (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault();
@@ -110,6 +124,7 @@ function FormularioAcceso({ aviso }: { aviso?: string }) {
       await iniciar({ email, password, remember });
     } catch (fallo) {
       establecerError(mensajeSesion(fallo));
+      establecerTono(tonoFalloAcceso(fallo));
       if (fallo instanceof ErrorSesion && fallo.estado === 429) {
         establecerReintentarEn((fallo.espera ?? 60) * 1000);
       }
@@ -121,51 +136,53 @@ function FormularioAcceso({ aviso }: { aviso?: string }) {
 
   return (
     <MarcoAcceso>
-      <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-[2.625rem] sm:leading-tight">Iniciar sesión</h1>
+      <h1 className="acceso__titulo">Iniciar sesión</h1>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">Ingresa con el correo y la contraseña de tu cuenta interna.</p>
-      <form className="mt-4 grid gap-3 sm:mt-8 sm:gap-5" onSubmit={enviar} noValidate aria-busy={ocupado}>
+      <form className="mt-4 grid gap-2.5 sm:mt-6 sm:gap-4" onSubmit={enviar} noValidate aria-busy={ocupado}>
         <div className="grid gap-2">
           <Etiqueta htmlFor="correo">Correo electrónico</Etiqueta>
           <Campo ref={correo} id="correo" name="email" type="email" autoComplete="username" required
+            onChange={() => limpiarErrorCampo('correo')}
             maxLength={255} disabled={ocupado} aria-invalid={campoInvalido === 'correo'}
-            aria-describedby={campoInvalido === 'correo' ? 'error-correo' : undefined} className="h-12 bg-background px-3.5 md:text-base sm:h-14" />
+            aria-describedby={campoInvalido === 'correo' ? 'error-correo' : undefined} className="acceso__campo h-12 px-3.5 md:text-base sm:h-[3.25rem]" />
           {campoInvalido === 'correo' && <p id="error-correo" role="alert" className="text-sm text-error">{error}</p>}
         </div>
         <div className="grid gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-x-3">
-            <Etiqueta htmlFor="contrasena">Contraseña</Etiqueta>
-            <Link to="/recuperar-contrasena" className="inline-flex min-h-7 items-center text-sm font-medium text-primary underline underline-offset-4">
-              ¿Olvidaste tu contraseña?
-            </Link>
-          </div>
-          <div className="relative">
-            <Campo ref={contrasena} id="contrasena" name="password" type={visible ? 'text' : 'password'}
-              autoComplete="current-password" required disabled={ocupado} aria-invalid={campoInvalido === 'contrasena'}
-              aria-describedby={campoInvalido === 'contrasena' ? 'error-contrasena' : undefined}
-              className="h-12 bg-background pl-3.5 pr-14 md:text-base sm:h-14" />
-            <Button type="button" variant="ghost" size="icon" disabled={ocupado}
-              className="absolute right-1 top-1/2 size-11 -translate-y-1/2 text-muted-foreground [&_svg]:size-5"
-              aria-controls="contrasena" aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              onClick={() => establecerVisible(!visible)}>
-              {visible ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
-            </Button>
-          </div>
+
+          <Etiqueta htmlFor="contrasena">Contraseña</Etiqueta>
+          <CampoContrasena ref={contrasena} id="contrasena" name="password" autoComplete="current-password"
+            onChange={() => limpiarErrorCampo('contrasena')}
+            etiqueta="contraseña" required disabled={ocupado} aria-invalid={campoInvalido === 'contrasena'}
+            aria-describedby={campoInvalido === 'contrasena' ? 'error-contrasena' : undefined} />
           {campoInvalido === 'contrasena' && <p id="error-contrasena" role="alert" className="text-sm text-error">{error}</p>}
         </div>
-        <div className="grid gap-1">
-          <label className="flex min-h-9 w-fit cursor-pointer items-center gap-3 text-sm font-medium sm:min-h-11">
-            <input type="checkbox" name="remember" disabled={ocupado} aria-describedby="equipo-compartido"
+        <div>
+          <Link to="/recuperar-contrasena" className="acceso__enlace inline-flex min-h-11 items-center text-sm">
+            ¿Olvidaste tu contraseña?
+          </Link>
+          <label className="flex min-h-11 w-fit cursor-pointer items-center gap-3 text-sm font-medium">
+            <input type="checkbox" name="remember" disabled={ocupado}
               className="size-5 accent-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring" />
             Mantener sesión iniciada
           </label>
-          <p id="equipo-compartido" className="text-xs text-muted-foreground sm:text-sm">Evita esta opción en equipos compartidos.</p>
         </div>
-        {!campoInvalido && (error || aviso) && <AvisoAcceso id="mensaje-acceso">{error || aviso}</AvisoAcceso>}
-        <Button type="submit" disabled={ocupado || reintentarEn > 0} className="h-12 w-full text-base font-semibold sm:h-14">
+        {!campoInvalido && (error || aviso) && (
+          <AvisoAcceso id="mensaje-acceso" tono={error ? tono : 'advertencia'}>{error || aviso}</AvisoAcceso>
+        )}
+        <Button type="submit" disabled={ocupado || reintentarEn > 0} className="acceso__accion h-12 w-full text-base font-semibold sm:h-[3.25rem]">
           {ocupado ? 'Iniciando sesión…' : 'Iniciar sesión'}
-          {ocupado ? <LoaderCircle aria-hidden="true" className="animate-spin motion-reduce:animate-none" /> : <ArrowRight aria-hidden="true" />}
+          {ocupado ? <LoaderCircle aria-hidden="true" className="animate-spin motion-reduce:hidden" /> : <ArrowRight aria-hidden="true" />}
         </Button>
       </form>
+      <span role="status" className="sr-only">{ocupado ? "Iniciando sesión…" : ""}</span>
+      <nav aria-label="Vistas previas de registro" className="mt-4 grid grid-cols-2 gap-2.5 border-t border-border pt-3">
+        {vistasRegistro.map(vista => (
+          <Link key={vista.ruta} to={vista.ruta}
+            className="acceso__enlace inline-flex min-h-11 min-w-0 items-center justify-center rounded-md border border-border px-2 py-2 text-center text-sm hover:bg-accent hover:text-accent-foreground">
+            {vista.enlace}
+          </Link>
+        ))}
+      </nav>
     </MarcoAcceso>
   );
 }

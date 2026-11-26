@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ComponentProps, type ComponentType, type FormEvent } from 'react';
-import { ArrowLeft, CheckCircle2, LoaderCircle } from 'lucide-react';
+import { ArrowLeft, LoaderCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import Button from './BotonAcceso';
 import { MarcoAcceso } from './Home';
-import AvisoAcceso from './aviso-acceso';
+import AvisoAcceso, { tonoFalloAcceso, type TonoAcceso } from './aviso-acceso';
+import CampoContrasena from './campo-contrasena';
 import { ErrorSesion, mensajeSesion, recuperarContrasena } from './cliente-sesion';
 
 const Campo = Input as ComponentType<ComponentProps<'input'>>;
@@ -33,10 +34,13 @@ export default function Recuperacion({ modo }: { modo: 'solicitar' | 'restablece
   const [exito, establecerExito] = useState(false);
   const [errores, establecerErrores] = useState<Errores>({});
   const [aviso, establecerAviso] = useState('');
+  const [tono, establecerTono] = useState<TonoAcceso>('error');
   const [ocupado, establecerOcupado] = useState(false);
   const [espera, establecerEspera] = useState(0);
   const operacion = useRef<AbortController>();
   const titulo = useRef<HTMLHeadingElement>(null);
+  const campoPendiente = useRef<HTMLInputElement | null>(null);
+  const enlaceInvalido = restablecer && !enlace && !exito;
 
   useEffect(() => {
     if (!restablecer) return () => operacion.current?.abort();
@@ -51,6 +55,7 @@ export default function Recuperacion({ modo }: { modo: 'solicitar' | 'restablece
       if (!location.hash) return;
       operacion.current?.abort();
       operacion.current = undefined;
+      campoPendiente.current = null;
       establecerOcupado(false);
       establecerAviso('');
       establecerErrores({});
@@ -65,11 +70,20 @@ export default function Recuperacion({ modo }: { modo: 'solicitar' | 'restablece
     };
   }, [restablecer]);
 
-  useEffect(() => titulo.current?.focus(), [exito]);
+  useEffect(() => titulo.current?.focus(), [exito, enlaceInvalido]);
+
+  useEffect(() => {
+    if (ocupado) return;
+    campoPendiente.current?.focus();
+    campoPendiente.current = null;
+  }, [ocupado]);
 
   useEffect(() => {
     if (espera === 0) return;
-    const temporizador = window.setTimeout(() => establecerEspera(0), espera * 1000);
+    const temporizador = window.setTimeout(() => {
+      establecerEspera(0);
+      establecerAviso('');
+    }, espera * 1000);
     return () => window.clearTimeout(temporizador);
   }, [espera]);
 
@@ -120,18 +134,28 @@ export default function Recuperacion({ modo }: { modo: 'solicitar' | 'restablece
       if (error instanceof ErrorSesion && error.estado === 422) {
         if (restablecer && (error.campos.includes('token') || error.campos.includes('email'))) {
           establecerEnlace(undefined);
-        } else if (!restablecer && error.campos.includes('email')) {
-          establecerErrores({ email: CORREO_INVALIDO });
         } else {
-          establecerErrores({
-            password: error.campos.includes('password') ? 'Usa al menos 12 caracteres. Si la contraseña es muy larga, acórtala.' : undefined,
-            password_confirmation: error.campos.includes('password_confirmation')
-              ? 'Confirma la contraseña con el mismo valor.' : undefined,
-          });
-          if (error.campos.length === 0) establecerAviso('Revisa los datos del formulario e inténtalo de nuevo.');
+          const erroresServidor: Errores = {};
+          if (!restablecer && error.campos.includes('email')) erroresServidor.email = CORREO_INVALIDO;
+          if (restablecer && error.campos.includes('password')) {
+            erroresServidor.password = 'Usa al menos 12 caracteres. Si la contraseña es muy larga, acórtala.';
+          }
+          if (restablecer && error.campos.includes('password_confirmation')) {
+            erroresServidor.password_confirmation = 'Confirma la contraseña con el mismo valor.';
+          }
+          const primerCampo = Object.keys(erroresServidor)[0];
+          if (primerCampo) {
+            establecerErrores(erroresServidor);
+            const campo = formulario.elements.namedItem(primerCampo);
+            if (campo instanceof HTMLInputElement) campoPendiente.current = campo;
+          } else {
+            establecerTono('error');
+            establecerAviso('Revisa los datos del formulario e inténtalo de nuevo.');
+          }
         }
       } else {
         establecerAviso(mensajeSesion(error));
+        establecerTono(tonoFalloAcceso(error));
         if (error instanceof ErrorSesion && error.estado === 429) establecerEspera(error.espera ?? 60);
       }
     } finally {
@@ -140,34 +164,47 @@ export default function Recuperacion({ modo }: { modo: 'solicitar' | 'restablece
     }
   };
 
-  const campo = (nombre: CampoRecuperacion, etiqueta: string) => (
-    <div className="grid gap-2">
-      <Etiqueta htmlFor={nombre}>{etiqueta}</Etiqueta>
-      <Campo id={nombre} name={nombre} type={nombre === 'email' ? 'email' : 'password'}
-        autoComplete={nombre === 'email' ? 'email' : 'new-password'} required disabled={ocupado}
-        maxLength={nombre === 'email' ? 255 : undefined} aria-invalid={Boolean(errores[nombre])}
-        aria-describedby={errores[nombre] ? nombre + '-error' : nombre === 'password' ? 'regla-clave' : undefined}
-        className="h-12 bg-background px-3.5 md:text-base sm:h-14" />
-      {errores[nombre] && <p id={nombre + '-error'} role="alert" className="text-sm text-error">{errores[nombre]}</p>}
-    </div>
-  );
+  const campo = (nombre: CampoRecuperacion, etiqueta: string) => {
+    const error = errores[nombre];
+    const ayuda = nombre === 'password' ? 'regla-clave' : undefined;
+    const descripcion = error ? [ayuda, nombre + '-error'].filter(Boolean).join(' ') : ayuda;
+    const props = {
+      id: nombre, name: nombre, required: true, disabled: ocupado,
+      'aria-invalid': Boolean(error), 'aria-describedby': descripcion,
+      onChange: error ? () => establecerErrores(anteriores => ({ ...anteriores, [nombre]: undefined })) : undefined,
+    };
+    return (
+      <div className="grid gap-2">
+        <Etiqueta htmlFor={nombre}>{etiqueta}</Etiqueta>
+        {nombre === 'email' ? (
+          <Campo {...props} type="email" autoComplete="email" maxLength={255}
+            className="acceso__campo h-12 px-3.5 md:text-base sm:h-[3.25rem]" />
+        ) : (
+          <CampoContrasena {...props} autoComplete="new-password"
+            etiqueta={nombre === 'password' ? 'nueva contraseña' : 'confirmación de contraseña'} />
+        )}
+        {error && <p id={nombre + '-error'} role="alert" className="text-sm text-error">{error}</p>}
+      </div>
+    );
+  };
 
   return (
     <MarcoAcceso>
-      <h1 ref={titulo} tabIndex={-1} className="font-heading text-3xl font-bold tracking-tight">
+      <h1 ref={titulo} tabIndex={-1} className="acceso__titulo">
         {exito ? (restablecer ? 'Contraseña actualizada' : 'Revisa tu correo')
           : restablecer ? 'Crea una nueva contraseña' : 'Recupera tu contraseña'}
       </h1>
       {exito ? (
-        <div role="status" className="mt-4 flex items-start gap-3 text-sm text-foreground">
-          <CheckCircle2 aria-hidden="true" className="size-5 shrink-0 text-primary" />
-          <p>{restablecer ? 'Ya puedes iniciar sesión con tu nueva contraseña.'
-            : 'Si el correo está asociado a una cuenta interna, recibirás un enlace para restablecer tu contraseña.'}</p>
-        </div>
-      ) : restablecer && !enlace ? (
         <div className="mt-4">
-          <AvisoAcceso>{ENLACE_INVALIDO}</AvisoAcceso>
-          <Link className="inline-flex min-h-11 items-center font-medium text-primary underline" to="/recuperar-contrasena" replace>
+          <AvisoAcceso tono={restablecer ? 'confirmacion' : 'informacion'}>
+            {restablecer ? 'Ya puedes iniciar sesión con tu nueva contraseña.'
+              : 'Si el correo está asociado a una cuenta interna, recibirás un enlace para restablecer tu contraseña.'}
+          </AvisoAcceso>
+        </div>
+      ) : enlaceInvalido ? (
+        <div className="mt-4">
+          <AvisoAcceso tono="advertencia">{ENLACE_INVALIDO}</AvisoAcceso>
+          <Link className="acceso__accion mt-4 inline-flex min-h-12 items-center justify-center rounded-md px-4 text-sm font-semibold" to="/recuperar-contrasena" replace>
             Solicitar un enlace nuevo
           </Link>
         </div>
@@ -185,16 +222,17 @@ export default function Recuperacion({ modo }: { modo: 'solicitar' | 'restablece
               {campo('email', 'Correo electrónico')}
             </>
           )}
-          {aviso && <AvisoAcceso>{aviso}</AvisoAcceso>}
-          <Button type="submit" disabled={ocupado || espera > 0} className="h-12 w-full text-base font-semibold">
+          {aviso && <AvisoAcceso tono={tono}>{aviso}</AvisoAcceso>}
+          <Button type="submit" disabled={ocupado || espera > 0} className="acceso__accion h-12 w-full text-base font-semibold sm:h-[3.25rem]">
             {ocupado ? 'Enviando…' : restablecer ? 'Guardar nueva contraseña' : 'Solicitar enlace'}
-            {ocupado && <LoaderCircle aria-hidden="true" className="animate-spin motion-reduce:animate-none" />}
+            {ocupado && <LoaderCircle aria-hidden="true" className="animate-spin motion-reduce:hidden" />}
           </Button>
         </form>
       )}
-      <Link to="/" replace className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary underline underline-offset-4">
+      <Link to="/" replace className="acceso__enlace mt-3 inline-flex min-h-11 items-center gap-2 text-sm">
         <ArrowLeft aria-hidden="true" className="size-4" /> Volver a iniciar sesión
       </Link>
+      <span role="status" className="sr-only">{ocupado ? "Enviando…" : ""}</span>
     </MarcoAcceso>
   );
 }

@@ -179,8 +179,8 @@ export default function Reportes() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
           { label: "Ingresos Totales",   value: formatCurrency(ingresosTotales), icon: DollarSign, color: "text-primary",     bg: "bg-primary/10" },
-          { label: "Abonos Recibidos",   value: formatCurrency(abonosTotales),   icon: TrendingUp, color: "text-green-600",   bg: "bg-green-100" },
-          { label: "Saldos Pendientes",  value: formatCurrency(saldosPendientes),icon: BarChart3,   color: "text-amber-600",   bg: "bg-amber-100" },
+          { label: "Abonos Recibidos",   value: formatCurrency(abonosTotales),   icon: TrendingUp, color: "text-exito dark:text-green-600",   bg: "bg-green-100" },
+          { label: "Saldos Pendientes",  value: formatCurrency(saldosPendientes),icon: BarChart3,   color: "text-aviso dark:text-amber-600",   bg: "bg-amber-100" },
           { label: "Total Gastos",       value: formatCurrency(totalGastos),     icon: Wallet,     color: "text-accent",      bg: "bg-accent/10" },
           { label: "Graduandos",         value: graduandosFiltrados.length,      icon: GraduationCap, color: "text-secondary", bg: "bg-secondary/10" },
         ].map(kpi => (
@@ -263,9 +263,9 @@ export default function Reportes() {
                     <span className="font-bold text-foreground text-sm">{rep.nombre}</span>
                     <div className="flex flex-wrap gap-3 text-xs">
                       <span className="text-muted-foreground">{rep.graduandos} grad.</span>
-                      <span className="text-green-600 font-semibold">{formatCurrency(rep.ingresos)}</span>
+                      <span className="text-exito dark:text-green-600 font-semibold">{formatCurrency(rep.ingresos)}</span>
                       <span className="text-primary font-semibold">Abonado: {formatCurrency(rep.abonos)}</span>
-                      <span className="text-amber-600 font-semibold">Saldo: {formatCurrency(rep.saldos)}</span>
+                      <span className="text-aviso dark:text-amber-600 font-semibold">Saldo: {formatCurrency(rep.saldos)}</span>
                       <Badge className="bg-green-100 text-green-700 text-xs">{rep.completos} completos</Badge>
                       <Badge className="bg-amber-100 text-amber-700 text-xs">{rep.pendientes} pendientes</Badge>
                     </div>
@@ -276,11 +276,11 @@ export default function Reportes() {
                       <span className="text-sm text-muted-foreground">&#8627; {cer.nombre}</span>
                       <div className="flex flex-wrap gap-3 text-xs">
                         <span className="text-muted-foreground">{cer.graduandos} grad.</span>
-                        <span className="text-green-600 font-semibold">{formatCurrency(cer.ingresos)}</span>
+                        <span className="text-exito dark:text-green-600 font-semibold">{formatCurrency(cer.ingresos)}</span>
                         <span className="text-primary font-semibold">Abonado: {formatCurrency(cer.abonos)}</span>
-                        <span className="text-amber-600 font-semibold">Saldo: {formatCurrency(cer.saldos)}</span>
-                        <span className="text-green-600">{cer.completos} comp.</span>
-                        <span className="text-amber-600">{cer.pendientes} pend.</span>
+                        <span className="text-aviso dark:text-amber-600 font-semibold">Saldo: {formatCurrency(cer.saldos)}</span>
+                        <span className="text-exito dark:text-green-600">{cer.completos} comp.</span>
+                        <span className="text-aviso dark:text-amber-600">{cer.pendientes} pend.</span>
                       </div>
                     </div>
                   ))}

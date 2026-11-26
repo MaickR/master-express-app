@@ -239,7 +239,7 @@ export default function GestionColaboradores({ onUpdate }) {
                     <Pencil className="w-3 h-3 mr-1" /> Editar
                   </Button>
                   <Button onClick={() => toggleActivo(col)} variant="outline" size="sm"
-                    className={col.activo !== false ? 'text-accent hover:bg-accent/5' : 'text-green-600 hover:bg-green-50'}>
+                    className={col.activo !== false ? 'text-accent hover:bg-accent/5' : 'text-exito dark:text-green-600 hover:bg-green-50'}>
                     {col.activo !== false ? 'Desactivar' : 'Activar'}
                   </Button>
                   <Button onClick={() => eliminarColaborador(col)} variant="ghost" size="icon"

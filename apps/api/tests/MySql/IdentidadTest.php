@@ -37,7 +37,7 @@ class IdentidadTest extends CasoMySql
 
         $this->assertTrue($usuario->is($consultado));
         $this->assertSame(['administrador', 'inventario'], $consultado->roles()->orderBy('codigo')->pluck('codigo')->all());
-        $this->assertTrue($admin->usuarios()->firstOrFail()->is($usuario));
+        $this->assertTrue($admin->usuarios()->whereKey($usuario->getKey())->firstOrFail()->is($usuario));
         $this->assertNotNull($consultado->roles->first()->pivot->created_at);
         $this->assertArrayNotHasKey('password', $consultado->toArray());
         $this->assertThrows(fn () => $usuario->roles()->attach($admin), UniqueConstraintViolationException::class);

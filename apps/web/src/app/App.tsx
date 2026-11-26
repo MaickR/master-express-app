@@ -8,6 +8,8 @@ import VisualEditAgent from '@/integrations/base44/VisualEditAgent';
 import Home, { MarcoAcceso } from '@/features/acceso/Home';
 import ProveedorSesion from '@/features/acceso/ProveedorSesion';
 import Recuperacion from '@/features/acceso/recuperacion';
+import RegistroVistaPrevia from '@/features/acceso/registro-vista-previa';
+import { vistasRegistro } from '@/features/acceso/vistas-registro';
 import { useSesion } from '@/features/acceso/contexto-sesion';
 import { paneles } from '@/features/acceso/destinos';
 import { paginasPrivadas } from './pages.config';
@@ -54,6 +56,9 @@ export default function App() {
           <Routes>
             <Route path="/recuperar-contrasena" element={<Recuperacion key="solicitar" modo="solicitar" />} />
             <Route path="/restablecer-contrasena" element={<Recuperacion key="restablecer" modo="restablecer" />} />
+            {vistasRegistro.map(vista => (
+              <Route key={vista.ruta} path={vista.ruta} element={<RegistroVistaPrevia key={vista.ruta} vista={vista} />} />
+            ))}
             <Route path="*" element={<Navegacion />} />
           </Routes>
         </ProveedorSesion>

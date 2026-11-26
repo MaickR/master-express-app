@@ -9,7 +9,27 @@ const TooltipProvider = TooltipPrimitive.Provider
 
 const Tooltip = TooltipPrimitive.Root
 
-const TooltipTrigger = TooltipPrimitive.Trigger
+const focosRestaurados = new WeakSet<Element>()
+
+function omitirTooltipAlRestaurarFoco(activador: Element | null) {
+  if (!activador) return
+  focosRestaurados.add(activador)
+  queueMicrotask(() => focosRestaurados.delete(activador))
+}
+
+const TooltipTrigger = React.forwardRef<
+  React.ElementRef<typeof TooltipPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Trigger>
+>(({ onFocus, ...props }, ref) => (
+  <TooltipPrimitive.Trigger {...props} ref={ref} onFocus={evento => {
+    onFocus?.(evento)
+    const activador = evento.currentTarget
+    if (focosRestaurados.delete(activador) || !activador.matches(":focus-visible")) {
+      evento.preventDefault()
+    }
+  }} />
+))
+TooltipTrigger.displayName = TooltipPrimitive.Trigger.displayName
 
 const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,
@@ -28,4 +48,4 @@ const TooltipContent = React.forwardRef<
 ))
 TooltipContent.displayName = TooltipPrimitive.Content.displayName
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, omitirTooltipAlRestaurarFoco }

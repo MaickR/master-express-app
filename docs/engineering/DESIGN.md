@@ -3,7 +3,7 @@
 ## Identidad
 
 - Se usa el logotipo del sitio corporativo (`assets/img/logo.png`), ya incorporado como `apps/web/public/master-express.png`. Ambos archivos tienen el mismo SHA-256.
-- La hoja `assets/styles.css` del sitio corporativo aporta tinta `#16181D`, papel `#FBFAF7`, neutros oscuros `#121417` y `#1B1E23`, y dorados `#9A6B34` y `#E7C797`. El dorado claro destaca la marca y el destino activo. La acción principal usa un marrón más oscuro en modo claro para sostener el contraste con el texto blanco.
+- La hoja `assets/styles.css` del sitio corporativo aporta tinta `#16181D`, papel `#FBFAF7`, neutros oscuros `#121417` y `#1B1E23`, y dorados `#9A6B34` y `#E7C797`. En Claro, el dorado #B48338 identifica la marca y las acciones principales, con tinta #16181D en los botones. Los textos interactivos usan #8C602A sobre superficies claras y los acentos usan #E9D8BF. El fondo es #FBFAF7 y las tarjetas, los desplegables y los bordes conservan sus neutros.
 - Las variantes de interfaz y los colores de estado son una propuesta provisional.
 
 ## Tipografía
@@ -20,7 +20,7 @@ Se sirve un solo WOFF2 latino variable de Inter v20 desde el mismo origen, con p
 | --- | --- |
 | Página, tarjetas y contenido en portales | `background`, `foreground`, `card`, `card-foreground`, `popover`, `popover-foreground` |
 | Texto de apoyo y superficies atenuadas | `muted`, `muted-foreground` |
-| Acciones y selección | `primary`, `primary-foreground`, `primary-suave`, `secondary`, `secondary-foreground`, `accent`, `accent-foreground` |
+| Acciones, enlaces y selección | `primary`, `primary-foreground`, `interactivo`, `primary-suave`, `primary-suave-foreground`, `secondary`, `secondary-foreground`, `accent`, `accent-foreground` |
 | Bordes, campos y foco | `border`, `input`, `ring` |
 | Éxito, advertencia, error y acción destructiva | `exito`, `aviso`, `error`, sus variantes `-suave`, `destructive`, `destructive-foreground` |
 | Marca y navegación | `marca-placa` y familia `sidebar-*` |
@@ -30,19 +30,31 @@ Los tokens se aplican en `html`. Menús, selectores y diálogos de Radix heredan
 ## Preferencia de tema
 
 - `ProveedorTema` monta una instancia de `next-themes` sobre toda la app usando la dependencia ya instalada. `SelectorTema` reutiliza el menú de radio shadcn/Radix en el acceso y la cabecera de ambos paneles.
-- El botón de 44 × 44 px muestra un sol, una luna o un monitor según la preferencia elegida. El botón anuncia el modo y ofrece una ayuda al pasar el puntero en escritorio. El menú usa texto, iconos e indicador de selección, con navegación por teclado y retorno del foco al cerrar con Escape.
+- El botón de 44 × 44 px muestra un sol, una luna o un monitor según la preferencia elegida. El botón anuncia el modo y ofrece una ayuda al pasar el puntero en escritorio. El menú usa texto, iconos e indicador de selección, con navegación por teclado y retorno del foco al cerrar con Escape. Los tooltips compartidos se muestran al pasar el puntero o al recibir foco visible. El retorno automático del foco desde un menú conserva el foco sin volver a mostrar el tooltip.
 - Claro y Oscuro fijan la apariencia. Sistema es el valor inicial y sigue los cambios de `prefers-color-scheme` en vivo. La clave visual `theme` conserva `light`, `dark` o `system`, incluidos los dos valores del control previo.
-- El inicio de `index.html` establece la clase `dark` y `color-scheme` antes de cargar React. Si el servidor entrega una política CSP restrictiva, debe autorizar ese script por hash o nonce. El tema se aplica sin remontar el proveedor de sesión.
+- El inicio de `index.html` establece la clase `dark` y `color-scheme` antes de cargar React. Si el servidor entrega una política CSP restrictiva, debe autorizar ese script por hash o nonce. El tema se aplica sin remontar el proveedor de sesión. Las transiciones CSS se suspenden durante el cambio de tema para aplicar los nuevos colores en el mismo ciclo de renderizado.
 
 ## Acceso unificado
 
-El ingreso usa una sola superficie centrada de hasta 576 px. La cabecera integra el logotipo original, el nombre del producto y el selector de tema. La placa del logotipo conserva el fondo claro corporativo para mantener legible el archivo original en ambos modos. El fondo, la cabecera, el formulario y su menú se derivan de los tokens del tema.
+El acceso usa un marco compartido para el ingreso, la recuperación, el restablecimiento y la selección de panel. Desde 1024 px, una tarjeta de hasta 960 px ubica la marca a la izquierda y el contenido a la derecha. La separación es curva desde 1024 px, independientemente del dispositivo de entrada. En pantallas más estrechas, la marca pasa a una cabecera con borde inferior recto y la tarjeta queda en una columna de hasta 576 px.
 
-La iluminación del fondo usa dos gradientes radiales estáticos, cálidos sobre marfil en Claro y dorados sobre carbón en Oscuro. Una trama de puntos de muy baja opacidad queda por detrás de la tarjeta. Un degradado tenue en la cabecera, una línea dorada y sombras en dos niveles definen la superficie. Las capas decorativas son CSS estático y las transiciones de los controles respetan la preferencia de movimiento reducido.
+La composición se conserva en ambos temas. Claro combina marfil con neutros cálidos y Oscuro usa fondo #121417 y tarjeta #1B1E23. El dorado #B48338 define el relieve y el borde del panel. En Claro, la acción principal del acceso usa ese dorado con texto #16181D y los enlaces usan #8C602A. El logotipo original conserva su placa marfil y lleva el descriptor «Cada ceremonia, organizada de principio a fin.». La trama de puntos y la iluminación radial son estáticas y se limitan al fondo exterior.
 
-El formulario mantiene etiquetas persistentes, controles de 48 a 56 px, foco visible y avisos asociados a los campos. En pantallas estrechas, la cabecera y el formulario siguen el mismo orden y el selector mantiene su nombre accesible.
+El formulario mantiene las etiquetas persistentes, el foco visible y las zonas táctiles de al menos 44 px. El enlace de recuperación está debajo del campo de contraseña. «Mantener sesión iniciada» comienza desmarcada. Los avisos de error, advertencia, información y confirmación combinan icono, texto y tokens semánticos. Las transiciones de los controles respetan la preferencia de movimiento reducido.
 
-«¿Olvidaste tu contraseña?» está junto a la etiqueta Contraseña. «Mantener sesión iniciada» está debajo del campo, antes de la acción principal, y comienza desmarcada. La solicitud y el restablecimiento conservan el marco corporativo y el selector de tema. Las acciones futuras de institución y graduando podrán agruparse debajo del formulario como accesos externos.
+## Vistas previas de registro
+
+«Soy graduando» abre /registro/graduando y «Soy institución» abre /registro/institucion. Ambas vistas usan el marco de acceso. Validan los campos por paso, conservan los valores al retroceder y permiten editar cada apartado desde la revisión.
+
+- Graduando incluye datos personales, contraseña de prueba y verificación por correo pendiente. El documento es opcional. El selector ofrece Cédula de ciudadanía o Tarjeta de identidad. Al elegir un tipo, el número se exige y se conserva como texto con dígitos del 0 al 9. La creación de cuenta no incluye la vinculación a una ceremonia.
+- Institución incluye razón social, NIT, sede y datos del contacto responsable. El NIT se conserva como texto con dígitos del 0 al 9 y admite un guion entre dos grupos de dígitos. La verificación y el envío aparecen pendientes. La aprobación corresponde a un administrador autorizado.
+- El documento y el NIT son datos declarados. La verificación de identidad o representación requiere un proceso separado. Los datos de la vista previa se descartan al salir. El resumen no muestra la contraseña y oculta parte del número del documento. Las acciones finales quedan deshabilitadas.
+
+### Decisiones pendientes con Ernesto
+
+- Confirmar si se necesita el documento del graduando, con qué finalidad y en qué momento se pide. Definir el mecanismo de verificación por correo y cómo se autoriza por separado la vinculación con la ceremonia.
+- Confirmar los datos mínimos, la verificación de representación institucional y el procedimiento que seguirá el administrador autorizado para aprobar o rechazar una solicitud.
+- Acordar habilitación de cuentas, permisos aplicados en servidor, notificaciones, conservación de datos, auditoría y protección contra abuso antes de habilitar envíos.
 
 ## Estructura y componentes
 

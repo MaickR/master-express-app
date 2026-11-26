@@ -323,7 +323,7 @@ export default function GestionEventos({ onUpdate }) {
         <div className="flex flex-wrap items-center gap-3">
           {/* Filtro de orden */}
           <Select value={ordenEvento} onValueChange={setOrdenEvento}>
-            <SelectTrigger className="w-48 h-9">
+            <SelectTrigger className="h-9 w-52 dark:w-48">
               <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
