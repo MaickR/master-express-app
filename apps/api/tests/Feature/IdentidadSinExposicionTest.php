@@ -14,6 +14,8 @@ class IdentidadSinExposicionTest extends TestCase
         $usuario = new User(['name' => 'Persona de prueba', 'password' => $claveFicticia, 'roles' => ['administrador']]);
 
         $this->assertFalse($usuario->isFillable('roles'));
+        $this->assertFalse($usuario->isFillable('activa'));
+        $this->assertFalse($usuario->isFillable('version_sesion'));
         $this->assertArrayNotHasKey('roles', $usuario->getAttributes());
         $this->assertTrue(Hash::check($claveFicticia, $usuario->password));
         $this->assertArrayNotHasKey('password', $usuario->toArray());
@@ -30,6 +32,8 @@ class IdentidadSinExposicionTest extends TestCase
         $this->assertEqualsCanonicalizing([
             ['api/salud', ['GET', 'HEAD']],
             ['api/mi-sesion', ['GET', 'HEAD']],
+            ['api/administracion/cuentas', ['GET', 'HEAD']],
+            ['api/administracion/cuentas/{cuenta}', ['POST']],
             ['sanctum/csrf-cookie', ['GET', 'HEAD']],
             ['login', ['POST']],
             ['logout', ['POST']],

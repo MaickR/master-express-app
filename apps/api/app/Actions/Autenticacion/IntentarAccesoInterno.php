@@ -7,6 +7,7 @@ use App\Models\User;
 use Closure;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Http\Requests\LoginRequest;
 
@@ -22,15 +23,22 @@ class IntentarAccesoInterno
         $duracion = config('auth.duracion_recuerdo');
         $guard->setRememberDuration($duracion);
 
-        $autenticado = $guard->attemptWhen(
-            $request->only('email', 'password'),
-            fn (User $usuario): bool => $usuario->codigosDeAcceso() !== [],
-            $recordar,
-        );
+        $autenticado = DB::transaction(function () use ($guard, $request, $recordar): bool {
+            // Serializa la emisión de credenciales de sesión con la revocación.
+            User::query()->where('email', $request->input('email'))->lockForUpdate()->first(['id']);
+
+            return $guard->attemptWhen(
+                $request->only('email', 'password'),
+                fn (User $usuario): bool => $usuario->activa && $usuario->codigosDeAcceso() !== [],
+                $recordar,
+            );
+        });
 
         if (! $autenticado) {
             throw ValidationException::withMessages(['email' => 'Las credenciales no permiten iniciar sesión.']);
         }
+
+        $request->session()->put(VigenciaSesionRecordada::VERSION, $guard->user()->version_sesion);
 
         if ($recordar) {
             $vence = now()->addMinutes($duracion)->timestamp;
