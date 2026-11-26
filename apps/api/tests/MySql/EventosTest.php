@@ -2,6 +2,7 @@
 
 namespace Tests\MySql;
 
+use App\Console\Commands\EnsayoEventos;
 use App\Models\Ceremonia;
 use App\Models\Evento;
 use App\Models\Institucion;
@@ -159,6 +160,44 @@ class EventosTest extends CasoMySql
         $this->getJson(self::RUTA.'/'.$id)->assertForbidden();
         $this->postJson(self::RUTA, $entrada)->assertForbidden();
         $this->assertSame(1, Evento::query()->where('actor_id', $actor->id)->count());
+    }
+
+    public function test_instituciones_del_ensayo_usan_la_misma_concesion(): void
+    {
+        $ruta = '/api/instituciones';
+        $this->getJson($ruta)->assertUnauthorized();
+        $this->autenticar('colaborador');
+        $this->getJson($ruta)->assertForbidden();
+
+        $this->autenticar('administrador');
+        $institucion = $this->institucion();
+        $this->getJson($ruta)->assertOk()->assertHeader('Cache-Control', 'no-store, private')
+            ->assertJsonFragment(['id' => $institucion->id, 'nombre' => 'Institución ficticia', 'tipo' => 'universidad']);
+        $this->app->instance('env', 'production');
+        $this->getJson($ruta)->assertForbidden();
+    }
+
+    public function test_comando_de_ensayo_prepara_fixtures_idempotentes_y_suspende_la_cuenta_al_cerrar(): void
+    {
+        $_SERVER['ME_QA_CLAVE'] = 'Clave-ficticia-solo-QA';
+        try {
+            $this->artisan('qa:ensayo-eventos', ['accion' => 'preparar'])->assertSuccessful();
+            $this->artisan('qa:ensayo-eventos', ['accion' => 'preparar'])->assertSuccessful();
+        } finally {
+            unset($_SERVER['ME_QA_CLAVE']);
+        }
+
+        foreach (EnsayoEventos::INSTITUCIONES as $institucion) {
+            $this->assertSame(1, Institucion::query()->where($institucion)->count());
+        }
+        $cuenta = User::query()->where('email', EnsayoEventos::CORREO)->sole();
+        $this->assertTrue($cuenta->activa);
+        $this->assertSame(['administrador'], $cuenta->codigosDeAcceso());
+
+        $this->artisan('qa:ensayo-eventos', ['accion' => 'cerrar'])->assertSuccessful();
+        $this->assertFalse($cuenta->fresh()->activa);
+        $this->assertSame($cuenta->version_sesion + 1, $cuenta->fresh()->version_sesion);
+        $this->artisan('qa:ensayo-eventos', ['accion' => 'preparar'])->assertFailed();
     }
 
     public function test_reintento_revalida_rol_y_version_de_sesion(): void

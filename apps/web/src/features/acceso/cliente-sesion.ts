@@ -38,7 +38,11 @@ function leerCsrf(): string {
   }
 }
 
-async function solicitar(ruta: string, signal: AbortSignal, cuerpo?: object): Promise<Response> {
+const camposSesion = ['email', 'password', 'password_confirmation', 'token'];
+
+export async function solicitar(
+  ruta: string, signal: AbortSignal, cuerpo?: object, camposValidacion: readonly string[] = camposSesion,
+): Promise<Response> {
   const local = import.meta.env.DEV;
   if (local && window.location.hostname !== '127.0.0.1') throw new ErrorSesion(0);
 
@@ -67,7 +71,7 @@ async function solicitar(ruta: string, signal: AbortSignal, cuerpo?: object): Pr
   if (!respuesta.ok) {
     const segundos = Number(respuesta.headers.get('Retry-After'));
     const validacion = respuesta.status === 422 ? await respuesta.json().catch(() => null) : null;
-    const campos = ['email', 'password', 'password_confirmation', 'token'].filter(campo =>
+    const campos = camposValidacion.filter(campo =>
       validacion?.errors && Object.hasOwn(validacion.errors, campo),
     );
     throw new ErrorSesion(respuesta.status, segundos > 0 && Number.isFinite(segundos) ? segundos : undefined, campos);

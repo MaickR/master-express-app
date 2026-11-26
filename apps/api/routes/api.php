@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CuentasInternasController;
 use App\Http\Controllers\EventosController;
+use App\Http\Controllers\InstitucionesController;
 use App\Http\Controllers\MiSesionController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +18,8 @@ Route::middleware('auth:web')->prefix('administracion/cuentas')->group(function 
     Route::get('/', [CuentasInternasController::class, 'index'])->name('cuentas.index');
     Route::post('/{cuenta}', [CuentasInternasController::class, 'actualizar'])->whereNumber('cuenta')->name('cuentas.actualizar');
 });
+
+Route::get('/instituciones', [InstitucionesController::class, 'index'])->middleware('auth:web')->name('instituciones.index');
 
 Route::middleware('auth:web')->prefix('eventos')->group(function (): void {
     Route::get('/', [EventosController::class, 'index'])->name('eventos.index');

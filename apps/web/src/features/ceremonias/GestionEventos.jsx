@@ -1,16 +1,52 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { base44 } from "@/integrations/base44/base44Client";
-import { CalendarDays, Plus, Trash2, GraduationCap, MapPin, ArrowUpDown } from "lucide-react";
+import { ContextoSesion } from "@/features/acceso/contexto-sesion";
+import { ErrorSesion } from "@/features/acceso/cliente-sesion";
+import {
+  camposAlta, consultarCeremonias, consultarEventos, consultarInstituciones,
+  crearEvento as crearEventoLaravel, ensayoLaravel, mensajeEventos,
+} from "@/features/ceremonias/cliente-eventos";
+import { CalendarDays, Plus, Trash2, GraduationCap, MapPin, ArrowUpDown, FlaskConical } from "lucide-react";
 import { Card, CardContent } from "@/shared/ui/card";
-import { Button } from "@/shared/ui/button";
+import { Button, buttonVariants } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Badge } from "@/shared/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/ui/dialog";
+import { Dialog, DialogContent, DialogDescription as Descripcion, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/ui/dialog";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+
+// * Los componentes JSX compartidos reenvían estas props sin declararlas en sus tipos inferidos.
+/** @type {React.ComponentType<import("@radix-ui/react-dialog").DialogDescriptionProps>} */
+const DescripcionEnsayo = Descripcion;
+/** @type {React.ComponentType<import("@radix-ui/react-label").LabelProps>} */
+const EtiquetaInstitucion = Label;
+/** @type {React.ComponentType<import("@radix-ui/react-select").SelectTriggerProps>} */
+const SelectorInstitucion = SelectTrigger;
+/** @type {React.ComponentType<import("@radix-ui/react-select").SelectContentProps>} */
+const MenuInstituciones = SelectContent;
+/** @type {React.ComponentType<import("@radix-ui/react-select").SelectItemProps>} */
+const OpcionInstitucion = SelectItem;
+/** @type {React.ComponentType<React.ComponentPropsWithoutRef<"button"> & import("class-variance-authority").VariantProps<typeof buttonVariants>>} */
+const BotonEnsayo = Button;
+
+/** @type {{ nombre_institucion: string, tipo_institucion: string, institucion_id?: string, fecha: string, lugar: string, numero_ceremonias: number }} */
+const eventoInicial = {
+  nombre_institucion: "",
+  tipo_institucion: "universidad",
+  fecha: "",
+  lugar: "",
+  numero_ceremonias: 1
+};
+
+const mensajesCampo = {
+  institucion: "Selecciona una institución vigente de la lista.",
+  fecha: "Ingresa una fecha válida.",
+  lugar: "Ingresa un lugar de hasta 255 caracteres.",
+  numCer: "Selecciona entre una y seis ceremonias.",
+};
 
 export default function GestionEventos({ onUpdate }) {
   const [eventos, setEventos] = useState([]);
@@ -20,19 +56,78 @@ export default function GestionEventos({ onUpdate }) {
   const creandoEvento = useRef(false);
   const [showNew, setShowNew] = useState(false);
   const [ordenEvento, setOrdenEvento] = useState("proximo"); // proximo | lejano | cronologico
-  const [newEvento, setNewEvento] = useState({
-    nombre_institucion: "",
-    tipo_institucion: "universidad",
-    fecha: "",
-    lugar: "",
-    numero_ceremonias: 1
-  });
+  const [newEvento, setNewEvento] = useState(eventoInicial);
+  // * Estado exclusivo del ensayo con Laravel.
+  const sesion = useContext(ContextoSesion);
+  const consultas = useRef(null);
+  const operacion = useRef(null);
+  const [instituciones, setInstituciones] = useState([]);
+  const [errorCarga, setErrorCarga] = useState("");
+  const [pagina, setPagina] = useState(1);
+  const [hayMas, setHayMas] = useState(false);
+  const [cargandoMas, setCargandoMas] = useState(false);
+  const [erroresAlta, setErroresAlta] = useState({});
+  const [errorAlta, setErrorAlta] = useState("");
+  const [abiertas, setAbiertas] = useState({});
+  const [estadoCeremonias, setEstadoCeremonias] = useState({});
 
   useEffect(() => {
+    consultas.current = new AbortController();
     loadEventos();
+    return () => consultas.current.abort();
   }, []);
 
+  const revisarSesion = (error) => {
+    if (error instanceof ErrorSesion && error.estado === 401) sesion?.comprobar();
+  };
+
+  const cargarEnsayo = async (siguiente = 1) => {
+    const { signal } = consultas.current;
+    setErrorCarga("");
+    try {
+      const [{ eventos: lista, hayMas: mas }, opciones] = await Promise.all([
+        consultarEventos(siguiente, signal),
+        siguiente === 1 ? consultarInstituciones(signal) : null,
+      ]);
+      setEventos(previos => siguiente === 1
+        ? lista : [...previos, ...lista.filter(ev => !previos.some(previo => previo.id === ev.id))]);
+      if (opciones) setInstituciones(opciones);
+      setPagina(siguiente);
+      setHayMas(mas);
+    } catch (error) {
+      if (signal.aborted) return;
+      setErrorCarga(mensajeEventos(error));
+      revisarSesion(error);
+    }
+    setLoading(false);
+  };
+
+  const cargarMas = async () => {
+    setCargandoMas(true);
+    await cargarEnsayo(pagina + 1);
+    setCargandoMas(false);
+  };
+
+  const cargarCeremonias = async (id) => {
+    setEstadoCeremonias(previo => ({ ...previo, [id]: "cargando" }));
+    try {
+      const lista = await consultarCeremonias(id, consultas.current.signal);
+      setCeremonias(previo => ({ ...previo, [id]: lista }));
+      setEstadoCeremonias(previo => ({ ...previo, [id]: "" }));
+    } catch (error) {
+      setEstadoCeremonias(previo => ({ ...previo, [id]: mensajeEventos(error) }));
+      revisarSesion(error);
+    }
+  };
+
+  const alternarCeremonias = (id) => {
+    const abrir = !abiertas[id];
+    setAbiertas(previo => ({ ...previo, [id]: abrir }));
+    if (abrir && !ceremonias[id]) cargarCeremonias(id);
+  };
+
   const loadEventos = async () => {
+    if (ensayoLaravel) return cargarEnsayo();
     try {
       const data = await base44.entities.Evento.list();
       setEventos(data);
@@ -50,8 +145,54 @@ export default function GestionEventos({ onUpdate }) {
     setLoading(false);
   };
 
+  const crearEnsayo = async () => {
+    const errores = {};
+    if (!instituciones.some(inst => String(inst.id) === newEvento.institucion_id)) errores.institucion = mensajesCampo.institucion;
+    if (!newEvento.fecha) errores.fecha = "Ingresa la fecha del evento.";
+    setErroresAlta(errores);
+    setErrorAlta("");
+    if (Object.keys(errores).length > 0) return;
+
+    creandoEvento.current = true;
+    setSaving(true);
+    // ! El mismo identificador acompaña cada reintento hasta confirmar el alta o recibir un conflicto.
+    operacion.current ??= crypto.randomUUID();
+    try {
+      const { evento, ceremonias: lista } = await crearEventoLaravel({
+        institucion_id: Number(newEvento.institucion_id),
+        fecha: newEvento.fecha,
+        lugar: newEvento.lugar.trim() || null,
+        numero_ceremonias: newEvento.numero_ceremonias,
+        operation_id: operacion.current,
+      });
+      operacion.current = null;
+      toast.success("Evento creado en el ensayo Laravel");
+      setShowNew(false);
+      setNewEvento(eventoInicial);
+      setCeremonias(previo => ({ ...previo, [evento.id]: lista }));
+      setAbiertas(previo => ({ ...previo, [evento.id]: true }));
+      cargarEnsayo();
+    } catch (error) {
+      if (error instanceof ErrorSesion && error.estado === 409) {
+        operacion.current = null;
+        cargarEnsayo();
+      }
+      if (error instanceof ErrorSesion && error.estado === 422) {
+        setErroresAlta(Object.fromEntries(error.campos.filter(campo => campo in camposAlta)
+          .map(campo => [camposAlta[campo], mensajesCampo[camposAlta[campo]]])));
+        if (error.campos.includes("evento.institucion_id")) cargarEnsayo();
+      }
+      setErrorAlta(mensajeEventos(error));
+      revisarSesion(error);
+    } finally {
+      creandoEvento.current = false;
+      setSaving(false);
+    }
+  };
+
   const crearEvento = async () => {
     if (creandoEvento.current) return;
+    if (ensayoLaravel) return crearEnsayo();
     if (!newEvento.nombre_institucion.trim() || !newEvento.fecha) {
       toast.error("Nombre de institución y fecha son obligatorios");
       return;
@@ -67,7 +208,7 @@ export default function GestionEventos({ onUpdate }) {
       );
       toast.success("Evento creado exitosamente");
       setShowNew(false);
-      setNewEvento({ nombre_institucion: "", tipo_institucion: "universidad", fecha: "", lugar: "", numero_ceremonias: 1 });
+      setNewEvento(eventoInicial);
       loadEventos();
       if (onUpdate) onUpdate();
     } catch (error) {
@@ -116,20 +257,70 @@ export default function GestionEventos({ onUpdate }) {
     return diff;
   };
 
+  const avisoCampo = (campo) => erroresAlta[campo] && (
+    <p id={`${campo}-error`} role="alert" className="text-sm text-error">{erroresAlta[campo]}</p>
+  );
+  const describirCampo = (campo) => erroresAlta[campo]
+    ? { "aria-invalid": true, "aria-describedby": `${campo}-error` } : {};
+
+  const listaCeremonias = (id) => [...(ceremonias[id] || [])].sort((a, b) => (a.orden || 0) - (b.orden || 0)).map(cer => (
+    <Badge key={cer.id} variant="outline" className="text-xs">
+      {cer.nombre} {cer.hora ? `(${cer.hora})` : ''}
+    </Badge>
+  ));
+
+  const campoFecha = (
+    <div className="space-y-2">
+      <Label htmlFor="fecha">Fecha *</Label>
+      <Input id="fecha" type="date" value={newEvento.fecha} {...describirCampo("fecha")}
+        onChange={e => setNewEvento({ ...newEvento, fecha: e.target.value })} />
+      {avisoCampo("fecha")}
+    </div>
+  );
+
+  const avisoEnsayo = ensayoLaravel && (
+    <div role="note" className="flex items-start gap-3 rounded-lg border border-aviso/40 bg-aviso-suave p-4 text-sm text-aviso">
+      <FlaskConical aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+      <p>
+        <strong className="font-semibold">Modo de ensayo con Laravel.</strong> Usa datos ficticios de la base aislada
+        de pruebas. Base44 no recibe cambios desde esta pantalla y el borrado no está disponible.
+      </p>
+    </div>
+  );
+
   if (loading) return (
-    <div className="flex items-center justify-center py-12">
-      <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin"></div>
+    <div className="space-y-6">
+      {avisoEnsayo}
+      <div role="status" className="flex items-center justify-center py-12">
+        <div aria-hidden="true" className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin"></div>
+        <span className="sr-only">Cargando eventos…</span>
+      </div>
+    </div>
+  );
+
+  if (ensayoLaravel && errorCarga && eventos.length === 0) return (
+    <div className="space-y-6">
+      {avisoEnsayo}
+      <div className="panel-estado">
+        <p role="alert">{errorCarga}</p>
+        <button type="button" onClick={() => { setLoading(true); cargarEnsayo(); }} className="panel-accion mx-auto">
+          Volver a intentar
+        </button>
+      </div>
     </div>
   );
 
   return (
     <div className="space-y-6">
+      {avisoEnsayo}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-foreground font-heading">Gestión de Eventos</h2>
-          <p className="text-muted-foreground text-sm mt-1">{eventos.length} evento(s) configurado(s)</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            {eventos.length}{hayMas ? "+" : ""} evento(s) configurado(s)
+          </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Filtro de orden */}
           <Select value={ordenEvento} onValueChange={setOrdenEvento}>
             <SelectTrigger className="w-48 h-9">
@@ -155,57 +346,83 @@ export default function GestionEventos({ onUpdate }) {
                   <CalendarDays className="w-5 h-5 text-primary" />
                   Nuevo Evento de Graduación
                 </DialogTitle>
+                {ensayoLaravel && (
+                  <DescripcionEnsayo>Ensayo Laravel con datos ficticios. Base44 no recibe este evento.</DescripcionEnsayo>
+                )}
               </DialogHeader>
               <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="institucion">Nombre de la Institución *</Label>
-                  <Input id="institucion" value={newEvento.nombre_institucion}
-                    onChange={e => setNewEvento({ ...newEvento, nombre_institucion: e.target.value })}
-                    placeholder="Ej. Universidad Nacional" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="tipo">Tipo de Institución</Label>
-                    <Select value={newEvento.tipo_institucion}
-                      onValueChange={v => setNewEvento({ ...newEvento, tipo_institucion: v })}>
-                      <SelectTrigger id="tipo"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="universidad">Universidad</SelectItem>
-                        <SelectItem value="colegio">Colegio</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fecha">Fecha *</Label>
-                    <Input id="fecha" type="date" value={newEvento.fecha}
-                      onChange={e => setNewEvento({ ...newEvento, fecha: e.target.value })} />
-                  </div>
-                </div>
+                {ensayoLaravel ? (
+                  <>
+                    <div className="space-y-2">
+                      <EtiquetaInstitucion htmlFor="institucion">Institución *</EtiquetaInstitucion>
+                      <Select value={newEvento.institucion_id ?? ""} disabled={instituciones.length === 0}
+                        onValueChange={v => setNewEvento({ ...newEvento, institucion_id: v })}>
+                        <SelectorInstitucion id="institucion" {...describirCampo("institucion")}>
+                          <SelectValue placeholder={instituciones.length ? "Seleccionar institución" : "Sin instituciones disponibles"} />
+                        </SelectorInstitucion>
+                        <MenuInstituciones>
+                          {instituciones.map(inst => (
+                            <OpcionInstitucion key={inst.id} value={String(inst.id)}>{inst.nombre} · {inst.tipo}</OpcionInstitucion>
+                          ))}
+                        </MenuInstituciones>
+                      </Select>
+                      {avisoCampo("institucion")}
+                    </div>
+                    {campoFecha}
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="institucion">Nombre de la Institución *</Label>
+                      <Input id="institucion" value={newEvento.nombre_institucion}
+                        onChange={e => setNewEvento({ ...newEvento, nombre_institucion: e.target.value })}
+                        placeholder="Ej. Universidad Nacional" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="tipo">Tipo de Institución</Label>
+                        <Select value={newEvento.tipo_institucion}
+                          onValueChange={v => setNewEvento({ ...newEvento, tipo_institucion: v })}>
+                          <SelectTrigger id="tipo"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="universidad">Universidad</SelectItem>
+                            <SelectItem value="colegio">Colegio</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {campoFecha}
+                    </div>
+                  </>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="lugar">Lugar</Label>
-                  <Input id="lugar" value={newEvento.lugar}
+                  <Input id="lugar" value={newEvento.lugar} maxLength={ensayoLaravel ? 255 : undefined}
+                    {...describirCampo("lugar")}
                     onChange={e => setNewEvento({ ...newEvento, lugar: e.target.value })}
                     placeholder="Ej. Auditorio Principal" />
+                  {avisoCampo("lugar")}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="numCer">Número de Ceremonias</Label>
                   <Select value={String(newEvento.numero_ceremonias)}
                     onValueChange={v => setNewEvento({ ...newEvento, numero_ceremonias: parseInt(v) })}>
-                    <SelectTrigger id="numCer"><SelectValue /></SelectTrigger>
+                    <SelectTrigger id="numCer" {...describirCampo("numCer")}><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {[1, 2, 3, 4, 5, 6].map(n => (
                         <SelectItem key={n} value={String(n)}>{n} ceremonia{n > 1 ? 's' : ''}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {avisoCampo("numCer")}
                 </div>
+                {errorAlta && <p role="alert" className="rounded-md bg-error-suave p-3 text-sm text-error">{errorAlta}</p>}
                 <div className="flex justify-end gap-3 pt-2">
                   <Button variant="outline" onClick={() => setShowNew(false)}>Cancelar</Button>
                   <Button onClick={crearEvento} disabled={saving}
                     className="bg-primary hover:bg-primary/90 text-primary-foreground">
                     {saving ? (
                       <><div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2"></div> Creando...</>
-                    ) : 'Crear Evento'}
+                    ) : errorAlta && operacion.current ? 'Reintentar' : 'Crear Evento'}
                   </Button>
                 </div>
               </div>
@@ -257,20 +474,37 @@ export default function GestionEventos({ onUpdate }) {
                           </span>
                         )}
                       </div>
-                      {(ceremonias[evento.id] || []).length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {[...(ceremonias[evento.id] || [])].sort((a, b) => (a.orden || 0) - (b.orden || 0)).map(cer => (
-                            <Badge key={cer.id} variant="outline" className="text-xs">
-                              {cer.nombre} {cer.hora ? `(${cer.hora})` : ''}
-                            </Badge>
-                          ))}
+                      {ensayoLaravel ? (
+                        <div className="mt-3 space-y-2">
+                          <BotonEnsayo variant="outline" size="sm" aria-expanded={Boolean(abiertas[evento.id])}
+                            aria-controls={`ceremonias-${evento.id}`} onClick={() => alternarCeremonias(evento.id)}>
+                            {abiertas[evento.id] ? "Ocultar" : "Ver"} ceremonias ({evento.numero_ceremonias})
+                          </BotonEnsayo>
+                          {abiertas[evento.id] && (
+                            <div id={`ceremonias-${evento.id}`}>
+                              {estadoCeremonias[evento.id] === "cargando" ? (
+                                <p role="status" className="text-sm text-muted-foreground">Cargando ceremonias…</p>
+                              ) : estadoCeremonias[evento.id] ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p role="alert" className="text-sm text-error">{estadoCeremonias[evento.id]}</p>
+                                  <BotonEnsayo variant="outline" size="sm" onClick={() => cargarCeremonias(evento.id)}>Reintentar</BotonEnsayo>
+                                </div>
+                              ) : (
+                                <div className="flex flex-wrap gap-2">{listaCeremonias(evento.id)}</div>
+                              )}
+                            </div>
+                          )}
                         </div>
+                      ) : (ceremonias[evento.id] || []).length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">{listaCeremonias(evento.id)}</div>
                       )}
                     </div>
-                    <Button onClick={() => eliminarEvento(evento.id)} variant="ghost" size="icon"
-                      className="text-muted-foreground hover:text-destructive shrink-0">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {!ensayoLaravel && (
+                      <Button onClick={() => eliminarEvento(evento.id)} variant="ghost" size="icon"
+                        className="text-muted-foreground hover:text-destructive shrink-0">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -278,6 +512,14 @@ export default function GestionEventos({ onUpdate }) {
           })
         )}
       </div>
+      {ensayoLaravel && errorCarga && <p role="alert" className="text-sm text-error">{errorCarga}</p>}
+      {ensayoLaravel && hayMas && (
+        <div className="flex justify-center">
+          <BotonEnsayo variant="outline" onClick={cargarMas} disabled={cargandoMas}>
+            {cargandoMas ? "Cargando…" : "Cargar más eventos"}
+          </BotonEnsayo>
+        </div>
+      )}
     </div>
   );
 }
