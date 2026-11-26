@@ -6,6 +6,9 @@ use App\Models\Rol;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Testing\TestResponse;
 
 class SesionTest extends CasoMySql
@@ -14,7 +17,7 @@ class SesionTest extends CasoMySql
 
     private const string ORIGEN_API = 'http://127.0.0.1:8000';
 
-    protected array $tablas = ['users', 'roles', 'rol_user', 'sessions'];
+    protected array $tablas = ['users', 'roles', 'rol_user', 'sessions', 'password_reset_tokens'];
 
     private string $clave;
 
@@ -31,6 +34,7 @@ class SesionTest extends CasoMySql
             'session.domain' => null,
             'cors.allowed_origins' => [self::ORIGEN_WEB],
             'sanctum.stateful' => ['127.0.0.1:5173', '127.0.0.1:8000'],
+            'auth.cola_recuperacion' => 'sync',
         ]);
 
         $this->app->bind(PreventRequestForgery::class, function ($app) {
@@ -61,13 +65,14 @@ class SesionTest extends CasoMySql
             'email' => strtoupper($usuario->email),
             'password' => $this->clave,
             'roles' => ['administrador'],
-            'remember' => true,
+            'remember' => false,
         ], $csrf)->assertNoContent();
         $sesion = $login->getCookie(config('session.cookie'))->getValue();
         $this->assertNotSame($cookie->getValue(), $sesion);
         $this->assertDatabaseMissing('sessions', ['id' => $cookie->getValue()]);
         $this->assertDatabaseHas('sessions', ['id' => $sesion, 'user_id' => $usuario->id]);
         $this->assertCount(2, $login->headers->getCookies());
+        $this->assertSame(0, $login->getCookie(config('session.cookie'))->getExpiresTime());
 
         $this->solicitar('GET', '/api/mi-sesion?roles[]=administrador', [], $login)
             ->assertOk()->assertExactJson(['data' => [
@@ -176,6 +181,155 @@ class SesionTest extends CasoMySql
         $this->assertTrue($respuesta->getCookie('XSRF-TOKEN')->isSecure());
     }
 
+    public function test_recordar_es_opcional_y_rechaza_una_opcion_invalida(): void
+    {
+        $usuario = $this->crearUsuario(['administrador']);
+        $csrf = $this->solicitar('GET', '/sanctum/csrf-cookie');
+        $this->solicitar('POST', '/login', [
+            'email' => $usuario->email, 'password' => $this->clave, 'remember' => 'indefinida',
+        ], $csrf)->assertUnprocessable()->assertJsonValidationErrors('remember');
+
+        $login = $this->ingresar($usuario);
+        $this->assertNull($login->getCookie(Auth::guard('web')->getRecallerName()));
+        $this->assertSame(0, $login->getCookie(config('session.cookie'))->getExpiresTime());
+        $this->solicitar('GET', '/api/mi-sesion')->assertUnauthorized();
+        $this->travel(121)->minutes();
+        $this->solicitar('GET', '/api/mi-sesion', [], $login)->assertUnauthorized();
+    }
+
+    public function test_cookie_recordada_se_rechaza_si_fue_alterada_o_si_expira_en_servidor(): void
+    {
+        config(['session.secure' => true]);
+        $usuario = $this->crearUsuario(['administrador']);
+        $login = $this->ingresar($usuario, recordar: true);
+        $nombre = Auth::guard('web')->getRecallerName();
+        $cookie = $login->getCookie($nombre, false);
+        $recordar = [$nombre => $cookie->getValue()];
+        $this->assertTrue($cookie->isHttpOnly());
+        $this->assertTrue($cookie->isSecure());
+        $this->assertSame('lax', $cookie->getSameSite());
+        $this->assertEmpty($cookie->getDomain());
+        $this->assertEqualsWithDelta(now()->addDay()->timestamp, $cookie->getExpiresTime(), 2);
+
+        $alterada = $cookie->getValue();
+        $alterada[12] = $alterada[12] === 'a' ? 'b' : 'a';
+        $this->solicitar('GET', '/api/mi-sesion', cookiesExtra: [$nombre => $alterada])->assertUnauthorized();
+
+        $this->travel(23)->hours();
+        $restaurada = $this->solicitar('GET', '/api/mi-sesion', cookiesExtra: $recordar)->assertOk();
+        $this->assertNull($restaurada->getCookie($nombre));
+
+        $this->travel(61)->minutes();
+        // Reenvía deliberadamente la copia de la cookie después de que el navegador la descartaría.
+        $this->solicitar('GET', '/api/mi-sesion', cookiesExtra: $recordar)->assertUnauthorized();
+        $this->solicitar('GET', '/api/mi-sesion', [], $restaurada)->assertUnauthorized();
+    }
+
+    public function test_logout_recordado_revoca_la_cookie_y_la_sesion(): void
+    {
+        $usuario = $this->crearUsuario(['colaborador']);
+        $login = $this->ingresar($usuario, recordar: true);
+        $nombre = Auth::guard('web')->getRecallerName();
+        $recordar = [$nombre => $login->getCookie($nombre, false)->getValue()];
+        $restaurada = $this->solicitar('GET', '/api/mi-sesion', cookiesExtra: $recordar)->assertOk();
+
+        $logout = $this->solicitar('POST', '/logout', [], $restaurada, cookiesExtra: $recordar)->assertNoContent();
+        $this->assertTrue($logout->getCookie($nombre, false)->isCleared());
+        $this->solicitar('GET', '/api/mi-sesion', [], $restaurada)->assertUnauthorized();
+        $this->solicitar('GET', '/api/mi-sesion', cookiesExtra: $recordar)->assertUnauthorized();
+    }
+
+    public function test_solicitud_neutral_con_correo_local_y_limites_identicos(): void
+    {
+        $usuario = $this->crearUsuario(['administrador']);
+        $csrf = $this->solicitar('GET', '/sanctum/csrf-cookie');
+        $this->solicitar('POST', '/forgot-password', ['email' => $usuario->email], $csrf, enviarCsrf: false)
+            ->assertStatus(419);
+        $this->solicitar('POST', '/forgot-password', ['email' => 'correo-invalido'], $csrf)
+            ->assertUnprocessable()->assertJsonValidationErrors('email');
+
+        foreach ([$usuario->email, 'inexistente@example.invalid'] as $correo) {
+            for ($intento = 0; $intento < 3; $intento++) {
+                $respuesta = $this->solicitar('POST', '/forgot-password', ['email' => strtoupper($correo)], $csrf)
+                    ->assertNoContent(202);
+                $this->assertStringContainsString('no-store', $respuesta->headers->get('Cache-Control'));
+            }
+            $this->solicitar('POST', '/forgot-password', ['email' => $correo], $csrf)
+                ->assertTooManyRequests()->assertHeader('Retry-After');
+        }
+
+        $mensajes = Mail::mailer('array')->getSymfonyTransport()->messages();
+        $this->assertCount(1, $mensajes);
+        $this->assertSame($usuario->email, $mensajes->first()->getEnvelope()->getRecipients()[0]->getAddress());
+    }
+
+    public function test_restablecer_valida_consume_actualiza_y_revoca_sin_cambiar_roles(): void
+    {
+        $usuario = $this->crearUsuario(['administrador', 'colaborador']);
+        $login = $this->ingresar($usuario, recordar: true);
+        $otraSesion = $this->ingresar($usuario);
+        $nombre = Auth::guard('web')->getRecallerName();
+        $recordar = [$nombre => $login->getCookie($nombre, false)->getValue()];
+        $csrf = $this->solicitar('GET', '/sanctum/csrf-cookie');
+        $datos = $this->datosDeRestablecimiento($usuario, $csrf);
+        $hashToken = DB::table('password_reset_tokens')->where('email', $usuario->email)->value('token');
+        $this->assertTrue(Hash::check($datos['token'], $hashToken));
+        $this->assertFalse(hash_equals($hashToken, $datos['token']));
+
+        $this->solicitar('POST', '/reset-password', $datos, $csrf, enviarCsrf: false)->assertStatus(419);
+        $fallo = $this->solicitar('POST', '/reset-password', array_replace($datos, ['token' => str_repeat('f', 64)]), $csrf)
+            ->assertUnprocessable()->assertJsonValidationErrors('token')->json();
+        $this->solicitar('POST', '/reset-password', array_replace($datos, ['email' => 'inexistente@example.invalid']), $csrf)
+            ->assertUnprocessable()->assertExactJson($fallo);
+        $this->solicitar('POST', '/reset-password', array_replace($datos, ['password_confirmation' => 'No-coincide']), $csrf)
+            ->assertUnprocessable()->assertJsonValidationErrors('password_confirmation');
+
+        $this->solicitar('POST', '/reset-password', [...$datos, 'roles' => ['institucion']], $csrf)->assertNoContent();
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => $usuario->email]);
+        $this->assertDatabaseMissing('sessions', ['user_id' => $usuario->id]);
+        $this->assertTrue(Hash::check($datos['password'], $usuario->fresh()->password));
+        $this->assertSame(['administrador', 'colaborador'], $usuario->fresh()->codigosDeAcceso());
+        $this->solicitar('GET', '/api/mi-sesion', [], $login)->assertUnauthorized();
+        $this->solicitar('GET', '/api/mi-sesion', [], $otraSesion)->assertUnauthorized();
+        $this->solicitar('GET', '/api/mi-sesion', cookiesExtra: $recordar)->assertUnauthorized();
+        $this->solicitar('GET', '/api/mi-sesion', [], $csrf)->assertUnauthorized();
+        $this->solicitar('POST', '/reset-password', $datos, $csrf)->assertUnprocessable()->assertExactJson($fallo);
+        $this->solicitar('POST', '/login', ['email' => $usuario->email, 'password' => $this->clave], $csrf)
+            ->assertUnprocessable();
+        $this->solicitar('POST', '/login', ['email' => $usuario->email, 'password' => $datos['password']], $csrf)
+            ->assertNoContent();
+    }
+
+    public function test_restablecimiento_rechaza_token_vencido_y_limita_intentos(): void
+    {
+        $usuario = $this->crearUsuario(['administrador']);
+        $csrf = $this->solicitar('GET', '/sanctum/csrf-cookie');
+        $datos = $this->datosDeRestablecimiento($usuario, $csrf);
+        $this->travel(31)->minutes();
+
+        for ($intento = 0; $intento < 8; $intento++) {
+            $this->solicitar('POST', '/reset-password', $datos, $csrf)
+                ->assertUnprocessable()->assertJsonValidationErrors('token');
+        }
+
+        $this->solicitar('POST', '/reset-password', $datos, $csrf)
+            ->assertTooManyRequests()->assertHeader('Retry-After');
+        $this->assertTrue(Hash::check($this->clave, $usuario->fresh()->password));
+    }
+
+    private function datosDeRestablecimiento(User $usuario, TestResponse $csrf): array
+    {
+        $this->solicitar('POST', '/forgot-password', ['email' => $usuario->email], $csrf)->assertNoContent(202);
+        $mensaje = Mail::mailer('array')->getSymfonyTransport()->messages()->sole()->getOriginalMessage();
+        $this->assertSame(1, preg_match('~http://127\.0\.0\.1:5173/restablecer-contrasena#token=([a-f0-9]{64})~', $mensaje->getHtmlBody(), $coincidencia));
+        $clave = bin2hex(random_bytes(16));
+
+        return [
+            'email' => $usuario->email, 'token' => $coincidencia[1],
+            'password' => $clave, 'password_confirmation' => $clave,
+        ];
+    }
+
     private function crearUsuario(array $roles): User
     {
         $usuario = User::factory()->unverified()->create([
@@ -188,11 +342,13 @@ class SesionTest extends CasoMySql
         return $usuario;
     }
 
-    private function ingresar(User $usuario): TestResponse
+    private function ingresar(User $usuario, bool $recordar = false): TestResponse
     {
         $csrf = $this->solicitar('GET', '/sanctum/csrf-cookie')->assertNoContent();
 
-        return $this->solicitar('POST', '/login', ['email' => $usuario->email, 'password' => $this->clave], $csrf)
+        return $this->solicitar('POST', '/login', [
+            'email' => $usuario->email, 'password' => $this->clave, ...($recordar ? ['remember' => true] : []),
+        ], $csrf)
             ->assertNoContent();
     }
 
@@ -203,6 +359,7 @@ class SesionTest extends CasoMySql
         ?TestResponse $respuestaAnterior = null,
         string $origen = self::ORIGEN_WEB,
         bool $enviarCsrf = true,
+        array $cookiesExtra = [],
     ): TestResponse {
         Auth::forgetGuards();
         $this->app->forgetInstance('auth.driver');
@@ -227,6 +384,6 @@ class SesionTest extends CasoMySql
             $cabeceras['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'] = 'content-type,x-xsrf-token';
         }
 
-        return $this->call($metodo, self::ORIGEN_API.$ruta, [], $cookies, [], $cabeceras, json_encode($datos));
+        return $this->call($metodo, self::ORIGEN_API.$ruta, [], $cookies + $cookiesExtra, [], $cabeceras, json_encode($datos));
     }
 }

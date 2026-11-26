@@ -4,6 +4,8 @@
 
 React usa una sesión Fortify y Sanctum para abrir las rutas de Administrador y Colaborador. La autorización de la navegación se deriva de `/api/mi-sesion`. El acceso anterior basado en cuentas Base44 y claves de rol en el navegador salió del flujo. Las operaciones heredadas aún necesitan migración de sus políticas y un vínculo de identidad en servidor para los perfiles de Colaborador. Consulte el [contrato de autenticación](AUTENTICACION.md).
 
+**ME-AUTH1C.** La SPA incluye solicitud y restablecimiento por correo mediante el broker de Laravel, además de sesión recordada opcional de 24 horas. MySQL conserva la identidad y las sesiones. El trabajador de cola entrega los correos de recuperación.
+
 ## MySQL e identidad central desde ME-D0
 
 **Implementado.** Laravel usa una identidad central en `users`. `roles` almacena los siete códigos aprobados y `rol_user` registra las asignaciones con una clave primaria compuesta y dos claves foráneas. El seeder del catálogo es idempotente. La API pública sigue sirviendo la ruta de salud.

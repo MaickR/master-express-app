@@ -33,6 +33,8 @@ class IdentidadSinExposicionTest extends TestCase
             ['sanctum/csrf-cookie', ['GET', 'HEAD']],
             ['login', ['POST']],
             ['logout', ['POST']],
+            ['forgot-password', ['POST']],
+            ['reset-password', ['POST']],
         ], $rutasApi);
 
         $this->postJson('/register')->assertNotFound();

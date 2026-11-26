@@ -7,6 +7,7 @@ import { queryClientInstance } from '@/shared/lib/query-client';
 import VisualEditAgent from '@/integrations/base44/VisualEditAgent';
 import Home, { MarcoAcceso } from '@/features/acceso/Home';
 import ProveedorSesion from '@/features/acceso/ProveedorSesion';
+import Recuperacion from '@/features/acceso/recuperacion';
 import { useSesion } from '@/features/acceso/contexto-sesion';
 import { paneles } from '@/features/acceso/destinos';
 import { paginasPrivadas } from './pages.config';
@@ -50,7 +51,11 @@ export default function App() {
     <QueryClientProvider client={queryClientInstance}>
       <BrowserRouter>
         <ProveedorSesion>
-          <Navegacion />
+          <Routes>
+            <Route path="/recuperar-contrasena" element={<Recuperacion key="solicitar" modo="solicitar" />} />
+            <Route path="/restablecer-contrasena" element={<Recuperacion key="restablecer" modo="restablecer" />} />
+            <Route path="*" element={<Navegacion />} />
+          </Routes>
         </ProveedorSesion>
       </BrowserRouter>
       <Toaster />

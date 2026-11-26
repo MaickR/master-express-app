@@ -1,8 +1,9 @@
-// Con Vite y Laravel activos: node tests/autenticacion.mjs "chrome.exe" "carpeta de capturas"
+// Con Vite local y Laravel en testing: node tests/autenticacion.mjs "chrome.exe" "carpeta de capturas"
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as esperar } from 'node:timers/promises';
@@ -34,9 +35,10 @@ try {
     $app = require 'bootstrap/app.php';
     $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
     $db = Illuminate\Support\Facades\DB::connection();
-    if (!$app->environment('local') || $db->getDriverName() !== 'mysql'
+    if (!$app->environment('testing') || $db->getName() !== 'mysql_pruebas'
         || $db->getConfig('host') !== '127.0.0.1'
-        || $db->selectOne('SELECT DATABASE() AS nombre')->nombre !== 'masterexpress_control_dev') {
+        || $db->selectOne('SELECT DATABASE() AS nombre')->nombre !== 'masterexpress_control_test'
+        || $db->table('information_schema.SCHEMATA')->where('SCHEMA_NAME', 'masterexpress_control_dev')->exists()) {
         exit(2);
     }
     $db->transaction(function () use ($entrada, $db) {
@@ -44,6 +46,7 @@ try {
             $usuarios = App\Models\User::query()->where('email', $cuenta['email'])->where('name', $cuenta['nombre']);
             if ($entrada['accion'] === 'limpiar') {
                 $db->table('sessions')->whereIn('user_id', $usuarios->pluck('id'))->delete();
+                $db->table('password_reset_tokens')->where('email', $cuenta['email'])->delete();
                 $usuarios->delete();
             } elseif ($entrada['accion'] === 'revocar' && $cuenta['roles'] === ['colaborador']) {
                 $usuarios->sole()->roles()->detach();
@@ -68,10 +71,55 @@ try {
 const administrarCuentas = accion => {
   const resultado = spawnSync('php', [script], {
     cwd: carpetaApi, input: JSON.stringify({ accion, cuentas, clave: accion === 'crear' ? clave : undefined }),
-    encoding: 'utf8', windowsHide: true, timeout: 10000,
+    encoding: 'utf8', windowsHide: true, timeout: 10000, env: { ...process.env, APP_ENV: 'testing' },
   });
-  assert.equal(resultado.status, 0, 'No se pudo ' + accion + ' las cuentas ficticias en MySQL de desarrollo.');
+  assert.equal(resultado.status, 0, 'No se pudo ' + accion + ' las cuentas ficticias en MySQL aislado.');
 };
+
+// Sumidero SMTP de bucle local. Los mensajes ficticios permanecen en memoria.
+const mensajes = [];
+const correoLocal = createServer(socket => {
+  socket.setEncoding('utf8');
+  let pendiente = '', cuerpo = null;
+  socket.write('220 localhost QA\r\n');
+  socket.on('data', datos => {
+    pendiente += datos;
+    while (pendiente.includes('\r\n')) {
+      const corte = pendiente.indexOf('\r\n');
+      const linea = pendiente.slice(0, corte);
+      pendiente = pendiente.slice(corte + 2);
+      if (cuerpo !== null) {
+        if (linea === '.') {
+          mensajes.push(cuerpo);
+          cuerpo = null;
+          socket.write('250 recibido\r\n');
+        } else {
+          cuerpo += linea + '\r\n';
+        }
+      } else if (linea === 'DATA') {
+        cuerpo = '';
+        socket.write('354 enviar datos\r\n');
+      } else if (linea === 'QUIT') {
+        socket.end('221 listo\r\n');
+      } else {
+        socket.write('250 OK\r\n');
+      }
+    }
+  });
+});
+
+async function procesarCorreo() {
+  const trabajador = spawn('php', ['artisan', 'queue:work', 'database', '--once', '--queue=recuperacion', '--env=testing'], {
+    cwd: carpetaApi, windowsHide: true, timeout: 15000, stdio: 'ignore',
+    env: { ...process.env, APP_ENV: 'testing', MAIL_MAILER: 'smtp',
+      MAIL_URL: 'smtp://127.0.0.1:' + correoLocal.address().port, MAIL_USERNAME: '', MAIL_PASSWORD: '' },
+  });
+  const estado = await new Promise((resolver, rechazar) => {
+    trabajador.once('error', rechazar);
+    trabajador.once('exit', resolver);
+  });
+  assert.equal(estado, 0, 'Falló el trabajador de correo de QA.');
+}
 
 async function hasta(consulta, mensaje) {
   for (let intento = 0; intento < 100; intento++) {
@@ -89,29 +137,36 @@ try {
   await mkdir(capturas, { recursive: true });
   administrarCuentas('crear');
   preparadas = true;
+  await new Promise(resolver => correoLocal.listen(0, '127.0.0.1', resolver));
 
   chrome = spawn(ejecutable, [
     '--headless', '--disable-background-networking', '--no-first-run', '--remote-debugging-port=0',
     '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1', '--user-data-dir=' + perfil,
     'about:blank',
   ], { stdio: 'ignore', windowsHide: true });
-  const puerto = await hasta(async () => {
+  const depuracion = await hasta(async () => {
     const datos = await readFile(join(perfil, 'DevToolsActivePort'), 'utf8').catch(() => '');
-    return Number(datos.split('\n')[0]);
+    const [puerto, ruta] = datos.trim().split(/\r?\n/);
+    return Number(puerto) && ruta ? { puerto, ruta } : null;
   }, 'El navegador no abrió el puerto de depuración.');
-  const pestañas = await (await fetch('http://127.0.0.1:' + puerto + '/json/list')).json();
-  conexion = new WebSocket(pestañas.find(pagina => pagina.type === 'page').webSocketDebuggerUrl);
+  conexion = new WebSocket('ws://127.0.0.1:' + depuracion.puerto + depuracion.ruta);
   await new Promise((resolver, rechazar) => {
     conexion.addEventListener('open', resolver, { once: true });
     conexion.addEventListener('error', rechazar, { once: true });
   });
 
   let numero = 0, envios = 0;
+  let objetivo;
   const respuestasLogin = [];
+  const consola = [];
   const solicitudesLogin = new Set();
+  const respuestasSesion = [];
   const pendientes = new Map();
   conexion.addEventListener('message', ({ data }) => {
     const evento = JSON.parse(data);
+    if (['Runtime.consoleAPICalled', 'Runtime.exceptionThrown'].includes(evento.method)) {
+      consola.push(JSON.stringify(evento.params));
+    }
     if (evento.method === 'Network.requestWillBeSent' && evento.params.request.url === api + '/login'
       && evento.params.request.method === 'POST') {
       envios++;
@@ -119,6 +174,9 @@ try {
     }
     if (evento.method === 'Network.responseReceived' && solicitudesLogin.delete(evento.params.requestId)) {
       respuestasLogin.push(evento.params.response.status);
+    }
+    if (evento.method === 'Network.responseReceived' && evento.params.response.url === api + '/api/mi-sesion') {
+      respuestasSesion.push(evento.params.response.status);
     }
     const llamada = pendientes.get(evento.id);
     if (!llamada) return;
@@ -135,8 +193,24 @@ try {
       rechazar(new Error('Tiempo agotado en ' + metodo));
     }, 18000);
     pendientes.set(id, { resolver, rechazar, temporizador, metodo });
-    conexion.send(JSON.stringify({ id, method: metodo, params }));
+    conexion.send(JSON.stringify({
+      id, method: metodo, params, sessionId: metodo.startsWith('Target.') ? undefined : objetivo,
+    }));
   });
+
+  const seleccionarPestana = async targetId => {
+    const { sessionId } = await cdp('Target.attachToTarget', { targetId, flatten: true });
+    objetivo = sessionId;
+    await cdp('Page.enable');
+    await cdp('Network.enable');
+    await cdp('Runtime.enable');
+  };
+
+  const abrirContextoLimpio = async () => {
+    const { browserContextId } = await cdp('Target.createBrowserContext', { disposeOnDetach: true });
+    const { targetId } = await cdp('Target.createTarget', { url: 'about:blank', browserContextId });
+    await seleccionarPestana(targetId);
+  };
 
   const leer = async (fn, dato) => {
     const expression = '(' + fn.toString() + ')(' + JSON.stringify(dato ?? null) + ')';
@@ -162,11 +236,12 @@ try {
     () => leer(([path, titulo]) => location.pathname === path && document.querySelector('main h1')?.textContent.includes(titulo), [ruta, encabezado]),
     'No abrió el panel autorizado ' + ruta,
   );
-  const digitar = (email, password, veces = 1) => leer(datos => {
+  const digitar = (email, password, veces = 1, recordar = false) => leer(datos => {
     document.querySelector('#correo').value = datos.email;
     document.querySelector('#contrasena').value = datos.password;
+    document.querySelector('input[name="remember"]').checked = datos.recordar;
     for (let i = 0; i < datos.veces; i++) document.querySelector('form').requestSubmit();
-  }, { email, password, veces });
+  }, { email, password, veces, recordar });
 
   const tecla = async (key, code, virtual) => {
     const datos = { key, code, windowsVirtualKeyCode: virtual, nativeVirtualKeyCode: virtual };
@@ -176,8 +251,8 @@ try {
     await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: virtual });
   };
 
-  await cdp('Page.enable');
-  await cdp('Network.enable');
+  const { targetInfos } = await cdp('Target.getTargets');
+  await seleccionarPestana(targetInfos.find(pagina => pagina.type === 'page').targetId);
   await cdp('Page.addScriptToEvaluateOnNewDocument', {
     source: '(' + (([colaborador, doble]) => {
       localStorage.setItem('admin_id', 'usuario-legado-ficticio');
@@ -219,6 +294,8 @@ try {
   await tecla('Tab', 'Tab', 9);
   assert.equal(await leer(() => document.activeElement.id), 'correo');
   await tecla('Tab', 'Tab', 9);
+  assert.equal(await leer(() => document.activeElement.textContent.trim()), '¿Olvidaste tu contraseña?');
+  await tecla('Tab', 'Tab', 9);
   assert.equal(await leer(() => document.activeElement.id), 'contrasena');
   await tecla('Tab', 'Tab', 9);
   assert.equal(await leer(() => document.activeElement.getAttribute('aria-label')), 'Mostrar contraseña');
@@ -226,6 +303,12 @@ try {
   assert.equal(await leer(() => document.querySelector('#contrasena').type), 'text');
   await tecla(' ', 'Space', 32);
   assert.equal(await leer(() => document.querySelector('#contrasena').type), 'password');
+  await tecla('Tab', 'Tab', 9);
+  assert.equal(await leer(() => document.activeElement.name), 'remember');
+  assert.equal(await leer(() => document.activeElement.checked), false);
+  await tecla(' ', 'Space', 32);
+  assert.equal(await leer(() => document.activeElement.checked), true);
+  await tecla(' ', 'Space', 32);
   await tecla('Tab', 'Tab', 9);
   await tecla('Enter', 'Enter', 13);
   await hasta(() => leer(() => document.activeElement.id === 'correo'), 'La validación no enfocó el correo.');
@@ -319,10 +402,23 @@ try {
 
   await cdp('Network.setBlockedURLs', { urls: [api + '/*'] });
   await navegar('/');
-  await hasta(() => texto('Acceso no disponible'), 'No apareció el error de conexión.');
-  await cdp('Network.setBlockedURLs', { urls: [] });
-  await clic('main section button');
+  await hasta(() => texto('No pudimos conectar con el servicio'), 'No apareció el error de conexión.');
   await loginVisible();
+  await cdp('Network.setBlockedURLs', { urls: [] });
+  await leer(() => {
+    const peticion = window.fetch;
+    window.fetch = (url, opciones) => {
+      if (url.endsWith('/login') && opciones.method === 'POST') {
+        window.fetch = peticion;
+        return Promise.resolve(new Response('Detalle interno de prueba', { status: 503 }));
+      }
+      return peticion(url, opciones);
+    };
+  });
+  await digitar(cuentas[0].email, clave);
+  await hasta(async () => /servicio de acceso no pudo completar/.test(await mensaje()), 'No se mostró la recuperación para un fallo del servidor.');
+  assert(!(await texto('Detalle interno de prueba')));
+  assert(await leer(() => document.querySelector('#correo').value.length > 0));
   // Usa un correo nuevo para que las comprobaciones anteriores no consuman la ventana del limitador.
   for (let intento = 0; intento < 6; intento++) {
     const anteriores = respuestasLogin.length;
@@ -336,7 +432,107 @@ try {
   assert.match(await hasta(mensaje, 'No se mostró el mensaje del limitador.'), /Demasiados intentos/);
   assert(await leer(() => document.querySelector('button[type="submit"]').disabled));
   console.log('PASS M/N Limitación real 429 y recuperación tras error de conexión.');
+
+  await clic('a[href="/recuperar-contrasena"]');
+  await hasta(() => texto('Recupera tu contraseña'), 'No se abrió la recuperación.');
+  assert.equal(await leer(() => document.activeElement.tagName), 'H1');
+  await clic('button[type="submit"]');
+  await hasta(() => mensaje(), 'No se mostró la validación de correo.');
+  assert(await leer(() => document.querySelector('#email').getAttribute('aria-describedby') === 'email-error'));
+  for (const tema of ['Claro', 'Oscuro', 'Sistema']) {
+    await leer(() => document.querySelector('button[aria-label^="Tema visual:"]').focus());
+    await tecla('Enter', 'Enter', 13);
+    await hasta(() => seleccionar('[role="menuitemradio"]'), 'No abrió el selector de tema.');
+    await leer(opcion => [...document.querySelectorAll('[role="menuitemradio"]')]
+      .find(item => item.textContent.trim() === opcion).click(), tema);
+    await hasta(() => leer(valor => localStorage.getItem('theme') === valor, { Claro: 'light', Oscuro: 'dark', Sistema: 'system' }[tema]),
+      'El tema de recuperación no se aplicó.');
+  }
+  await redimensionar(320);
+  assert(await leer(() => document.documentElement.scrollWidth <= innerWidth));
+  await pantalla('05-recuperacion-320');
+  await redimensionar(1440);
+
+  const solicitarEnlace = email => leer(dato => {
+    document.querySelector('#email').value = dato;
+    document.querySelector('form').requestSubmit();
+  }, email);
+  await solicitarEnlace(cuentas[0].email);
+  await hasta(() => texto('Revisa tu correo'), 'No se confirmó la solicitud.');
+  const avisoNeutral = await leer(() => document.querySelector('main [role="status"]').textContent);
+  await procesarCorreo();
+  assert.equal(mensajes.length, 1, 'No se recibió el correo de QA.');
+  const enlace = mensajes[0].replace(/=\r\n/g, '').replaceAll('=3D', '=').replaceAll('&amp;', '&')
+    .match(/http:\/\/127\.0\.0\.1:5173\/restablecer-contrasena#token=[a-f0-9]{64}&email=[^\s"<]+/)?.[0];
+  assert(Boolean(enlace), 'No se encontró el enlace en el correo local.');
+  mensajes.length = 0;
+  await navegar('/recuperar-contrasena');
+  await hasta(() => seleccionar('#email'), 'No regresó el formulario.');
+  await solicitarEnlace(correo('recuperacion-ausente'));
+  await hasta(() => texto('Revisa tu correo'), 'No se confirmó la solicitud neutral.');
+  assert.equal(await leer(() => document.querySelector('main [role="status"]').textContent), avisoNeutral);
+  await procesarCorreo();
+  assert.equal(mensajes.length, 0);
+
+  await cdp('Page.navigate', { url: enlace });
+  await hasta(() => seleccionar('#password'), 'El enlace no abrió el formulario de restablecimiento.');
+  assert.equal(await leer(() => location.hash + location.search), '');
+  const claveNueva = randomBytes(18).toString('hex');
+  const restablecer = confirmacion => leer(datos => {
+    document.querySelector('#password').value = datos.claveNueva;
+    document.querySelector('#password_confirmation').value = datos.confirmacion;
+    document.querySelector('form').requestSubmit();
+  }, { claveNueva, confirmacion });
+  await restablecer('confirmación distinta');
+  await hasta(() => texto('Confirma la contraseña con el mismo valor.'), 'No apareció el error de confirmación.');
+  await pantalla('06-restablecimiento-1440');
+  await restablecer(claveNueva);
+  await hasta(() => texto('Contraseña actualizada'), 'No se confirmó el restablecimiento.');
+  await cdp('Page.navigate', { url: enlace });
+  await hasta(() => seleccionar('#password'), 'No abrió el enlace usado.');
+  await restablecer(claveNueva);
+  await hasta(() => texto('El enlace no es válido o venció'), 'La interfaz no informó del token consumido.');
+  await clic('a[href="/"]');
+  await loginVisible();
+  await digitar(cuentas[0].email, clave);
+  await hasta(async () => /correo o la contraseña/.test(await mensaje()), 'La contraseña anterior siguió funcionando.');
+  console.log('PASS N–Q Restablecimiento desde correo local, validación, confirmación, token usado y temas.');
+
+  const cookies = async () => (await cdp('Network.getCookies', { urls: [web, api] })).cookies;
+  await digitar(cuentas[0].email, claveNueva);
+  await panel('/AdminDashboard', 'Panel de administración');
+  const ordinarias = await cookies();
+  assert(ordinarias.some(cookie => cookie.httpOnly && cookie.session));
+  assert(!ordinarias.some(cookie => cookie.name.startsWith('remember_web_')));
+  await abrirContextoLimpio();
+  assert.equal((await cookies()).length, 0);
+  const consultasPrevias = respuestasSesion.length;
+  await navegar('/AdminDashboard');
+  await loginVisible();
+  assert(respuestasSesion.slice(consultasPrevias).includes(401));
+
+  await digitar(cuentas[0].email, claveNueva, 1, true);
+  await panel('/AdminDashboard', 'Panel de administración');
+  const persistente = (await cookies()).find(cookie => cookie.name.startsWith('remember_web_'));
+  assert(Boolean(persistente?.httpOnly && !persistente.session && persistente.sameSite === 'Lax'));
+  assert(persistente.expires > Date.now() / 1000 && persistente.expires <= Date.now() / 1000 + 86400);
+  await abrirContextoLimpio();
+  // Una nueva visita solo dispone de la cookie persistente que emitió Laravel.
+  const { name, value, path, secure, httpOnly, sameSite, expires } = persistente;
+  const conservada = await cdp('Network.setCookie', { url: api, name, value, path, secure, httpOnly, sameSite, expires });
+  assert(conservada.success);
+  assert.equal((await cookies()).length, 1);
+  await navegar('/AdminDashboard');
+  await panel('/AdminDashboard', 'Panel de administración');
+  await clic('[aria-label="Cerrar sesión"]');
+  await loginVisible();
+  assert(!(await cookies()).some(cookie => cookie.name.startsWith('remember_web_')));
+  const token = new URLSearchParams(new URL(enlace).hash.slice(1)).get('token');
+  assert(!consola.some(linea => [clave, claveNueva, token].some(secreto => linea.includes(secreto))),
+    'La consola contiene datos sensibles.');
+  console.log('PASS R–X Cookies reales, pérdida de la cookie ordinaria, restauración recordada, logout y consola sin datos sensibles.');
 } finally {
+  correoLocal.close();
   conexion?.close();
   chrome?.kill();
   try {

@@ -1,6 +1,6 @@
 # Sesión interna de MasterExpress Control
 
-Laravel autentica con el guard `web` y el usuario de ME-D0. Fortify aporta el controlador de sesión y su preparación posterior al ingreso. La aplicación registra solo sus operaciones de ingreso y cierre porque el conjunto predeterminado también publica rutas de confirmación de contraseña. Sanctum inicializa CSRF y aplica el middleware de sesión de la SPA a `/api/mi-sesion`. La ruta usa el guard `web` para aceptar únicamente sesión mediante cookie.
+Laravel autentica con el guard `web` y el usuario de ME-D0. Fortify aporta el controlador de sesión y su preparación posterior al ingreso. Las rutas se registran de forma explícita. Sanctum inicializa CSRF y aplica el middleware de sesión de la SPA a `/api/mi-sesion`. Recuperación usa el broker y la notificación nativos de Laravel. La aplicación define el contrato público de respuesta, el enlace de la SPA y la revocación de sesiones.
 
 ## Contrato HTTP
 
@@ -9,11 +9,37 @@ Envíe `Accept: application/json` y habilite credenciales en todas las peticione
 | Método y ruta | Éxito | Respuestas de error |
 | --- | --- | --- |
 | `GET /sanctum/csrf-cookie` | `204`. Inicializa la sesión y emite la cookie `XSRF-TOKEN`. | |
-| `POST /login` | `204`. Recibe `email` y `password`, rota la sesión y actualiza `XSRF-TOKEN`. | `422` para entrada inválida o acceso rechazado, `409` si ya hay sesión, `419` por falta de CSRF y `429` por exceso de intentos. |
+| `POST /login` | `204`. Recibe `email`, `password` y el booleano opcional `remember`. Rota la sesión y actualiza `XSRF-TOKEN`. | `422` para entrada inválida o acceso rechazado, `409` si ya hay sesión, `419` por falta de CSRF y `429` por exceso de intentos. |
 | `GET /api/mi-sesion` | `200`. Devuelve `data.id`, `data.nombre`, `data.correo` y `data.roles`. | `401` para acceso anónimo o sesión expirada. `403` si se revocaron todos los roles de acceso, con invalidación de esa sesión. |
 | `POST /logout` | `204`. Invalida la sesión y renueva `XSRF-TOKEN`. | `401` sin sesión si CSRF es válido y `419` si CSRF falta o está vencido. |
+| `POST /forgot-password` | `202` sin cuerpo para todo correo sintácticamente válido. Recibe `email` y encola la solicitud. | `419` sin CSRF, `422` para formato inválido y `429` al superar los límites. |
+| `POST /reset-password` | `204`. Recibe `email`, `token`, `password` y `password_confirmation`. Consume el token y revoca las sesiones previas. | `419` sin CSRF, `422` para enlace inválido, vencido o consumido, o formulario inválido, y `429` por exceso de intentos. |
 
-Cada consulta vuelve a leer de `rol_user` los roles habilitados en el hito. Puede devolver `administrador`, `colaborador` o ambos. Una cuenta sin ninguno de los dos recibe el mismo mensaje que un correo inexistente o una contraseña incorrecta. La configuración limita a cinco intentos por correo normalizado e IP y a treinta por IP por minuto. `429` publica `Retry-After`. La sesión usa almacenamiento persistente del servidor, una cookie `HttpOnly`, `SameSite=Lax` y un vencimiento por inactividad de 120 minutos de forma predeterminada. `XSRF-TOKEN` es legible por la SPA para que pueda enviar `X-XSRF-TOKEN`. Las respuestas de sesión excluyen contraseñas, tokens y metadatos internos.
+Cada consulta vuelve a leer de `rol_user` los roles habilitados en el hito. Puede devolver `administrador`, `colaborador` o ambos. Una cuenta sin ninguno de los dos recibe el mismo mensaje que un correo inexistente o una contraseña incorrecta. El ingreso permite cinco intentos por correo normalizado e IP y treinta por IP por minuto. `429` publica `Retry-After`.
+
+## Política de sesión
+
+- La sesión ordinaria usa una cookie de sesión del navegador y caduca en el servidor tras 120 minutos de inactividad HTTP por defecto (`SESSION_LIFETIME`). Las consultas automáticas de una pestaña visible cuentan como actividad. Algunos navegadores pueden restaurar cookies de sesión al recuperar las pestañas.
+- «Mantener sesión iniciada» está desmarcada inicialmente. Al activarla, Laravel emite su cookie de recuerdo para restaurar la sesión tras perder la cookie ordinaria. El servidor comprueba el vencimiento autenticado dentro de la cookie y conserva el mismo límite en la sesión restaurada. El plazo absoluto es de 24 horas desde el ingreso explícito y se mantiene al navegar o restaurar la sesión.
+- Las cookies de sesión y recuerdo son cifradas, `HttpOnly` y `SameSite=Lax`. En producción deben ser `Secure` y de host, bajo el mismo origen HTTPS. `XSRF-TOKEN` es legible por la SPA para enviarlo como `X-XSRF-TOKEN`. Las respuestas de sesión excluyen contraseñas, tokens y metadatos internos.
+- Cerrar sesión invalida la sesión actual, renueva CSRF y rota el token de recuerdo de Laravel para la cuenta. La rotación invalida otras cookies de recuerdo de la misma cuenta. Las sesiones ordinarias de otros equipos siguen su vigencia. El restablecimiento de contraseña revoca todas las sesiones y cookies de recuerdo de esa cuenta. Si se retiran todos los roles internos, la siguiente consulta de sesión corta el acceso.
+- En un equipo compartido, deja la opción desmarcada y usa «Cerrar sesión» antes de abandonar el equipo.
+
+## Recuperación y correo
+
+La solicitud pública encola el mismo trabajo cifrado para cada correo válido. El trabajador resuelve la cuenta y envía correo solo a cuentas con acceso interno. Los límites son tres solicitudes por correo normalizado y quince por IP cada quince minutos, y ocho intentos de restablecimiento por IP cada minuto. El broker conserva su límite de emisión de 60 segundos.
+
+El token de Laravel se guarda con hash, caduca a los 30 minutos y se consume después de un restablecimiento exitoso. El cambio, el consumo y la revocación se ejecutan en la misma transacción sobre la base de identidad y sesiones. La contraseña requiere al menos 12 caracteres y admite hasta 72 bytes. Se aplica el hash del modelo de identidad. El flujo conserva los roles y termina con una confirmación y un enlace al inicio de sesión.
+
+El correo apunta a `/restablecer-contrasena` con el token y el correo en el fragmento, que el navegador excluye de las solicitudes HTTP. React retira el fragmento de la URL al cargar y mantiene los datos en memoria hasta completar o abandonar el formulario. Recargar después de retirar el fragmento requiere volver a abrir el enlace original o solicitar uno nuevo. La pantalla de restablecimiento restringe la referencia al mismo origen. Las peticiones de recuperación usan JSON, CSRF y `Cache-Control: no-store`.
+
+En local se usan únicamente destinatarios `@example.invalid`, el transporte `array` o un sumidero SMTP de bucle local. La suite de navegador levanta su propio sumidero y comprueba el correo sin guardar el mensaje. Para producción:
+
+- Configure `APP_URL` con el origen HTTPS público de la SPA, `APP_DEBUG=false`, `SESSION_SECURE_COOKIE=true` y `SESSION_DRIVER=database`. Las tablas `sessions`, `jobs` y `password_reset_tokens` deben estar en la base de identidad ya migrada. Use caché compartida para los límites.
+- Configure `MAIL_MAILER=smtp`, el host, el puerto, el esquema TLS, las credenciales y el remitente confiable del servicio transaccional. Gestione las credenciales en el entorno del servidor. Ejecute y supervise `php artisan queue:work database --queue=recuperacion`. El endpoint confirma recepción, por lo que el seguimiento de entrega se realiza en el trabajador y en el proveedor.
+- Configure proxy, APM y proveedor de correo para excluir cuerpos de autenticación, cookies y credenciales de trazas, y para desactivar la reescritura y seguimiento de enlaces de recuperación. Sirva la SPA en la ruta de restablecimiento y aplique `Referrer-Policy: same-origin` y `Cache-Control: no-store` en la respuesta HTML de esa ruta.
+
+Para ME-SEC1 queda validar en preproducción el correo, la configuración real del proxy y la redacción de datos en telemetría, además de formalizar la verificación y custodia del correo de las cuentas internas.
 
 ## Entorno local
 
@@ -34,7 +60,7 @@ Desde `apps/api/`, ejecute `php artisan auth:crear-cuenta-prueba`. El comando re
 
 ## Integración React desde ME-AUTH1B
 
-La pantalla única está en `/`. `/Home` redirige al mismo acceso. El proveedor mantiene la identidad en memoria y verifica `/api/mi-sesion` al arrancar, al navegar, al volver a la pestaña y cada 30 segundos mientras está visible. Durante la comprobación inicial se ocultan los paneles. Una respuesta `401` o `403` retira el acceso y vuelve al ingreso. Cerrar sesión invalida la cookie mediante Laravel.
+La pantalla de acceso está en `/`. `/Home` redirige al mismo acceso. `/recuperar-contrasena` recibe el correo y `/restablecer-contrasena` recibe el enlace. El proveedor mantiene la identidad en memoria y verifica `/api/mi-sesion` al arrancar, al navegar, al volver a la pestaña y cada 30 segundos mientras está visible. Durante la comprobación inicial se ocultan los paneles. Una respuesta `401` o `403` retira el acceso y vuelve al ingreso. Cerrar sesión invalida la cookie mediante Laravel.
 
 | Ruta | Rol de Laravel |
 | --- | --- |
@@ -50,4 +76,4 @@ Para habilitar las entidades ficticias de Base44, defina `VITE_BASE44_DATOS_LOCA
 
 Las entidades de personal, eventos, ceremonias, graduandos, precios, gastos, reportes y archivos siguen usando Base44. Sus políticas de lectura y escritura están pendientes de migración y verificación. Fuera del modo ficticio, la sesión permite abrir el panel y la ruta del colaborador, pero la consulta y el registro de graduandos esperan un vínculo de identidad aprobado en servidor. El avatar administrativo usa iniciales de Laravel hasta que exista un vínculo equivalente. El envío a papelera desde Registros de Graduandos queda fuera del flujo hasta contar con autorización en servidor para esa operación. La pantalla de Papelera conserva su comportamiento existente. Los formularios de gestión de personal de Base44 siguen siendo deuda heredada y no aprovisionan cuentas Laravel.
 
-Vendedor, Finanzas, Inventario, Graduando e Institución requieren fases de implementación propias. Para ME-UI2 quedan la revisión visual y de accesibilidad de paneles y el contrato de perfiles operativos antes de conectar datos reales. El alta productiva, la recuperación de cuenta y las Policies por operación y recurso siguen pendientes.
+Vendedor, Finanzas, Inventario, Graduando e Institución requieren fases de implementación propias. Para ME-UI2 quedan la revisión visual y de accesibilidad de paneles y el contrato de perfiles operativos antes de conectar datos reales. El alta productiva y las Policies por operación y recurso siguen pendientes.

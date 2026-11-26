@@ -3,7 +3,7 @@
 $origenes = env('SPA_ALLOWED_ORIGINS', env('APP_ENV') === 'local' ? 'http://127.0.0.1:5173' : '');
 
 return [
-    'paths' => ['api/mi-sesion', 'login', 'logout', 'sanctum/csrf-cookie'],
+    'paths' => ['api/mi-sesion', 'login', 'logout', 'forgot-password', 'reset-password', 'sanctum/csrf-cookie'],
     'allowed_methods' => ['GET', 'POST'],
     'allowed_origins' => array_values(array_filter(
         array_map('trim', explode(',', (string) $origenes)),
