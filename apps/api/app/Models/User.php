@@ -64,6 +64,14 @@ class User extends Authenticatable
         return $this->hasMany(VinculoInstitucional::class);
     }
 
+    /**
+     * @return HasMany<VinculoGraduando, $this>
+     */
+    public function vinculosDeGraduando(): HasMany
+    {
+        return $this->hasMany(VinculoGraduando::class);
+    }
+
     public function operaEnInstitucion(int $institucionId): bool
     {
         return $this->accesoInstitucionalVerificado()

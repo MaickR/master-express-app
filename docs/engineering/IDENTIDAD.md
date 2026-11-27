@@ -14,12 +14,13 @@
 ## Alta pública de Graduandos desde ME-REG1A
 
 - El [registro público](ME-REG1A.md) verifica la posesión del correo y concede exclusivamente el rol `graduando`. Conserva nombres, apellidos, teléfono y documento opcional en la cuenta. La cuenta queda sin un vínculo operativo con el catálogo de graduandos.
+- La vinculación posterior es una decisión aparte. Un administrador activo la confirma por los identificadores de la cuenta y del graduando operativo. Los criterios provisionales y las preguntas abiertas están en el [contrato de dominio](../product/ME-DOMINIO-V1.md#16-vinculación-provisional-de-la-cuenta-de-graduando).
 
 ## Pendiente para etapas posteriores
 
 - Definir el alta productiva y la verificación de correo del personal interno.
 - Definir cómo se verifica a un representante institucional y cómo se vincula su identidad a las instituciones autorizadas. El alta y la aprobación provisionales están en [ME-REG2A](ME-REG2A.md): el rol `institucion` sigue sin alcance global y solo opera junto a un vínculo activo. El portal de ME-REG2B muestra los datos propios de la institución y la sede autorizadas.
-- Acordar el identificador del graduando operativo y su vínculo con la cuenta. El perfil de graduando y la relación con el comprador requieren definiciones separadas.
+- La anulación de un vínculo activo exige un administrador, un motivo y confirmación. Conserva la evidencia y no mueve inscripciones. La cardinalidad, la evidencia adicional y el traslado entre ceremonias siguen abiertos. El perfil de graduando y la relación con el comprador siguen separados.
 - Acordar la matriz de permisos, el actor que puede asignar o revocar roles y las relaciones que determinan acceso por institución y ceremonia. Las Policies deben validar la operación y el registro con esos vínculos, aunque la cuenta ya tenga un rol.
 
 Las tablas y relaciones comerciales se incorporarán cuando su contrato esté aprobado. Consulte el [alcance V1](../product/ME-SCOPE-V1.md) y los [entornos de QA](../../README.md#pruebas).

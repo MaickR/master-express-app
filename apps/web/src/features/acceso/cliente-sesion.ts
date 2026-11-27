@@ -81,7 +81,10 @@ export async function solicitar(
     const campos = (respuesta.status === 422 ? camposValidacion : []).filter(campo =>
       cuerpo?.errors && Object.hasOwn(cuerpo.errors, campo),
     );
-    const aviso = respuesta.status === 409 && typeof cuerpo?.message === 'string' ? cuerpo.message : '';
+    const aviso = typeof cuerpo?.message === 'string'
+      && (respuesta.status === 409 || (respuesta.status === 422 && cuerpo.errors === undefined))
+      ? cuerpo.message
+      : '';
     throw new ErrorSesion(respuesta.status, segundos > 0 && Number.isFinite(segundos) ? segundos : undefined, campos, aviso);
   }
 
@@ -258,6 +261,122 @@ export async function reintentarAvisoInstitucional(id: number) {
   const signal = AbortSignal.timeout(15000);
   await solicitar('/sanctum/csrf-cookie', signal);
   await solicitar(`${rutaSolicitudes}/${id}/notificacion`, signal, {}, camposSolicitud);
+}
+
+const graduandoOperativo = z.object({
+  id: z.number().int(),
+  nombre_completo: z.string(),
+  homonimo: z.boolean(),
+  vinculo: z.object({
+    id: z.number().int(),
+    estado: z.enum(['activo', 'anulado']),
+    cuenta_id: z.number().int(),
+    cuenta_nombre: z.string().nullable(),
+    cuenta_correo: z.string().nullable(),
+    decidida_en: z.string().nullable(),
+    anulado_en: z.string().nullable(),
+    motivo: z.string().nullable(),
+  }).nullable(),
+  anteriores: z.array(z.object({
+    id: z.number().int(),
+    estado: z.enum(['activo', 'anulado']),
+    cuenta_id: z.number().int(),
+    cuenta_nombre: z.string().nullable(),
+    cuenta_correo: z.string().nullable(),
+    decidida_en: z.string().nullable(),
+    anulado_en: z.string().nullable(),
+    motivo: z.string().nullable(),
+  })),
+});
+const paginaGraduandos = z.object({
+  data: z.array(graduandoOperativo),
+  hayMas: z.boolean(),
+});
+const paginaCuentasGraduando = z.object({
+  data: z.array(z.object({
+    id: z.number().int(),
+    nombre: z.string(),
+    correo: z.string(),
+  })),
+  hayMas: z.boolean(),
+});
+const vinculoGraduandoCreado = z.object({
+  data: z.object({
+    id: z.number().int(),
+    estado: z.literal('activo'),
+    graduando: z.object({
+      id: z.number().int(),
+      nombre_completo: z.string(),
+      homonimo: z.boolean(),
+    }),
+    cuenta: z.object({
+      id: z.number().int(),
+      nombre: z.string(),
+      correo: z.string(),
+    }),
+    decidida_en: z.string().nullable(),
+    administrador: z.object({
+      id: z.number().int(),
+      nombre: z.string(),
+    }),
+  }),
+});
+export type GraduandoOperativo = z.infer<typeof graduandoOperativo>;
+export type VinculoGraduandoCreado = z.infer<typeof vinculoGraduandoCreado>['data'];
+const rutaVinculos = '/api/administracion/vinculos-graduandos';
+
+export async function listarGraduandosOperativos(pagina: number, signal: AbortSignal) {
+  const respuesta = await solicitar(`${rutaVinculos}/graduandos?page=${pagina}`, signal);
+  return leerJson(respuesta, paginaGraduandos);
+}
+
+export async function listarCuentasGraduando(pagina: number, signal: AbortSignal) {
+  const respuesta = await solicitar(`${rutaVinculos}/cuentas?page=${pagina}`, signal);
+  return leerJson(respuesta, paginaCuentasGraduando);
+}
+
+export async function vincularGraduando(graduandoId: number, cuentaId: number) {
+  const signal = AbortSignal.timeout(15000);
+  await solicitar('/sanctum/csrf-cookie', signal);
+  const respuesta = await solicitar(rutaVinculos, signal, {
+    graduando_id: graduandoId,
+    cuenta_id: cuentaId,
+  });
+  return leerJson(respuesta, vinculoGraduandoCreado);
+}
+
+const vinculoAnulado = z.object({
+  data: z.object({
+    id: z.number().int(),
+    estado: z.literal('anulado'),
+    cuenta_id: z.number().int(),
+    cuenta_nombre: z.string().nullable(),
+    anulado_en: z.string().nullable(),
+    motivo: z.string().nullable(),
+  }),
+});
+const correccionVinculo = vinculoGraduandoCreado.extend({
+  anterior: z.object({
+    id: z.number().int().nullable(),
+    estado: z.literal('anulado'),
+    cuenta_id: z.number().int().nullable(),
+    cuenta_nombre: z.string().nullable(),
+    graduando_id: z.number().int().nullable(),
+  }),
+});
+
+export async function anularVinculoGraduando(id: number, motivo: string) {
+  const signal = AbortSignal.timeout(15000);
+  await solicitar('/sanctum/csrf-cookie', signal);
+  const respuesta = await solicitar(`${rutaVinculos}/${id}/anulacion`, signal, { motivo });
+  return leerJson(respuesta, vinculoAnulado);
+}
+
+export async function corregirVinculoGraduando(id: number, cuentaId: number, motivo: string) {
+  const signal = AbortSignal.timeout(15000);
+  await solicitar('/sanctum/csrf-cookie', signal);
+  const respuesta = await solicitar(`${rutaVinculos}/${id}/correccion`, signal, { motivo, cuenta_id: cuentaId });
+  return leerJson(respuesta, correccionVinculo);
 }
 
 export async function consultarMiInstitucion(signal: AbortSignal) {
