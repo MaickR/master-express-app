@@ -15,7 +15,9 @@ use Illuminate\Validation\ValidationException;
 
 class RegistrarGraduando
 {
-    private const int VIGENCIA = 600;
+    public const int VIGENCIA_MINUTOS = 10;
+
+    private const int VIGENCIA = self::VIGENCIA_MINUTOS * 60;
 
     public function solicitar(string $correo, #[\SensitiveParameter] string $sesion): void
     {

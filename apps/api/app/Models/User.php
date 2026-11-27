@@ -34,6 +34,25 @@ class User extends Authenticatable
             ->orderBy('codigo')->pluck('codigo')->all();
     }
 
+    /** @return list<string> */
+    public function codigosDeSesion(): array
+    {
+        $internos = $this->codigosDeAcceso();
+
+        return $internos !== [] ? $internos : ($this->puedeAccederComoGraduando() ? ['graduando'] : []);
+    }
+
+    public function puedeRecuperarContrasena(): bool
+    {
+        return $this->codigosDeAcceso() !== [] || $this->puedeAccederComoGraduando();
+    }
+
+    private function puedeAccederComoGraduando(): bool
+    {
+        return $this->activa && $this->email_verified_at !== null
+            && $this->roles()->where('codigo', 'graduando')->exists();
+    }
+
     /**
      * Get the attributes that should be cast.
      *

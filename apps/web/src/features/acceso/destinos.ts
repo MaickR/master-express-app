@@ -1,6 +1,7 @@
-import type { RolInterno } from './cliente-sesion';
+import type { RolDeSesion } from './cliente-sesion';
 
 export const paneles = {
   administrador: { ruta: '/AdminDashboard', nombre: 'Administrador' },
   colaborador: { ruta: '/ColaboradorDashboard', nombre: 'Colaborador' },
-} satisfies Record<RolInterno, { ruta: string; nombre: string }>;
+  graduando: { ruta: '/portal/graduando', nombre: 'Graduando' },
+} satisfies Record<RolDeSesion, { ruta: string; nombre: string }>;

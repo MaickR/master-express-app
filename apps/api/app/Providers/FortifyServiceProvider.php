@@ -2,11 +2,13 @@
 
 namespace App\Providers;
 
-use App\Actions\Autenticacion\IntentarAccesoInterno;
+use App\Actions\Autenticacion\IntentarAcceso;
+use App\Actions\Autenticacion\TransporteDeCorreoSeguro;
 use App\Http\Responses\SesionSinContenido;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -28,20 +30,22 @@ class FortifyServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        ResetPassword::createUrlUsing(function ($usuario, #[\SensitiveParameter] string $token): string {
-            $origen = rtrim((string) config('auth.url_spa'), '/');
-            if (app()->isProduction() && ! preg_match('~\Ahttps://[a-zA-Z0-9.-]+(?::[0-9]+)?\z~', $origen)) {
-                throw new \LogicException('Configure APP_URL con el origen HTTPS de la aplicación.');
-            }
+        ResetPassword::toMailUsing(function ($usuario, #[\SensitiveParameter] string $token): MailMessage {
+            $correo = $usuario->getEmailForPasswordReset();
+            $origen = $this->origenDeRecuperacion($correo);
+            $url = $origen.'/restablecer-contrasena#'.http_build_query(
+                ['token' => $token, 'email' => $correo], '', '&', PHP_QUERY_RFC3986,
+            );
 
-            return $origen.'/restablecer-contrasena#'.http_build_query([
-                'token' => $token, 'email' => $usuario->getEmailForPasswordReset(),
-            ], '', '&', PHP_QUERY_RFC3986);
+            return (new MailMessage)->subject('Restablece tu contraseña | MasterExpress')->view(
+                ['html' => 'correo.recuperacion', 'text' => 'correo.recuperacion-texto'],
+                ['url' => $url, 'vigencia' => (int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire')],
+            );
         });
 
         Fortify::authenticateThrough(fn (): array => [
             CanonicalizeUsername::class,
-            IntentarAccesoInterno::class,
+            IntentarAcceso::class,
             PrepareAuthenticatedSession::class,
         ]);
 
@@ -85,5 +89,25 @@ class FortifyServiceProvider extends ServiceProvider
         $correo = is_string($entrada) ? Str::lower(trim($entrada)) : '';
 
         return 'correo:'.hash_hmac('sha256', 'limite-registro-graduando|'.$correo, app('encrypter')->getKey());
+    }
+
+    private function origenDeRecuperacion(string $correo): string
+    {
+        $real = ! str_ends_with(strtolower($correo), '@example.invalid');
+        $origen = rtrim((string) config(
+            $real && app()->environment('local') ? 'mail.transaccional.origen_recuperacion_local' : 'auth.url_spa',
+        ), '/');
+
+        $transporte = app(TransporteDeCorreoSeguro::class);
+        if ($real && $origen === 'http://127.0.0.1:5173' && $transporte->sandboxLocalActivo()
+            && $transporte->permiteDestinatario($correo)) {
+            return $origen;
+        }
+
+        if ($real && ! preg_match('~\Ahttps://(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}(?::[0-9]{1,5})?\z~i', $origen)) {
+            throw new \LogicException('Configure un origen HTTPS para recuperar contraseñas por correo real.');
+        }
+
+        return $origen;
     }
 }

@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Http\Requests\LoginRequest;
 
-class IntentarAccesoInterno
+class IntentarAcceso
 {
     public function handle(LoginRequest $request, Closure $next): mixed
     {
@@ -29,7 +29,7 @@ class IntentarAccesoInterno
 
             return $guard->attemptWhen(
                 $request->only('email', 'password'),
-                fn (User $usuario): bool => $usuario->activa && $usuario->codigosDeAcceso() !== [],
+                fn (User $usuario): bool => $usuario->activa && $usuario->codigosDeSesion() !== [],
                 $recordar,
             );
         });

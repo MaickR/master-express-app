@@ -10,7 +10,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
@@ -24,13 +23,13 @@ class EnviarEnlaceDeRecuperacion implements ShouldBeEncrypted, ShouldQueue
 
     public function handle(): void
     {
-        $produccion = app()->isProduction();
-        if (! $produccion && ! Str::endsWith($this->correo, '@example.invalid')) {
+        $transporte = app(TransporteDeCorreoSeguro::class);
+        if (! $transporte->permiteDestinatario($this->correo)) {
             return;
         }
 
         try {
-            $transporteHabilitado = app(TransporteDeCorreoSeguro::class)->habilitar($produccion);
+            $transporteHabilitado = $transporte->habilitar($this->correo);
         } catch (Throwable) {
             $transporteHabilitado = false;
         }
@@ -42,7 +41,7 @@ class EnviarEnlaceDeRecuperacion implements ShouldBeEncrypted, ShouldQueue
         try {
             $entrega = DB::transaction(function (): ?array {
                 $usuario = User::query()->where('email', $this->correo)->lockForUpdate()->first();
-                if ($usuario === null || $usuario->codigosDeAcceso() === []) {
+                if (! $usuario?->puedeRecuperarContrasena()) {
                     return null;
                 }
 

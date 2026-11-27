@@ -92,9 +92,9 @@ class RegistroGraduandoTest extends CasoMySql
         $this->assertArrayNotHasKey('numero_documento', $usuario->toArray());
         $this->assertSame($conteos, $this->conteosOperativos());
 
-        $this->enviar('login', ['email' => self::CORREO, 'password' => $this->datos()['password']], $sesion)
-            ->assertUnprocessable();
         $this->getJson('/api/mi-sesion')->assertUnauthorized();
+        $this->enviar('login', ['email' => self::CORREO, 'password' => $this->datos()['password']], $sesion)
+            ->assertNoContent();
         $this->actingAs($usuario);
         foreach (['/api/registros', '/api/registros/1', '/api/instituciones', '/api/eventos', '/api/eventos/1/ceremonias', '/api/administracion/cuentas'] as $ruta) {
             $this->getJson($ruta)->assertForbidden();
@@ -265,17 +265,17 @@ class RegistroGraduandoTest extends CasoMySql
 
         $mailer = Mail::mailer();
         Mail::partialMock()->shouldReceive('mailer')->andReturn($mailer);
-        Mail::shouldReceive('raw')->once()->andReturnUsing(function (string $cuerpo): never {
-            throw new TransportException($cuerpo.' '.self::CORREO);
+        Mail::shouldReceive('send')->once()->andReturnUsing(function (array $vistas, array $datos): never {
+            throw new TransportException('Código privado de QA '.$datos['codigo'].' '.self::CORREO);
         });
         $this->assertSame(0, Artisan::call('queue:work', ['connection' => 'database', '--queue' => 'registro-graduando', '--once' => true]));
         $fallo = DB::table('failed_jobs')->where('queue', 'registro-graduando')->sole();
         $this->assertTrue(str_contains($fallo->exception, 'No se pudo procesar el correo de registro.'));
         $this->assertFalse(str_contains($fallo->exception, self::CORREO));
-        $this->assertFalse(str_contains($fallo->exception, 'Tu código de registro'));
+        $this->assertFalse(str_contains($fallo->exception, 'Código privado de QA'));
         $this->assertFalse(str_contains($fallo->payload, self::CORREO));
         $this->assertTrue($registros->hasErrorRecords());
-        $this->assertFalse(str_contains($registros->getRecords()[0]->message, 'Tu código de registro'));
+        $this->assertFalse(str_contains($registros->getRecords()[0]->message, 'Código privado de QA'));
     }
 
     public function test_fallo_al_guardar_permite_reintentar_con_la_verificacion_original(): void
@@ -345,6 +345,9 @@ class RegistroGraduandoTest extends CasoMySql
         }
         $mensaje = $mensajes->sole()->getOriginalMessage();
         $this->assertSame(self::CORREO, $mensaje->getTo()[0]->getAddress());
+        $this->assertSame('Tu código de verificación | MasterExpress', $mensaje->getSubject());
+        $this->assertStringContainsString('Vence 10 minutos', $mensaje->getTextBody());
+        $this->assertTrue(str_contains($mensaje->getHtmlBody(), 'Logotipo de MasterExpress'));
         $this->assertSame(1, preg_match('/\b[0-9]{6}\b/', $mensaje->getTextBody(), $codigo));
 
         return $codigo[0];

@@ -149,6 +149,41 @@ class SesionTest extends CasoMySql
         $this->solicitar('GET', '/api/mi-sesion', [], $login)->assertUnauthorized();
     }
 
+    public function test_graduando_verificado_accede_y_recupera_sin_concesiones_internas(): void
+    {
+        $graduando = $this->crearUsuario(['graduando'])->refresh();
+        $csrf = $this->solicitar('GET', '/sanctum/csrf-cookie')->assertNoContent();
+        $credenciales = ['email' => $graduando->email, 'password' => $this->clave];
+        $this->solicitar('POST', '/login', $credenciales, $csrf)->assertUnprocessable();
+        $this->solicitar('POST', '/forgot-password', ['email' => $graduando->email], $csrf)->assertNoContent(202);
+        $this->assertCount(0, Mail::mailer('array')->getSymfonyTransport()->messages());
+
+        $graduando->forceFill(['email_verified_at' => now(), 'activa' => false])->save();
+        $this->solicitar('POST', '/login', $credenciales, $csrf)->assertUnprocessable();
+        $this->solicitar('POST', '/forgot-password', ['email' => $graduando->email], $csrf)->assertNoContent(202);
+        $this->assertCount(0, Mail::mailer('array')->getSymfonyTransport()->messages());
+        $this->travel(16)->minutes();
+        $graduando->forceFill(['activa' => true])->save();
+        $login = $this->ingresar($graduando);
+        $this->solicitar('GET', '/api/mi-sesion', [], $login)->assertOk()->assertExactJson(['data' => [
+            'id' => $graduando->id, 'nombre' => $graduando->name, 'correo' => $graduando->email, 'roles' => ['graduando'],
+        ]]);
+        foreach ([self::CUENTAS, '/api/instituciones', '/api/eventos', '/api/registros'] as $ruta) {
+            $this->solicitar('GET', $ruta, [], $login)->assertForbidden();
+        }
+        $this->solicitar('POST', '/api/ceremonias/1/registros', [], $login)->assertForbidden();
+
+        $datos = $this->datosDeRestablecimiento($graduando, $csrf);
+        $this->solicitar('POST', '/reset-password', $datos, $csrf)->assertNoContent();
+        $this->solicitar('GET', '/api/mi-sesion', [], $login)->assertUnauthorized();
+        $this->solicitar('POST', '/login', $credenciales, $csrf)->assertUnprocessable();
+        $nueva = $this->solicitar('POST', '/login', ['password' => $datos['password']] + $credenciales, $csrf)->assertNoContent();
+        $graduando->forceFill(['email_verified_at' => null])->save();
+        $this->solicitar('GET', '/api/mi-sesion', [], $nueva)->assertForbidden();
+        $this->solicitar('GET', '/api/mi-sesion', [], $nueva)->assertUnauthorized();
+        $this->assertSame(['graduando'], $graduando->roles()->pluck('codigo')->all());
+    }
+
     public function test_sesion_anonima_y_csrf_obligatorio_en_el_flujo_entre_puertos(): void
     {
         $usuario = $this->crearUsuario(['administrador']);

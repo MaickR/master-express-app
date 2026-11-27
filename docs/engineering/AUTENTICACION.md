@@ -1,4 +1,4 @@
-# Sesión interna de MasterExpress Control
+# Sesión de MasterExpress Control
 
 Laravel autentica con el guard `web` y el usuario de ME-D0. Fortify aporta el controlador de sesión y su preparación posterior al ingreso. Las rutas se registran de forma explícita. Sanctum inicializa CSRF y aplica el middleware de sesión de la SPA a `/api/mi-sesion`. Recuperación usa el broker y la notificación nativos de Laravel. La aplicación define el contrato público de respuesta, el enlace de la SPA y la revocación de sesiones.
 
@@ -17,7 +17,7 @@ Envíe `Accept: application/json` y habilite credenciales en todas las peticione
 | `POST /forgot-password` | `202` sin cuerpo para todo correo sintácticamente válido. Recibe `email` y encola la solicitud. | `419` sin CSRF, `422` para formato inválido y `429` al superar los límites. |
 | `POST /reset-password` | `204`. Recibe `email`, `token`, `password` y `password_confirmation`. Consume el token y revoca las sesiones previas. | `419` sin CSRF, `422` para enlace inválido, vencido o consumido, o formulario inválido, y `429` por exceso de intentos. |
 
-Cada consulta vuelve a leer de `rol_user` los roles habilitados en el hito. Puede devolver `administrador`, `colaborador` o ambos. Una cuenta sin ninguno de los dos recibe el mismo mensaje que un correo inexistente o una contraseña incorrecta. El ingreso permite cinco intentos por correo normalizado e IP y treinta por IP por minuto. `429` publica `Retry-After`.
+Cada consulta vuelve a leer de `rol_user` los roles habilitados. Puede devolver `administrador`, `colaborador`, ambos roles internos o `graduando` para una cuenta activa y verificada. Una cuenta sin acceso recibe el mismo mensaje que un correo inexistente o una contraseña incorrecta. El ingreso permite cinco intentos por correo normalizado e IP y treinta por IP por minuto. `429` publica `Retry-After`.
 
 El panel de Administración ofrece **Cuentas internas** para cuentas con rol Administrador o Colaborador. Suspender rechaza futuros ingresos con el mensaje genérico de credenciales y revoca todas las sesiones y cookies de recuerdo previas. Reactivar solo habilita nuevos ingresos. Revocar sesiones deja el estado de la cuenta intacto y puede aplicarse a la propia cuenta. Un administrador puede suspender su propio acceso si queda otro administrador activo. Las operaciones conservan las asignaciones y la recuperación de contraseña. La recuperación cambia la contraseña, mientras que la reactivación sigue reservada a Administración.
 
@@ -35,7 +35,7 @@ La migración inicializa las cuentas existentes como activas y sus sesiones pree
 
 ## Recuperación y correo
 
-La solicitud pública encola el mismo trabajo cifrado para cada correo válido. El trabajador resuelve la cuenta y envía correo solo a cuentas con acceso interno. Los límites son tres solicitudes por correo normalizado y quince por IP cada quince minutos, y ocho intentos de restablecimiento por IP cada minuto. El broker conserva su límite de emisión de 60 segundos.
+La solicitud pública encola el mismo trabajo cifrado para cada correo válido. El trabajador resuelve la cuenta y envía correo a cuentas internas o a Graduandos activos y verificados. Los límites son tres solicitudes por correo normalizado y quince por IP cada quince minutos, y ocho intentos de restablecimiento por IP cada minuto. El broker conserva su límite de emisión de 60 segundos.
 
 El token de Laravel se guarda con hash, caduca a los 30 minutos y se consume después de un restablecimiento exitoso. El cambio, el consumo y la revocación se ejecutan en la misma transacción sobre la base de identidad y sesiones. La contraseña requiere al menos 12 caracteres y admite hasta 72 bytes. Se aplica el hash del modelo de identidad. El flujo conserva los roles y termina con una confirmación y un enlace al inicio de sesión.
 
@@ -44,13 +44,13 @@ El correo apunta a `/restablecer-contrasena` con el token y el correo en el frag
 En local se usan únicamente destinatarios `@example.invalid`, el transporte `array` o un sumidero SMTP de bucle local. La suite de navegador levanta su propio sumidero y comprueba el correo sin guardar el mensaje. Para producción:
 
 - Configure `APP_URL` con el origen HTTPS público de la SPA, `APP_DEBUG=false`, `SESSION_SECURE_COOKIE=true` y `SESSION_DRIVER=database`. Las tablas `sessions`, `jobs`, `failed_jobs` y `password_reset_tokens` deben estar en la base de identidad ya migrada. Use caché compartida para los límites.
-- Configure `MAIL_MAILER=smtp`, el host, el puerto, el esquema TLS, las credenciales y el remitente confiable del servicio transaccional. Gestione las credenciales en el entorno del servidor. Ejecute y supervise `php artisan queue:work database --queue=recuperacion`. El endpoint confirma recepción, por lo que el seguimiento de entrega se realiza en el trabajador y en el proveedor.
+- Configure el [perfil SMTP de Resend](ME-REG1B-CORREO.md) con el dominio remitente verificado y su clave privada de entorno. Ejecute y supervise `php artisan queue:work database --queue=recuperacion`. El endpoint confirma recepción, por lo que el seguimiento de entrega se realiza en el trabajador y en el proveedor.
 - Mantenga `QUEUE_FAILED_DRIVER=database-uuids` y revise `php artisan queue:failed` junto con los logs del trabajador. Los fallos distinguen entre configuración, preparación del enlace y entrega sin confirmación. Laravel conserva el trabajo cifrado y registra una excepción con un mensaje fijo. El trabajo tiene un solo intento automático. Antes de considerar un reintento manual, confirme con el proveedor si aceptó el mensaje. Una desconexión SMTP puede ocurrir después de la aceptación.
 - Configure proxy, APM y proveedor de correo para excluir cuerpos de autenticación, cookies y credenciales de trazas, y para desactivar la reescritura y seguimiento de enlaces de recuperación. Sirva la SPA en la ruta de restablecimiento y aplique `Referrer-Policy: same-origin` y `Cache-Control: no-store` en la respuesta HTML de esa ruta.
 
 Para ME-SEC1 queda validar en preproducción el correo, la configuración real del proxy y la redacción de datos en telemetría, además de formalizar la verificación y custodia del correo de las cuentas internas.
 
-El [contrato de alta de Graduandos](ME-REG1A.md) usa la misma sesión web, el correo de Laravel y la protección CSRF de Sanctum. El ingreso y la recuperación del portal de Graduando quedan pendientes.
+El [alta de Graduandos](ME-REG1A.md) y el [portal](ME-REG1B.md) usan la misma sesión web, el correo de Laravel y la protección CSRF de Sanctum.
 
 ## Entorno local
 
@@ -78,6 +78,7 @@ La pantalla de acceso está en `/`. `/Home` redirige al mismo acceso. `/recupera
 | `/AdminDashboard` | Administrador |
 | `/ColaboradorDashboard` | Colaborador |
 | `/RegistroGraduando` | Colaborador. La operación requiere además un perfil de datos vinculado. |
+| `/portal/graduando` | Graduando activo y con correo verificado. |
 
 Si una cuenta tiene los dos roles, el selector permite cambiar entre sus paneles. Las peticiones usan Fetch con credenciales. Antes de iniciar o cerrar se obtiene CSRF y se envía el valor decodificado de `XSRF-TOKEN` en `X-XSRF-TOKEN`. React reconcilia `409` consultando el servidor, informa `419` y solicita una nueva protección en el siguiente intento manual, y respeta `Retry-After` en `429`. `422` conserva un mensaje común. Los errores de red o del servidor se muestran sin detalles internos. La compilación espera que los endpoints de sesión estén publicados bajo el mismo origen HTTPS del frontend.
 
@@ -87,4 +88,4 @@ Para habilitar las entidades ficticias de Base44, defina `VITE_BASE44_DATOS_LOCA
 
 Las entidades de personal, eventos, ceremonias, graduandos, precios, gastos, reportes y archivos siguen usando Base44. Sus políticas de lectura y escritura están pendientes de migración y verificación. Fuera del modo ficticio, la sesión permite abrir el panel y la ruta del colaborador, pero la consulta y el registro de graduandos esperan un vínculo de identidad aprobado en servidor. El avatar administrativo usa iniciales de Laravel hasta que exista un vínculo equivalente. El envío a papelera desde Registros de Graduandos queda fuera del flujo hasta contar con autorización en servidor para esa operación. La pantalla de Papelera conserva su comportamiento existente. Los formularios de gestión de personal de Base44 siguen siendo deuda heredada y no aprovisionan cuentas Laravel.
 
-Vendedor, Finanzas, Inventario, Graduando e Institución requieren fases de implementación propias. Para ME-UI2 quedan la revisión visual y de accesibilidad de paneles y el contrato de perfiles operativos antes de conectar datos reales. El alta productiva y las Policies por operación y recurso siguen pendientes.
+Vendedor, Finanzas, Inventario e Institución requieren fases de implementación propias. Para ME-UI2 quedan la revisión visual y de accesibilidad de paneles y el contrato de perfiles operativos antes de conectar datos reales. El alta productiva y las Policies por operación y recurso siguen pendientes.

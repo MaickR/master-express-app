@@ -9,7 +9,6 @@ use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Message;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
@@ -27,8 +26,7 @@ class EnviarCodigoDeRegistro implements ShouldBeEncrypted, ShouldQueue
 
     public function handle(RegistrarGraduando $registro, TransporteDeCorreoSeguro $transporte): void
     {
-        $produccion = app()->isProduction();
-        if (! $produccion && ! Str::endsWith($this->correo, '@example.invalid')) {
+        if (! $transporte->permiteDestinatario($this->correo)) {
             return;
         }
 
@@ -36,14 +34,14 @@ class EnviarCodigoDeRegistro implements ShouldBeEncrypted, ShouldQueue
             if (! $registro->puedeEnviar($this->correo, $this->emision)) {
                 return;
             }
-            if (! $transporte->habilitar($produccion)) {
+            if (! $transporte->habilitar($this->correo)) {
                 throw new RuntimeException;
             }
 
-            Mail::raw(
-                "Tu código de registro de MasterExpress es {$this->codigo}. Vence 10 minutos después de solicitarlo.\n"
-                .'Si no solicitaste el código, ignora este correo.',
-                fn (Message $mensaje) => $mensaje->to($this->correo)->subject('Código de registro de MasterExpress'),
+            Mail::send(
+                ['html' => 'correo.verificacion', 'text' => 'correo.verificacion-texto'],
+                ['codigo' => $this->codigo, 'vigencia' => RegistrarGraduando::VIGENCIA_MINUTOS],
+                fn (Message $mensaje) => $mensaje->to($this->correo)->subject('Tu código de verificación | MasterExpress'),
             );
         } catch (Throwable) {
             // El transporte puede incluir el mensaje y las credenciales en sus excepciones.

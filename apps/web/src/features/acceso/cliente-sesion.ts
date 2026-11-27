@@ -2,13 +2,15 @@ import { z } from 'zod';
 
 const rolesInternos = z.enum(['administrador', 'colaborador']);
 export type RolInterno = z.infer<typeof rolesInternos>;
+const rolesDeSesion = z.enum([...rolesInternos.options, 'graduando']);
+export type RolDeSesion = z.infer<typeof rolesDeSesion>;
 
 const contratoSesion = z.object({
   data: z.object({
     id: z.number().int(),
     nombre: z.string(),
     correo: z.string(),
-    roles: z.array(rolesInternos).nonempty(),
+    roles: z.array(rolesDeSesion).nonempty(),
   }),
 });
 export type Identidad = z.infer<typeof contratoSesion>['data'];
