@@ -166,6 +166,7 @@ export type DetalleSolicitud = ResumenSolicitud & {
   notificacion: { estado: string; detalle: string | null } | null;
 };
 export type AmbitoInstitucional = {
+  vinculo_id: number;
   institucion_id: number;
   nombre: string | null;
   tipo: string | null;
@@ -221,6 +222,7 @@ const detalleSolicitud = z.object({
 });
 const ambitoInstitucional = z.object({
   data: z.array(z.object({
+    vinculo_id: z.number().int().positive(),
     institucion_id: z.number().int(),
     nombre: z.string().nullable(),
     tipo: z.string().nullable(),

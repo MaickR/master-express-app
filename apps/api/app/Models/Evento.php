@@ -20,6 +20,12 @@ class Evento extends Model
         return $this->belongsTo(Institucion::class);
     }
 
+    /** @return BelongsTo<Sede, $this> */
+    public function sede(): BelongsTo
+    {
+        return $this->belongsTo(Sede::class);
+    }
+
     /** @return HasMany<Ceremonia, $this> */
     public function ceremonias(): HasMany
     {

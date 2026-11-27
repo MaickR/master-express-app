@@ -15,7 +15,14 @@ Route::get('/salud', fn (): JsonResponse => response()->json([
 ]))->name('salud');
 
 Route::get('/mi-sesion', MiSesionController::class)->middleware('auth:web')->name('mi-sesion');
-Route::get('/mi-institucion', MiInstitucionController::class)->middleware('auth:web')->name('mi-institucion');
+Route::middleware('auth:web')->prefix('mi-institucion')->controller(MiInstitucionController::class)
+    ->group(function (): void {
+        Route::get('/', '__invoke')->name('mi-institucion');
+        Route::get('/vinculos/{vinculo}/eventos', 'eventos')
+            ->whereNumber('vinculo')->name('mi-institucion.eventos.index');
+        Route::get('/vinculos/{vinculo}/eventos/{evento}', 'evento')
+            ->whereNumber(['vinculo', 'evento'])->name('mi-institucion.eventos.show');
+    });
 
 Route::middleware('auth:web')->prefix('administracion/cuentas')->group(function (): void {
     Route::get('/', [CuentasInternasController::class, 'index'])->name('cuentas.index');

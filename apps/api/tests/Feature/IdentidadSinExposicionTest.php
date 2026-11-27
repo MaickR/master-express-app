@@ -33,6 +33,8 @@ class IdentidadSinExposicionTest extends TestCase
             ['api/salud', ['GET', 'HEAD']],
             ['api/mi-sesion', ['GET', 'HEAD']],
             ['api/mi-institucion', ['GET', 'HEAD']],
+            ['api/mi-institucion/vinculos/{vinculo}/eventos', ['GET', 'HEAD']],
+            ['api/mi-institucion/vinculos/{vinculo}/eventos/{evento}', ['GET', 'HEAD']],
             ['api/registro-graduando/codigo', ['POST']],
             ['api/registro-graduando/confirmacion', ['POST']],
             ['api/registro-graduando/cuenta', ['POST']],

@@ -31,6 +31,12 @@ const contratoListado = z.object({
   data: z.array(contratoEvento),
   links: z.object({ next: z.string().nullable() }),
 });
+const contratoProgramacionInstitucional = contratoListado.extend({
+  data: z.array(contratoEvento.extend({
+    sede: z.object({ id: z.number().int(), nombre: z.string() }).nullable(),
+    ceremonias: z.array(contratoCeremonia),
+  })),
+});
 
 export type InstitucionEnsayo = z.infer<typeof contratoInstitucion>;
 export type CeremoniaEnsayo = z.infer<typeof contratoCeremonia>;
@@ -69,6 +75,12 @@ export async function consultarInstituciones(signal: AbortSignal): Promise<Insti
 export async function consultarEventos(pagina: number, signal: AbortSignal) {
   const { data, links } = await leer(await solicitar(`/api/eventos?page=${pagina}`, signal), contratoListado);
   return { eventos: data.map(adaptarEvento), hayMas: links.next !== null };
+}
+
+export async function consultarProgramacionInstitucional(vinculoId: number, pagina: number, signal: AbortSignal) {
+  const ruta = `/api/mi-institucion/vinculos/${vinculoId}/eventos?page=${pagina}`;
+  const { data, links } = await leer(await solicitar(ruta, signal), contratoProgramacionInstitucional);
+  return { eventos: data, hayMas: links.next !== null };
 }
 
 export async function consultarCeremonias(eventoId: number, signal: AbortSignal): Promise<CeremoniaEnsayo[]> {
