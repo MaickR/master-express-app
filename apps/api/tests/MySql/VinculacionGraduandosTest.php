@@ -11,6 +11,7 @@ use App\Models\Registro;
 use App\Models\Rol;
 use App\Models\User;
 use App\Models\VinculoGraduando;
+use App\Models\VinculoInstitucional;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,7 @@ class VinculacionGraduandosTest extends CasoMySql
     protected array $tablas = [
         'users', 'roles', 'rol_user', 'instituciones', 'eventos', 'ceremonias',
         'graduandos', 'registros', 'vinculos_de_graduandos', 'auditoria_vinculos_graduandos',
+        'sedes', 'solicitudes_institucionales', 'vinculos_institucionales',
     ];
 
     private User $administrador;
@@ -224,6 +226,56 @@ class VinculacionGraduandosTest extends CasoMySql
         $this->assertStringContainsString($elegible->email, $cuerpo);
         $this->assertStringNotContainsString($interna->email, $cuerpo);
         $this->assertStringNotContainsString($this->administrador->email, $cuerpo);
+    }
+
+    public function test_el_listado_y_la_vinculacion_respetan_los_roles_efectivos_de_sesion(): void
+    {
+        $cuenta = $this->cuentaGraduando();
+        $externa = $this->usuario('graduando', 'institucion');
+        $internas = [
+            'administrador' => $this->usuario('administrador', 'graduando'),
+            'colaborador' => $this->usuario('colaborador', 'graduando'),
+        ];
+        $institucion = Institucion::query()->create(['nombre' => 'Institución ficticia', 'tipo' => 'colegio']);
+        $sedeId = DB::table('sedes')->insertGetId(['institucion_id' => $institucion->id, 'nombre' => 'Sede ficticia']);
+        $solicitudId = DB::table('solicitudes_institucionales')->insertGetId([
+            'estado' => 'aprobada', 'tipo' => 'colegio', 'razon_social' => $institucion->nombre,
+            'nit' => '900789123', 'sede_nombre' => 'Sede ficticia', 'representante_nombre' => $externa->name,
+            'email' => $externa->email, 'telefono' => '3000000000', 'huella_solicitud' => str_repeat('a', 64),
+        ]);
+        DB::table('vinculos_institucionales')->insert([
+            'user_id' => $externa->id, 'institucion_id' => $institucion->id, 'sede_id' => $sedeId,
+            'solicitud_id' => $solicitudId, 'estado' => VinculoInstitucional::ACTIVO,
+        ]);
+        $graduando = Graduando::query()->create(['nombre_completo' => 'Persona ficticia']);
+        $this->assertSame(['graduando'], $cuenta->codigosDeSesion());
+        $this->assertSame(['graduando', 'institucion'], $externa->codigosDeSesion());
+        $this->actingAs($this->administrador, 'web');
+
+        $listado = $this->getJson($this->ruta().'/cuentas')->assertOk()->json('data');
+        $this->assertSame([$cuenta->id, $externa->id], array_column($listado, 'id'));
+
+        foreach ($internas as $rol => $interna) {
+            $this->assertSame([$rol], $interna->codigosDeSesion());
+            $this->postJson($this->ruta(), ['graduando_id' => $graduando->id, 'cuenta_id' => $interna->id])
+                ->assertUnprocessable();
+        }
+        $this->assertDatabaseCount('vinculos_de_graduandos', 0);
+
+        $vinculoId = $this->postJson($this->ruta(), ['graduando_id' => $graduando->id, 'cuenta_id' => $externa->id])
+            ->assertCreated()->assertJsonPath('data.cuenta.id', $externa->id)->json('data.id');
+
+        foreach ($internas as $interna) {
+            $this->postJson($this->ruta().'/'.$vinculoId.'/correccion', [
+                'motivo' => 'Corrección de una vinculación ficticia.',
+                'cuenta_id' => $interna->id,
+            ])->assertUnprocessable();
+        }
+        $this->assertDatabaseHas('vinculos_de_graduandos', [
+            'id' => $vinculoId, 'estado' => VinculoGraduando::ACTIVO, 'user_id' => $externa->id,
+        ]);
+        $this->assertDatabaseCount('vinculos_de_graduandos', 1);
+        $this->assertDatabaseCount('auditoria_vinculos_graduandos', 1);
     }
 
     public function test_anulacion_y_correccion_conservan_historial_inscripciones_y_niegan_otro_ambito(): void

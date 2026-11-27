@@ -193,10 +193,13 @@ class VincularGraduando
     {
         abort_unless($cuenta->activa, 422, 'La cuenta de Graduando no está activa.');
         abort_unless($cuenta->email_verified_at !== null, 422, 'La cuenta de Graduando no tiene el correo verificado.');
-        abort_unless(
-            $cuenta->roles()->where('codigo', 'graduando')->exists(),
-            422,
-            'La cuenta no tiene el rol Graduando.',
-        );
+        if (User::query()->conAccesoEfectivoDeGraduando()->whereKey($cuenta->id)->exists()) {
+            return;
+        }
+
+        $tieneRolGraduando = $cuenta->roles()->where('codigo', 'graduando')->exists();
+        abort(422, $tieneRolGraduando
+            ? 'La cuenta no puede acceder al portal de Graduandos.'
+            : 'La cuenta no tiene el rol Graduando.');
     }
 }

@@ -44,9 +44,7 @@ class VinculosGraduandosController extends Controller
         $request->validated();
         $pagina = User::query()
             ->select(['id', 'name', 'email'])
-            ->where('activa', true)
-            ->whereNotNull('email_verified_at')
-            ->whereHas('roles', fn ($roles) => $roles->where('codigo', 'graduando'))
+            ->conAccesoEfectivoDeGraduando()
             ->whereDoesntHave('vinculosDeGraduando', fn ($vinculos) => $vinculos->where('estado', VinculoGraduando::ACTIVO))
             ->orderBy('id')
             ->simplePaginate(25);
