@@ -50,6 +50,8 @@ En local se usan únicamente destinatarios `@example.invalid`, el transporte `ar
 
 Para ME-SEC1 queda validar en preproducción el correo, la configuración real del proxy y la redacción de datos en telemetría, además de formalizar la verificación y custodia del correo de las cuentas internas.
 
+El [contrato de alta de Graduandos](ME-REG1A.md) usa la misma sesión web, el correo de Laravel y la protección CSRF de Sanctum. El ingreso y la recuperación del portal de Graduando quedan pendientes.
+
 ## Entorno local
 
 Sirva Vite en `http://127.0.0.1:5173` con `npm run dev -- --host 127.0.0.1 --port 5173 --strictPort`. Sirva Laravel en `http://127.0.0.1:8000` con `php artisan serve --host=127.0.0.1 --port=8000`. Los puertos distintos requieren CORS y comparten el mismo sitio si se conserva el host y esquema. `localhost` y `127.0.0.1` son hosts diferentes y tienen cookies distintas. Mantenga `SESSION_DOMAIN` sin definir para esta configuración. Defina o confirme los siguientes valores en el `.env` local excluido de Git.

@@ -67,5 +67,23 @@ class FortifyServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('restablecer-contrasena', fn (Request $request) => Limit::perMinute(8)->by($request->ip()));
+
+        RateLimiter::for('registro-graduando-solicitar', fn (Request $request): array => [
+            Limit::perMinutes(15, 15)->by('ip:'.$request->ip()),
+            Limit::perMinutes(15, 3)->by($this->claveDeCorreoParaRegistro($request)),
+        ]);
+
+        RateLimiter::for('registro-graduando-verificar', fn (Request $request): array => [
+            Limit::perMinute(30)->by('ip:'.$request->ip()),
+            Limit::perMinutes(15, 20)->by($this->claveDeCorreoParaRegistro($request)),
+        ]);
+    }
+
+    private function claveDeCorreoParaRegistro(Request $request): string
+    {
+        $entrada = $request->isJson() ? $request->json('email') : null;
+        $correo = is_string($entrada) ? Str::lower(trim($entrada)) : '';
+
+        return 'correo:'.hash_hmac('sha256', 'limite-registro-graduando|'.$correo, app('encrypter')->getKey());
     }
 }

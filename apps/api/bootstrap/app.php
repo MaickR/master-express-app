@@ -1,14 +1,17 @@
 <?php
 
 use App\Http\Middleware\VigenciaSesionRecordada;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 $esRecuperacion = fn (Request $request): bool => $request->is('forgot-password', 'reset-password');
+$esRegistroGraduando = fn (Request $request): bool => $request->is('api/registro-graduando/*');
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,26 +20,37 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
+        $middleware->trimStrings(except: ['codigo', 'numero_documento']);
         $middleware->web(append: [VigenciaSesionRecordada::class]);
         $middleware->prependToPriorityList(AuthenticatesRequests::class, VigenciaSesionRecordada::class);
     })
-    ->withExceptions(function (Exceptions $exceptions) use ($esRecuperacion): void {
-        $exceptions->dontFlash(['token']);
+    ->withSchedule(function (Schedule $agenda): void {
+        $agenda->call(fn () => DB::table('desafios_de_registro')->where('vence_en', '<=', now()->timestamp)->delete())
+            ->name('depurar-desafios-de-registro')->hourly();
+    })
+    ->withExceptions(function (Exceptions $exceptions) use ($esRecuperacion, $esRegistroGraduando): void {
+        $exceptions->dontFlash(['token', 'codigo', 'numero_documento']);
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request): bool => $request->is('api', 'api/*', 'login', 'logout', 'sanctum/csrf-cookie')
                 || $esRecuperacion($request) || $request->expectsJson(),
         );
-        $exceptions->report(function (Throwable $error) use ($esRecuperacion): ?bool {
-            if (! app()->bound('request') || ! $esRecuperacion(request())) {
+        $exceptions->report(function (Throwable $error) use ($esRecuperacion, $esRegistroGraduando): ?bool {
+            if (! app()->bound('request')) {
                 return null;
             }
 
-            Log::error('Falló una operación de recuperación.', ['tipo' => $error::class]);
+            if ($esRegistroGraduando(request())) {
+                Log::error('Falló una operación de registro de graduando.', ['tipo' => $error::class]);
+            } elseif ($esRecuperacion(request())) {
+                Log::error('Falló una operación de recuperación.', ['tipo' => $error::class]);
+            } else {
+                return null;
+            }
 
             return false;
         });
-        $exceptions->respond(function ($respuesta, $error, Request $request) use ($esRecuperacion) {
-            if (! $esRecuperacion($request)) {
+        $exceptions->respond(function ($respuesta, $error, Request $request) use ($esRecuperacion, $esRegistroGraduando) {
+            if (! $esRecuperacion($request) && ! $esRegistroGraduando($request)) {
                 return $respuesta;
             }
             if ($respuesta->getStatusCode() >= 500) {
