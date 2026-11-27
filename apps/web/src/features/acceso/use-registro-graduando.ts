@@ -23,29 +23,46 @@ export function datosDeCuenta(datos: DatosRegistro) {
   };
 }
 
-type Operacion = 'codigo' | 'confirmacion' | 'cuenta';
+type Operacion = 'codigo' | 'confirmacion' | 'cuenta' | 'solicitud';
 type Esperas = Partial<Record<Operacion, number>>;
+type RutasRegistro = Partial<Record<Operacion | 'representacion', string>>;
 
-export function useRegistroGraduando() {
+const rutasGraduando: RutasRegistro = {
+  codigo: '/api/registro-graduando/codigo',
+  confirmacion: '/api/registro-graduando/confirmacion',
+  cuenta: '/api/registro-graduando/cuenta',
+};
+const rutasInstitucion: RutasRegistro = {
+  codigo: '/api/registro-institucion/codigo',
+  confirmacion: '/api/registro-institucion/confirmacion',
+  solicitud: '/api/registro-institucion/solicitud',
+  representacion: '/api/registro-institucion/representacion',
+};
+const camposInstitucion = ['tipo', 'razon_social', 'nit', 'sede', 'representante', 'telefono', 'email', 'codigo', 'solicitud'] as const;
+
+function useDesafioCorreo(rutas: RutasRegistro, camposExtra: readonly string[]) {
   const activa = useRef<AbortController | null>(null);
   const [ocupada, cambiarOcupada] = useState<Operacion | null>(null);
   const [esperas, cambiarEsperas] = useState<Esperas>({});
   const [reenvio, cambiarReenvio] = useState<{ correo: string; hasta: number }>();
   const [solicitado, cambiarSolicitado] = useState('');
+  const [reloj, avanzarReloj] = useState(0);
 
   useEffect(() => () => activa.current?.abort(), []);
   useEffect(() => {
     const vencimientos = [...Object.values(esperas), ...(reenvio ? [reenvio.hasta] : [])];
     if (!vencimientos.length) return;
-    const id = window.setTimeout(() => {
+    const id = window.setInterval(() => {
       const ahora = Date.now();
       cambiarEsperas(actual => Object.fromEntries(Object.entries(actual).filter(([, hasta]) => hasta > ahora)));
       cambiarReenvio(actual => actual && actual.hasta > ahora ? actual : undefined);
-    }, Math.max(0, Math.min(...vencimientos) - Date.now()));
-    return () => window.clearTimeout(id);
+      avanzarReloj(valor => valor + 1);
+    }, 1000);
+    return () => window.clearInterval(id);
   }, [esperas, reenvio]);
 
   function espera(operacion: Operacion, correo = '') {
+    void reloj;
     const hasta = Math.max(esperas[operacion] ?? 0,
       operacion === 'codigo' && reenvio?.correo === correo ? reenvio.hasta : 0);
     return Math.max(0, Math.ceil((hasta - Date.now()) / 1000));
@@ -56,18 +73,17 @@ export function useRegistroGraduando() {
     cambiarReenvio(undefined);
   }
 
-  async function operar<T extends { email: string }>(operacion: Operacion, cuerpo: T): Promise<true | ErrorSesion | null> {
-    if (activa.current || espera(operacion, cuerpo.email)) return null;
+  async function despachar(operacion: Operacion, correo: string, ruta: string | undefined, cuerpo: object) {
+    if (!ruta || activa.current || espera(operacion, correo)) return null;
     const controlador = new AbortController();
     activa.current = controlador;
     cambiarOcupada(operacion);
     try {
       await solicitar('/sanctum/csrf-cookie', controlador.signal);
-      await solicitar('/api/registro-graduando/' + operacion, controlador.signal, cuerpo,
-        [...Object.keys(camposDelServidor), 'codigo', 'solicitud']);
+      await solicitar(ruta, controlador.signal, cuerpo, [...Object.keys(camposDelServidor), ...camposExtra]);
       if (operacion === 'codigo') {
-        cambiarSolicitado(cuerpo.email);
-        cambiarReenvio({ correo: cuerpo.email, hasta: Date.now() + 60000 });
+        cambiarSolicitado(correo);
+        cambiarReenvio({ correo, hasta: Date.now() + 60000 });
         cambiarEsperas(actual => ({ ...actual, confirmacion: 0 }));
       }
       return true;
@@ -86,5 +102,22 @@ export function useRegistroGraduando() {
     }
   }
 
-  return { operar, ocupado: ocupada !== null, enviandoCodigo: ocupada === 'codigo', espera, solicitado, cambiarCorreo };
+  async function operar<T extends { email: string }>(operacion: Operacion, cuerpo: T) {
+    return despachar(operacion, cuerpo.email, rutas[operacion], cuerpo);
+  }
+
+  async function representar(cuerpo: object, correo: string) {
+    return despachar('solicitud', correo, rutas.representacion, cuerpo);
+  }
+
+  return { operar, representar, ocupado: ocupada !== null, enviandoCodigo: ocupada === 'codigo', espera, solicitado, cambiarCorreo };
+}
+
+export function useRegistroGraduando() {
+  return useDesafioCorreo(rutasGraduando, ['codigo', 'solicitud']);
+}
+
+export function useRegistroPublico(flujo: 'graduando' | 'institucion') {
+  return useDesafioCorreo(flujo === 'institucion' ? rutasInstitucion : rutasGraduando,
+    flujo === 'institucion' ? camposInstitucion : ['codigo', 'solicitud']);
 }

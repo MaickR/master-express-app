@@ -6,7 +6,7 @@ $rutasEnsayo = env('APP_ENV') === 'testing'
     : [];
 
 return [
-    'paths' => ['api/mi-sesion', 'api/administracion/cuentas', 'api/administracion/cuentas/*', 'api/registro-graduando/*', 'login', 'logout', 'forgot-password', 'reset-password', 'sanctum/csrf-cookie', ...$rutasEnsayo],
+    'paths' => ['api/mi-sesion', 'api/mi-institucion', 'api/administracion/cuentas', 'api/administracion/cuentas/*', 'api/administracion/solicitudes-institucionales', 'api/administracion/solicitudes-institucionales/*', 'api/registro-graduando/*', 'api/registro-institucion/*', 'login', 'logout', 'forgot-password', 'reset-password', 'sanctum/csrf-cookie', ...$rutasEnsayo],
     'allowed_methods' => ['GET', 'POST'],
     'allowed_origins' => array_values(array_filter(
         array_map('trim', explode(',', (string) $origenes)),

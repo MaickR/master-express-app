@@ -3,6 +3,7 @@
 use App\Http\Controllers\CuentasInternasController;
 use App\Http\Controllers\EventosController;
 use App\Http\Controllers\InstitucionesController;
+use App\Http\Controllers\MiInstitucionController;
 use App\Http\Controllers\MiSesionController;
 use App\Http\Controllers\RegistrosController;
 use Illuminate\Http\JsonResponse;
@@ -14,6 +15,7 @@ Route::get('/salud', fn (): JsonResponse => response()->json([
 ]))->name('salud');
 
 Route::get('/mi-sesion', MiSesionController::class)->middleware('auth:web')->name('mi-sesion');
+Route::get('/mi-institucion', MiInstitucionController::class)->middleware('auth:web')->name('mi-institucion');
 
 Route::middleware('auth:web')->prefix('administracion/cuentas')->group(function (): void {
     Route::get('/', [CuentasInternasController::class, 'index'])->name('cuentas.index');

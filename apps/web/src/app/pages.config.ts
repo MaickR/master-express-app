@@ -2,6 +2,7 @@ import { createElement, type ComponentType } from 'react';
 import type { Identidad, RolDeSesion } from '@/features/acceso/cliente-sesion';
 import { paneles } from '@/features/acceso/destinos';
 import PortalGraduando from '@/features/acceso/portal-graduando';
+import PortalInstitucion from '@/features/acceso/portal-institucion.jsx';
 import AdminDashboard from '@/features/paneles/AdminDashboard';
 import ColaboradorDashboard from '@/features/paneles/ColaboradorDashboard';
 import RegistroGraduando from '@/features/graduandos/RegistroGraduando';
@@ -20,4 +21,5 @@ export const paginasPrivadas: Array<{ ruta: string; rol: RolDeSesion; Pantalla: 
     Pantalla: ({ identidad }) => createElement(Layout, { identidad, Pantalla: RegistroGraduando }),
   },
   { ruta: paneles.graduando.ruta, rol: 'graduando', Pantalla: PortalGraduando },
+  { ruta: paneles.institucion.ruta, rol: 'institucion', Pantalla: PortalInstitucion },
 ];

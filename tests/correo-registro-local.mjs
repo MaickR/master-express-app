@@ -6,6 +6,18 @@ const smtpPuerto = Number(process.env.ME_QA_SMTP_PUERTO || 2526);
 const webPuerto = Number(process.env.ME_QA_CORREO_PUERTO || 8026);
 const direccion = '127.0.0.1';
 
+function decisionInstitucional(cuerpo) {
+  const asunto = cuerpo.match(/^Subject: (Tu solicitud institucional (?:fue aprobada|no fue aprobada))\r?$/m)?.[1];
+  if (!asunto) return {};
+
+  const parte = cuerpo.match(/^Content-Type: text\/plain[^\r\n]*\r\n[\s\S]*?\r\n\r\n([\s\S]*?)\r\n--/m)?.[1] ?? '';
+  const bytes = parte.replace(/=\r\n/g, '').replace(/=([a-f0-9]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+  const texto = Buffer.from(bytes, 'latin1').toString('utf8');
+  const motivo = texto.match(/^Motivo:\r?\n([^\r\n]+)/m)?.[1];
+  const entidades = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': "'" };
+  return { asunto, motivo: motivo?.replace(/&(?:amp|lt|gt|quot|#039);/g, entidad => entidades[entidad]) };
+}
+
 const correo = smtp(socket => {
   socket.setEncoding('utf8');
   socket.setTimeout(180000, () => socket.end('421 conexión inactiva\r\n'));
@@ -24,8 +36,10 @@ const correo = smtp(socket => {
             const contenido = cuerpo.replace(/=\r\n/g, '').replace(/=3D/gi, '=');
             mensajes.unshift({
               destinatario,
+              ...decisionInstitucional(cuerpo),
               codigo: contenido.match(/(?:es|es=20)\s*([0-9]{6})\./)?.[1],
               enlace: contenido.match(/http:\/\/127\.0\.0\.1:5173\/restablecer-contrasena#token=[0-9a-f]{64}&(?:amp;)?email=[a-z0-9.%_+-]+/i)?.[0].replace('&amp;', '&'),
+              activacion: contenido.match(/http:\/\/127\.0\.0\.1:5173\/activar-institucion#token=[0-9a-f]{64}&(?:amp;)?email=[a-z0-9.%_+-]+/i)?.[0].replaceAll('&amp;', '&'),
             });
             mensajes.splice(100);
           }
@@ -71,8 +85,10 @@ const bandeja = http((req, res) => {
     res.writeHead(404).end();
     return;
   }
-  const lista = mensajes.map(({ destinatario, codigo, enlace }) => '<li><strong>' + escapar(destinatario) + '</strong> · '
+  const lista = mensajes.map(({ destinatario, codigo, enlace, activacion, asunto, motivo }) => '<li><strong>' + escapar(destinatario) + '</strong> · '
     + (codigo ? 'Código de registro <code>' + escapar(codigo) + '</code>'
+      : activacion ? escapar(asunto || 'Activación institucional') + ' · <a href="' + escapar(activacion) + '" rel="noreferrer">Activar cuenta</a>'
+      : asunto ? escapar(asunto) + (motivo ? '<p>Motivo: ' + escapar(motivo) + '</p>' : '')
       : enlace ? '<a href="' + escapar(enlace) + '" rel="noreferrer">Restablecer contraseña</a>' : 'Mensaje de prueba') + '</li>').join('');
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(
     '<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'

@@ -22,25 +22,17 @@ class SolicitudRegistroGraduando extends FormRequest
 
     public function rules(): array
     {
-        $reglas = ['email' => ['bail', 'required', 'string', 'email:rfc', 'max:254']];
+        $reglas = ['email' => ReglasDeContacto::correo()];
 
         if ($this->routeIs('registro-graduando.confirmar')) {
             $reglas['codigo'] = ['bail', 'required', 'string', 'regex:/\A[0-9]{6}\z/'];
         }
 
         if ($this->routeIs('registro-graduando.crear')) {
-            $nombre = ['bail', 'required', 'string', 'max:150', "regex:/\\A\\p{L}[\\p{L}\\p{M}\\p{Zs}\\p{Pd}.‘’']*\\z/u"];
-
             return $reglas + [
-                'nombres' => $nombre,
-                'apellidos' => $nombre,
-                'telefono' => ['bail', 'required', 'string', 'max:30', 'regex:/\A\+?[0-9\h().-]+\z/u',
-                    function ($campo, $valor, $fallar): void {
-                        $digitos = preg_match_all('/[0-9]/', $valor);
-                        if ($digitos < 7 || $digitos > 15) {
-                            $fallar('Ingresa entre 7 y 15 dígitos. Puedes incluir el indicativo.');
-                        }
-                    }],
+                'nombres' => ReglasDeContacto::nombre(),
+                'apellidos' => ReglasDeContacto::nombre(),
+                'telefono' => ReglasDeContacto::telefono(),
                 'tipo_documento' => ['bail', 'required_with:numero_documento', 'nullable', 'string',
                     'in:cedula_ciudadania,tarjeta_identidad'],
                 'numero_documento' => ['bail', 'required_with:tipo_documento', 'nullable', 'string', 'regex:/\A[0-9]{1,32}\z/'],

@@ -18,7 +18,7 @@
 ## Pendiente para etapas posteriores
 
 - Definir el alta productiva y la verificación de correo del personal interno.
-- Definir cómo se verifica a un representante institucional y cómo se vincula su identidad a las instituciones autorizadas. El rol `institucion` por sí solo carece de alcance global.
+- Definir cómo se verifica a un representante institucional y cómo se vincula su identidad a las instituciones autorizadas. El alta y la aprobación provisionales están en [ME-REG2A](ME-REG2A.md): el rol `institucion` sigue sin alcance global y solo opera junto a un vínculo activo. El portal de ME-REG2B muestra los datos propios de la institución y la sede autorizadas.
 - Acordar el identificador del graduando operativo y su vínculo con la cuenta. El perfil de graduando y la relación con el comprador requieren definiciones separadas.
 - Acordar la matriz de permisos, el actor que puede asignar o revocar roles y las relaciones que determinan acceso por institución y ceremonia. Las Policies deben validar la operación y el registro con esos vínculos, aunque la cuenta ya tenga un rol.
 

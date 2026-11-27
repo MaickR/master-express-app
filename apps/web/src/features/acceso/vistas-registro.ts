@@ -1,8 +1,8 @@
 export type CampoRegistro = {
   id: 'nombres' | 'apellidos' | 'correo' | 'telefono' | 'tipoDocumento' | 'numeroDocumento'
-    | 'contrasena' | 'confirmacion' | 'razonSocial' | 'nit' | 'sede' | 'responsable';
+    | 'contrasena' | 'confirmacion' | 'razonSocial' | 'nit' | 'sede' | 'responsable' | 'tipoInstitucion';
   etiqueta: string;
-  tipo: 'text' | 'nombre' | 'email' | 'tel' | 'nit' | 'password' | 'tipoDocumento' | 'numeroDocumento';
+  tipo: 'text' | 'nombre' | 'email' | 'tel' | 'nit' | 'password' | 'tipoDocumento' | 'numeroDocumento' | 'tipoInstitucion';
   limite?: number;
   opcional?: boolean;
 };
@@ -14,7 +14,7 @@ export function soloDigitosDocumento(valor: string) {
   return !/[^0-9]/.test(valor);
 }
 export const errorNumeroDocumento = 'Ingresa únicamente dígitos del 0 al 9.';
-export const errorNit = 'Usa solo dígitos. Si incluyes un guion, debe separar dos grupos de números.';
+export const errorNit = 'Ingresa el NIT con dígitos. Si usas un guion, debe separar dos grupos.';
 
 export function permiteEditarNit(valor: string) {
   return !/[^0-9-]/.test(valor) && /^(?:[0-9]+(?:-[0-9]*)?)?$/.test(valor);
@@ -35,6 +35,7 @@ export type VistaRegistro = {
   accion: string;
   avisoFinal?: string;
   registroPublico?: true;
+  solicitudPublica?: true;
   pasos: readonly [PasoRegistro, PasoRegistro];
 };
 
@@ -75,24 +76,25 @@ export const vistasRegistro: readonly VistaRegistro[] = [
     enlace: 'Soy institución',
     titulo: 'Registro de institución',
     revision: 'Revisa los datos de la solicitud',
-    accion: 'Solicitar acceso',
-    avisoFinal: 'Cuando se habilite el envío, la aprobación corresponderá a un administrador autorizado.',
+    accion: 'Enviar solicitud',
+    solicitudPublica: true,
     pasos: [
       {
         corto: 'Institución',
         titulo: 'Información institucional',
         campos: [
-          { id: 'razonSocial', etiqueta: 'Razón social', tipo: 'text' },
+          { id: 'tipoInstitucion', etiqueta: 'Tipo de institución', tipo: 'tipoInstitucion' },
+          { id: 'razonSocial', etiqueta: 'Razón social', tipo: 'text', limite: 200 },
           { id: 'nit', etiqueta: 'NIT', tipo: 'nit', limite: 30 },
-          { id: 'sede', etiqueta: 'Sede', tipo: 'text' },
+          { id: 'sede', etiqueta: 'Sede', tipo: 'text', limite: 150 },
         ],
       },
       {
-        corto: 'Responsable',
-        titulo: 'Persona responsable',
+        corto: 'Representante',
+        titulo: 'Persona representante',
         verificacion: true,
         campos: [
-          { id: 'responsable', etiqueta: 'Nombre de la persona responsable', tipo: 'nombre' },
+          { id: 'responsable', etiqueta: 'Nombre completo', tipo: 'nombre' },
           { id: 'correo', etiqueta: 'Correo electrónico', tipo: 'email', limite: 254 },
           { id: 'telefono', etiqueta: 'Teléfono', tipo: 'tel', limite: 30 },
         ],
@@ -127,6 +129,9 @@ export function validarCampoRegistro(campo: CampoRegistro, datos: DatosRegistro,
     }
     case 'tipoDocumento':
       if (!tiposDocumento.some(tipo => tipo === valor)) return 'Selecciona un tipo de documento de la lista.';
+      break;
+    case 'tipoInstitucion':
+      if (valor !== 'colegio' && valor !== 'universidad') return 'Selecciona Colegio o Universidad.';
       break;
     case 'nit':
       if (!permiteEditarNit(original) || original.endsWith('-')) return errorNit;
