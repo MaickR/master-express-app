@@ -2,19 +2,15 @@
 
 namespace App\Jobs;
 
+use App\Actions\Autenticacion\TransporteDeCorreoSeguro;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use RuntimeException;
-use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
-use Symfony\Component\Mailer\Transport\Smtp\Stream\SocketStream;
 use Throwable;
 
 class EnviarEnlaceDeRecuperacion implements ShouldBeEncrypted, ShouldQueue
@@ -27,13 +23,13 @@ class EnviarEnlaceDeRecuperacion implements ShouldBeEncrypted, ShouldQueue
 
     public function handle(): void
     {
-        $produccion = app()->isProduction();
-        if (! $produccion && ! Str::endsWith($this->correo, '@example.invalid')) {
+        $transporte = app(TransporteDeCorreoSeguro::class);
+        if (! $transporte->permiteDestinatario($this->correo)) {
             return;
         }
 
         try {
-            $transporteHabilitado = $this->configurarTransporte($produccion);
+            $transporteHabilitado = $transporte->habilitar($this->correo);
         } catch (Throwable) {
             $transporteHabilitado = false;
         }
@@ -45,7 +41,7 @@ class EnviarEnlaceDeRecuperacion implements ShouldBeEncrypted, ShouldQueue
         try {
             $entrega = DB::transaction(function (): ?array {
                 $usuario = User::query()->where('email', $this->correo)->lockForUpdate()->first();
-                if ($usuario === null || $usuario->codigosDeAcceso() === []) {
+                if (! $usuario?->puedeRecuperarContrasena()) {
                     return null;
                 }
 
@@ -66,33 +62,5 @@ class EnviarEnlaceDeRecuperacion implements ShouldBeEncrypted, ShouldQueue
             // Laravel persiste la excepción completa. La causa puede contener credenciales y el enlace.
             throw new RuntimeException($errorSeguro);
         }
-    }
-
-    private function configurarTransporte(bool $produccion): bool
-    {
-        $mailer = config('mail.default');
-        if ($produccion ? $mailer !== 'smtp' : ! in_array($mailer, ['array', 'smtp'], true)) {
-            return false;
-        }
-
-        $transporte = Mail::mailer()->getSymfonyTransport();
-        if ($produccion && $transporte instanceof EsmtpTransport) {
-            $transporte->setRequireTls(true);
-
-            return true;
-        }
-
-        return ! $produccion && $this->esTransporteLocal($transporte);
-    }
-
-    private function esTransporteLocal(object $transporte): bool
-    {
-        if ($transporte instanceof ArrayTransport) {
-            return true;
-        }
-
-        return $transporte instanceof EsmtpTransport
-            && ($flujo = $transporte->getStream()) instanceof SocketStream
-            && in_array($flujo->getHost(), ['localhost', '127.0.0.1', '::1'], true);
     }
 }

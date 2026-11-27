@@ -137,7 +137,7 @@ function FormularioAcceso({ aviso }: { aviso?: string }) {
   return (
     <MarcoAcceso>
       <h1 className="acceso__titulo">Iniciar sesión</h1>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">Ingresa con el correo y la contraseña de tu cuenta interna.</p>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">Ingresa con el correo y la contraseña de tu cuenta.</p>
       <form className="mt-4 grid gap-2.5 sm:mt-6 sm:gap-4" onSubmit={enviar} noValidate aria-busy={ocupado}>
         <div className="grid gap-2">
           <Etiqueta htmlFor="correo">Correo electrónico</Etiqueta>
@@ -175,7 +175,7 @@ function FormularioAcceso({ aviso }: { aviso?: string }) {
         </Button>
       </form>
       <span role="status" className="sr-only">{ocupado ? "Iniciando sesión…" : ""}</span>
-      <nav aria-label="Vistas previas de registro" className="mt-4 grid grid-cols-2 gap-2.5 border-t border-border pt-3">
+      <nav aria-label="Opciones de registro" className="mt-4 grid grid-cols-2 gap-2.5 border-t border-border pt-3">
         {vistasRegistro.map(vista => (
           <Link key={vista.ruta} to={vista.ruta}
             className="acceso__enlace inline-flex min-h-11 min-w-0 items-center justify-center rounded-md border border-border px-2 py-2 text-center text-sm hover:bg-accent hover:text-accent-foreground">

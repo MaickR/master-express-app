@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeftRight, ChevronRight, LogOut, Menu } from "lucide-react";
+import { ArrowLeftRight, ChevronRight, LogOut, Menu, UserRound } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/shared/ui/sheet";
 import { useSesion } from "@/features/acceso/contexto-sesion";
 import SelectorTema from "@/shared/components/selector-tema";
@@ -61,11 +62,11 @@ function MarcaPanel() {
 /**
  * @param {{
  *   grupos: Grupo[], activo: string, rol: string, nombre: string,
- *   alSeleccionar?: (id: string) => void, avatar?: React.ReactNode,
+ *   alSeleccionar?: (id: string) => void, avatar?: React.ReactNode, alAbrirPerfil?: () => void,
  *   children: React.ReactNode
  * }} props
  */
-export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccionar, avatar, children }) {
+export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccionar, avatar, alAbrirPerfil, children }) {
   const { estado, cerrar } = useSesion();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const activadorMenu = useRef(null);
@@ -89,7 +90,7 @@ export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccio
         <NavegacionPanel grupos={grupos} activo={activo} alSeleccionar={alSeleccionar} />
       </aside>
       <div className="min-w-0 flex-1">
-        <header className="panel-cabecera">
+        <header className={alAbrirPerfil ? "panel-cabecera flex-wrap" : "panel-cabecera"}>
           <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <Sheet open={menuAbierto} onOpenChange={setMenuAbierto}>
               <SheetTrigger asChild>
@@ -119,7 +120,9 @@ export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccio
           </div>
           <div className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
             <SelectorTema />
-            <div className="flex min-w-0 items-center gap-2.5 sm:ml-1">
+            <div className={alAbrirPerfil
+              ? "hidden min-w-0 items-center gap-2.5 sm:ml-1 sm:flex"
+              : "flex min-w-0 items-center gap-2.5 sm:ml-1"}>
               {avatar || <span aria-hidden="true" className="panel-avatar">{iniciales}</span>}
               <div className="hidden min-w-0 sm:block">
                 <p className="max-w-44 break-words dark:truncate text-sm font-semibold" title={nombre || rol}>{nombre || rol}</p>
@@ -131,9 +134,23 @@ export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccio
                 <ArrowLeftRight aria-hidden="true" className="size-[18px]" />
               </Link>
             )}
-            <button type="button" onClick={() => void cerrar()} className="panel-icono-boton" aria-label="Cerrar sesión" title="Cerrar sesión">
-              <LogOut aria-hidden="true" className="size-[18px]" />
-            </button>
+            {alAbrirPerfil ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="panel-icono-boton" aria-label="Menú de cuenta">
+                    <UserRound aria-hidden="true" className="size-[18px]" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="min-h-11" onSelect={alAbrirPerfil}>Ver perfil</DropdownMenuItem>
+                  <DropdownMenuItem className="min-h-11" onSelect={() => void cerrar()}>Cerrar sesión</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <button type="button" onClick={() => void cerrar()} className="panel-icono-boton" aria-label="Cerrar sesión" title="Cerrar sesión">
+                <LogOut aria-hidden="true" className="size-[18px]" />
+              </button>
+            )}
           </div>
         </header>
         <main id="contenido-panel" tabIndex={-1} className="panel-contenido">{children}</main>

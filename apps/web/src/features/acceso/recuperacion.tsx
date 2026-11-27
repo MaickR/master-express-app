@@ -198,7 +198,7 @@ export default function Recuperacion({ modo }: { modo: 'solicitar' | 'restablece
         <div className="mt-4">
           <AvisoAcceso tono={restablecer ? 'confirmacion' : 'informacion'}>
             {restablecer ? 'Ya puedes iniciar sesión con tu nueva contraseña.'
-              : 'Si el correo está asociado a una cuenta interna, recibirás un enlace para restablecer tu contraseña.'}
+              : 'Si corresponde, recibirás un enlace para restablecer tu contraseña.'}
           </AvisoAcceso>
         </div>
       ) : enlaceInvalido ? (
@@ -218,7 +218,7 @@ export default function Recuperacion({ modo }: { modo: 'solicitar' | 'restablece
             </>
           ) : (
             <>
-              <p className="text-sm text-muted-foreground">Escribe el correo de tu cuenta interna para solicitar un enlace.</p>
+              <p className="text-sm text-muted-foreground">Escribe el correo de tu cuenta para solicitar un enlace.</p>
               {campo('email', 'Correo electrónico')}
             </>
           )}

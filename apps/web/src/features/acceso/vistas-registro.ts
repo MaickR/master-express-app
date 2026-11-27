@@ -33,7 +33,8 @@ export type VistaRegistro = {
   titulo: string;
   revision: string;
   accion: string;
-  avisoFinal: string;
+  avisoFinal?: string;
+  registroPublico?: true;
   pasos: readonly [PasoRegistro, PasoRegistro];
 };
 
@@ -44,7 +45,7 @@ export const vistasRegistro: readonly VistaRegistro[] = [
     titulo: 'Registro de graduando',
     revision: 'Revisa tus datos',
     accion: 'Crear cuenta',
-    avisoFinal: 'La creación de cuentas estará disponible cuando se habilite la verificación por correo.',
+    registroPublico: true,
     pasos: [
       {
         corto: 'Datos',
@@ -135,7 +136,7 @@ export function validarCampoRegistro(campo: CampoRegistro, datos: DatosRegistro,
         if (original !== datos.contrasena) return 'Confirma la contraseña con el mismo valor.';
       } else if ([...original].length < 12) {
         return 'Usa al menos 12 caracteres.';
-      } else if (new TextEncoder().encode(original).length > 72) {
+      } else if (new TextEncoder().encode(original).length > 72 || original.includes('\0')) {
         return 'Usa una contraseña más corta.';
       }
       break;

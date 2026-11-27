@@ -10,6 +10,7 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 
 class RecuperacionController
@@ -28,8 +29,11 @@ class RecuperacionController
         $usuario = DB::transaction(function () use ($datos, $revocar): ?User {
             // Serializa el consumo del token y el cambio de contraseña para esta cuenta.
             $usuario = User::query()->where('email', $datos['email'])->lockForUpdate()->first();
+            if (! $usuario?->puedeRecuperarContrasena()) {
+                return null;
+            }
             $resultado = Password::broker()->reset($datos, function (User $usuario, #[\SensitiveParameter] string $clave) use ($revocar): void {
-                $usuario->forceFill(['password' => $clave]);
+                $usuario->forceFill(['password' => Hash::make($clave)]);
                 $revocar->ejecutar($usuario);
             });
 

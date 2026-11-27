@@ -11,7 +11,7 @@ class MiSesionController
     public function __invoke(Request $request): JsonResponse
     {
         $usuario = $request->user();
-        $roles = $usuario->codigosDeAcceso();
+        $roles = $usuario->codigosDeSesion();
 
         if ($roles === []) {
             Auth::guard('web')->logout();

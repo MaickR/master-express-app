@@ -1,5 +1,8 @@
 <?php
 
+$hostSmtp = env('MAIL_HOST', '127.0.0.1');
+$urlSmtp = env('MAIL_URL');
+
 return [
 
     /*
@@ -14,7 +17,18 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', 'log'),
+    'default' => env('MAIL_MAILER', 'array'),
+
+    'transaccional' => [
+        'dominio_verificado' => env('ME_CORREO_DOMINIO_VERIFICADO'),
+        'prueba_real_local' => env('ME_CORREO_REAL_LOCAL', false) === true,
+        'resend_sandbox' => env('ME_CORREO_RESEND_SANDBOX', false) === true,
+        'destinatarios_locales' => array_map(
+            fn (string $correo): string => strtolower(trim($correo)),
+            explode(',', (string) env('ME_CORREO_DESTINATARIOS', '')),
+        ),
+        'origen_recuperacion_local' => env('ME_CORREO_URL_SPA_LOCAL'),
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -40,11 +54,13 @@ return [
         'smtp' => [
             'transport' => 'smtp',
             'scheme' => env('MAIL_SCHEME'),
-            'url' => env('MAIL_URL'),
-            'host' => env('MAIL_HOST', '127.0.0.1'),
+            'url' => $urlSmtp,
+            'host' => $hostSmtp,
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
-            'password' => env('MAIL_PASSWORD'),
+            'password' => $hostSmtp === 'smtp.resend.com' && ! $urlSmtp
+                ? env('RESEND_API_KEY')
+                : env('MAIL_PASSWORD'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
@@ -112,7 +128,7 @@ return [
 
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
+        'name' => env('MAIL_FROM_NAME', 'MasterExpress Control'),
     ],
 
 ];

@@ -42,23 +42,24 @@ La composición se conserva en ambos temas. Claro combina marfil con neutros cá
 
 El formulario mantiene las etiquetas persistentes, el foco visible y las zonas táctiles de al menos 44 px. El enlace de recuperación está debajo del campo de contraseña. «Mantener sesión iniciada» comienza desmarcada. Los avisos de error, advertencia, información y confirmación combinan icono, texto y tokens semánticos. Las transiciones de los controles respetan la preferencia de movimiento reducido.
 
-## Vistas previas de registro
+## Registro público
 
 «Soy graduando» abre /registro/graduando y «Soy institución» abre /registro/institucion. Ambas vistas usan el marco de acceso. Validan los campos por paso, conservan los valores al retroceder y permiten editar cada apartado desde la revisión.
 
-- Graduando incluye datos personales, contraseña de prueba y verificación por correo pendiente. El documento es opcional. El selector ofrece Cédula de ciudadanía o Tarjeta de identidad. Al elegir un tipo, el número se exige y se conserva como texto con dígitos del 0 al 9. La creación de cuenta no incluye la vinculación a una ceremonia.
+- Graduando incluye datos personales, contraseña y verificación por correo. Al continuar con los campos de acceso válidos se solicita el código una vez para el correo indicado. Se enmascara el destino, se enfoca el campo del código y el reenvío respeta la espera del servicio. El documento es opcional. El selector ofrece Cédula de ciudadanía o Tarjeta de identidad y conserva el número como texto con dígitos del 0 al 9. [Flujo de registro y portal](ME-REG1B.md)
 - Institución incluye razón social, NIT, sede y datos del contacto responsable. El NIT se conserva como texto con dígitos del 0 al 9 y admite un guion entre dos grupos de dígitos. La verificación y el envío aparecen pendientes. La aprobación corresponde a un administrador autorizado.
-- El documento y el NIT son datos declarados. La verificación de identidad o representación requiere un proceso separado. Los datos de la vista previa se descartan al salir. El resumen no muestra la contraseña y oculta parte del número del documento. Las acciones finales quedan deshabilitadas.
+- El documento y el NIT son datos declarados. La verificación de identidad o representación requiere un proceso separado. Los datos que aún están en el formulario se descartan al salir. El resumen oculta la contraseña y parte del número del documento. La acción final de Institución sigue deshabilitada.
 
 ### Decisiones pendientes con Ernesto
 
-- Confirmar si se necesita el documento del graduando, con qué finalidad y en qué momento se pide. Definir el mecanismo de verificación por correo y cómo se autoriza por separado la vinculación con la ceremonia.
+- Confirmar si se necesita el documento del graduando, con qué finalidad y en qué momento se pide. Definir cómo se autoriza la vinculación con la ceremonia.
 - Confirmar los datos mínimos, la verificación de representación institucional y el procedimiento que seguirá el administrador autorizado para aprobar o rechazar una solicitud.
 - Acordar habilitación de cuentas, permisos aplicados en servidor, notificaciones, conservación de datos, auditoría y protección contra abuso antes de habilitar envíos.
 
 ## Estructura y componentes
 
 - `PanelOperativo` comparte el encabezado, el perfil y la navegación. El Administrador conserva sus vistas internas y el Colaborador mantiene las rutas `/ColaboradorDashboard` y `/RegistroGraduando`.
+- El portal de Graduandos reutiliza la cabecera, la navegación y el selector de tema del panel. Inicio informa que la vinculación a ceremonias requiere autorización aparte. Mi perfil muestra el nombre, el correo y el estado de verificación de la sesión. El menú de cuenta permite abrir el perfil y cerrar sesión.
 - La navegación lateral permanece visible desde 1024 px. En anchos menores, `Sheet` abre el menú, confina el foco y lo devuelve al activador al cerrar. La sección activa se marca con texto, indicador visual y `aria-current`.
 - `IndicadoresPanel` presenta las métricas de ambas pantallas con una lista de definiciones. Las tarjetas se distribuyen en dos columnas en móvil y cuatro a partir de 640 px.
 - Los estados del panel indican en texto si hay una consulta en curso, un error recuperable o una lista vacía. El detalle del Colaborador usa los mismos tokens globales para los estados y conserva el texto que distingue cada estado.

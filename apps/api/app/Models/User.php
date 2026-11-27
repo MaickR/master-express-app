@@ -11,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token', 'version_sesion'])]
+#[Hidden(['password', 'remember_token', 'version_sesion', 'nombres', 'apellidos', 'telefono', 'tipo_documento', 'numero_documento'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -32,6 +32,25 @@ class User extends Authenticatable
     {
         return $this->roles()->whereIn('codigo', self::ROLES_DE_ACCESO)
             ->orderBy('codigo')->pluck('codigo')->all();
+    }
+
+    /** @return list<string> */
+    public function codigosDeSesion(): array
+    {
+        $internos = $this->codigosDeAcceso();
+
+        return $internos !== [] ? $internos : ($this->puedeAccederComoGraduando() ? ['graduando'] : []);
+    }
+
+    public function puedeRecuperarContrasena(): bool
+    {
+        return $this->codigosDeAcceso() !== [] || $this->puedeAccederComoGraduando();
+    }
+
+    private function puedeAccederComoGraduando(): bool
+    {
+        return $this->activa && $this->email_verified_at !== null
+            && $this->roles()->where('codigo', 'graduando')->exists();
     }
 
     /**

@@ -166,3 +166,17 @@ Las suites existentes cubren el [vínculo de ceremonias](../../tests/vinculo-cer
 | Permisos y atribución | Ámbitos por rol, alta y revocación de vínculos, verificación de representantes, atribución de históricos y permisos de exportación y adjuntos. |
 | Venta, pago y demanda | Quién confirma venta y recaudo, reglas de abonos, sobrepagos, importes y conciliación, comprador histórico desconocido, unidad de demanda y qué la activa o revierte. |
 | Migración y auditoría | Responsables, umbrales de conciliación, manejo de adjuntos, retención de datos e idempotencia, eventos auditables, ventana de corte y reversión. |
+
+## 14. Alta pública de Graduandos
+
+**Regla provisional de ME-REG1A.** El correo verificado identifica la cuenta de acceso. El registro guarda nombres, apellidos, teléfono y, si el graduando lo declara, tipo y número de documento. La verificación confirma control del correo. El documento queda como dato declarado. La cuenta tiene exclusivamente el rol Graduando y carece de permisos operativos. El alta no crea un perfil operativo, una inscripción ni una transacción comercial. Cualquier vínculo futuro requiere autorización y evidencia, incluso cuando ya existe una persona con los mismos datos. [Contrato técnico](../engineering/ME-REG1A.md)
+
+**Preguntas para el domingo con Ernesto.**
+
+| Tema | Decisión pendiente |
+| --- | --- |
+| Documento e identidad | ¿Hace falta el documento para una cuenta básica? ¿Para qué finalidad, cuándo se solicita, quién puede consultarlo y cuándo se elimina? |
+| Menores y representantes | ¿Cómo se acredita la representación cuando se necesita y cómo se resuelven correos compartidos, cambios de correo y duplicados históricos? |
+| Ceremonias e históricos | ¿Quién autoriza el vínculo, con qué evidencia y cómo se revisan las coincidencias o participaciones ambiguas? |
+| Portal y operación | ¿Qué podrá consultar la cuenta después del vínculo? ¿Quién atiende la recuperación, el abuso y los problemas de entrega? ¿Qué avisos, consentimiento y plazos de conservación se requieren? |
+| Institución y comercio | ¿Quién verifica a la institución y a sus representantes? ¿Cómo se separan la participación, la venta, el recaudo y la demanda? |

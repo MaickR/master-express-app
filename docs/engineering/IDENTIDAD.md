@@ -11,11 +11,15 @@
 
 - Administrador y Colaborador usan la identidad existente para ingresar por contraseña. La sesión autoriza los códigos vigentes de `rol_user` para el hito. Consulte el [contrato de autenticación](AUTENTICACION.md).
 
+## Alta pública de Graduandos desde ME-REG1A
+
+- El [registro público](ME-REG1A.md) verifica la posesión del correo y concede exclusivamente el rol `graduando`. Conserva nombres, apellidos, teléfono y documento opcional en la cuenta. La cuenta queda sin un vínculo operativo con el catálogo de graduandos.
+
 ## Pendiente para etapas posteriores
 
 - Definir el alta productiva y la verificación de correo del personal interno.
 - Definir cómo se verifica a un representante institucional y cómo se vincula su identidad a las instituciones autorizadas. El rol `institucion` por sí solo carece de alcance global.
-- Acordar el identificador y canal OTP del graduando antes de cambiar los campos obligatorios de la cuenta. El perfil de graduando y la relación con el comprador requieren definiciones separadas.
+- Acordar el identificador del graduando operativo y su vínculo con la cuenta. El perfil de graduando y la relación con el comprador requieren definiciones separadas.
 - Acordar la matriz de permisos, el actor que puede asignar o revocar roles y las relaciones que determinan acceso por institución y ceremonia. Las Policies deben validar la operación y el registro con esos vínculos, aunque la cuenta ya tenga un rol.
 
 Las tablas y relaciones comerciales se incorporarán cuando su contrato esté aprobado. Consulte el [alcance V1](../product/ME-SCOPE-V1.md) y los [entornos de QA](../../README.md#pruebas).
