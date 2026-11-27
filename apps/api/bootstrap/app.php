@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Log;
 
 $esRecuperacion = fn (Request $request): bool => $request->is('forgot-password', 'reset-password');
 $esRegistroGraduando = fn (Request $request): bool => $request->is('api/registro-graduando/*');
+$esRegistroInstitucion = fn (Request $request): bool => $request->is(
+    'api/registro-institucion/*',
+    'api/administracion/solicitudes-institucionales',
+    'api/administracion/solicitudes-institucionales/*',
+);
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -28,19 +33,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $agenda->call(fn () => DB::table('desafios_de_registro')->where('vence_en', '<=', now()->timestamp)->delete())
             ->name('depurar-desafios-de-registro')->hourly();
     })
-    ->withExceptions(function (Exceptions $exceptions) use ($esRecuperacion, $esRegistroGraduando): void {
-        $exceptions->dontFlash(['token', 'codigo', 'numero_documento']);
+    ->withExceptions(function (Exceptions $exceptions) use ($esRecuperacion, $esRegistroGraduando, $esRegistroInstitucion): void {
+        $exceptions->dontFlash(['token', 'codigo', 'numero_documento', 'motivo']);
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request): bool => $request->is('api', 'api/*', 'login', 'logout', 'sanctum/csrf-cookie')
                 || $esRecuperacion($request) || $request->expectsJson(),
         );
-        $exceptions->report(function (Throwable $error) use ($esRecuperacion, $esRegistroGraduando): ?bool {
+        $exceptions->report(function (Throwable $error) use ($esRecuperacion, $esRegistroGraduando, $esRegistroInstitucion): ?bool {
             if (! app()->bound('request')) {
                 return null;
             }
 
             if ($esRegistroGraduando(request())) {
                 Log::error('Falló una operación de registro de graduando.', ['tipo' => $error::class]);
+            } elseif ($esRegistroInstitucion(request())) {
+                Log::error('Falló una operación de registro institucional.', ['tipo' => $error::class]);
             } elseif ($esRecuperacion(request())) {
                 Log::error('Falló una operación de recuperación.', ['tipo' => $error::class]);
             } else {
@@ -49,8 +56,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return false;
         });
-        $exceptions->respond(function ($respuesta, $error, Request $request) use ($esRecuperacion, $esRegistroGraduando) {
-            if (! $esRecuperacion($request) && ! $esRegistroGraduando($request)) {
+        $exceptions->respond(function ($respuesta, $error, Request $request) use ($esRecuperacion, $esRegistroGraduando, $esRegistroInstitucion) {
+            if (! $esRecuperacion($request) && ! $esRegistroGraduando($request) && ! $esRegistroInstitucion($request)) {
                 return $respuesta;
             }
             if ($respuesta->getStatusCode() >= 500) {

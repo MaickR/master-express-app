@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const rolesInternos = z.enum(['administrador', 'colaborador']);
 export type RolInterno = z.infer<typeof rolesInternos>;
-const rolesDeSesion = z.enum([...rolesInternos.options, 'graduando']);
+const rolesDeSesion = z.enum([...rolesInternos.options, 'graduando', 'institucion']);
 export type RolDeSesion = z.infer<typeof rolesDeSesion>;
 
 const contratoSesion = z.object({
@@ -25,7 +25,12 @@ const rutaCuentas = '/api/administracion/cuentas';
 export type AccionDeCuenta = 'suspender' | 'reactivar' | 'revocar-sesiones';
 
 export class ErrorSesion extends Error {
-  constructor(readonly estado: number, readonly espera?: number, readonly campos: readonly string[] = []) {
+  constructor(
+    readonly estado: number,
+    readonly espera?: number,
+    readonly campos: readonly string[] = [],
+    readonly aviso = '',
+  ) {
     super('Falló la operación de sesión.');
   }
 }
@@ -72,11 +77,12 @@ export async function solicitar(
 
   if (!respuesta.ok) {
     const segundos = Number(respuesta.headers.get('Retry-After'));
-    const validacion = respuesta.status === 422 ? await respuesta.json().catch(() => null) : null;
-    const campos = camposValidacion.filter(campo =>
-      validacion?.errors && Object.hasOwn(validacion.errors, campo),
+    const cuerpo = [409, 422].includes(respuesta.status) ? await respuesta.json().catch(() => null) : null;
+    const campos = (respuesta.status === 422 ? camposValidacion : []).filter(campo =>
+      cuerpo?.errors && Object.hasOwn(cuerpo.errors, campo),
     );
-    throw new ErrorSesion(respuesta.status, segundos > 0 && Number.isFinite(segundos) ? segundos : undefined, campos);
+    const aviso = respuesta.status === 409 && typeof cuerpo?.message === 'string' ? cuerpo.message : '';
+    throw new ErrorSesion(respuesta.status, segundos > 0 && Number.isFinite(segundos) ? segundos : undefined, campos, aviso);
   }
 
   return respuesta;
@@ -130,6 +136,131 @@ export async function terminarSesion(signal: AbortSignal): Promise<void> {
   } catch (error) {
     if (!(error instanceof ErrorSesion) || ![401, 403].includes(error.estado)) throw error;
   }
+}
+
+const rutaSolicitudes = '/api/administracion/solicitudes-institucionales';
+const camposSolicitud = ['motivo', 'solicitud'];
+
+export type EstadoSolicitud = 'pendiente' | 'aprobada' | 'rechazada';
+export type ResumenSolicitud = {
+  id: number;
+  estado: EstadoSolicitud;
+  tipo: 'colegio' | 'universidad';
+  razon_social: string;
+  nit: string;
+  sede: string;
+  representante: string;
+  email: string;
+  telefono: string;
+  cuenta_existente: boolean;
+  creada_en: string | null;
+  notificacion_estado: string | null;
+};
+export type DetalleSolicitud = ResumenSolicitud & {
+  correo_verificado_en: string | null;
+  requiere_activacion: boolean;
+  activada_en: string | null;
+  institucion_id: number | null;
+  sede_id: number | null;
+  decision: { estado: string; en: string; administrador_id: number | null; motivo: string | null } | null;
+  notificacion: { estado: string; detalle: string | null } | null;
+};
+export type AmbitoInstitucional = {
+  institucion_id: number;
+  nombre: string | null;
+  tipo: string | null;
+  nit: string | null;
+  sede: { id: number; nombre: string } | null;
+  representante: string | null;
+  correo: string;
+  correo_verificado: boolean;
+};
+
+async function leerJson<T>(respuesta: Response, esquema: { safeParse: (dato: unknown) => { success: boolean; data?: T } }): Promise<T> {
+  const resultado = esquema.safeParse(await respuesta.json().catch(() => null));
+  if (!resultado.success || resultado.data === undefined) throw new ErrorSesion(0);
+  return resultado.data;
+}
+
+const resumenSolicitud = z.object({
+  id: z.number().int(),
+  estado: z.enum(['pendiente', 'aprobada', 'rechazada']),
+  tipo: z.enum(['colegio', 'universidad']),
+  razon_social: z.string(),
+  nit: z.string(),
+  sede: z.string(),
+  representante: z.string(),
+  email: z.string(),
+  telefono: z.string(),
+  cuenta_existente: z.boolean(),
+  creada_en: z.string().nullable(),
+  notificacion_estado: z.string().nullable(),
+});
+const paginaSolicitudes = z.object({
+  data: z.array(resumenSolicitud),
+  hayMas: z.boolean(),
+});
+const detalleSolicitud = z.object({
+  data: resumenSolicitud.extend({
+    correo_verificado_en: z.string().nullable(),
+    requiere_activacion: z.boolean(),
+    activada_en: z.string().nullable(),
+    institucion_id: z.number().int().nullable(),
+    sede_id: z.number().int().nullable(),
+    decision: z.object({
+      estado: z.string(),
+      en: z.string(),
+      administrador_id: z.number().int().nullable(),
+      motivo: z.string().nullable(),
+    }).nullable(),
+    notificacion: z.object({
+      estado: z.string(),
+      detalle: z.string().nullable(),
+    }).nullable(),
+  }),
+});
+const ambitoInstitucional = z.object({
+  data: z.array(z.object({
+    institucion_id: z.number().int(),
+    nombre: z.string().nullable(),
+    tipo: z.string().nullable(),
+    nit: z.string().nullable(),
+    sede: z.object({ id: z.number().int(), nombre: z.string() }).nullable(),
+    representante: z.string().nullable(),
+    correo: z.string(),
+    correo_verificado: z.boolean(),
+  })),
+});
+
+export async function listarSolicitudesInstitucionales(
+  estado: EstadoSolicitud, pagina: number, signal: AbortSignal,
+) {
+  const respuesta = await solicitar(`${rutaSolicitudes}?estado=${estado}&page=${pagina}`, signal);
+  return leerJson(respuesta, paginaSolicitudes);
+}
+
+export async function consultarSolicitudInstitucional(id: number, signal: AbortSignal) {
+  const respuesta = await solicitar(`${rutaSolicitudes}/${id}`, signal);
+  return leerJson(respuesta, detalleSolicitud);
+}
+
+export async function decidirSolicitudInstitucional(id: number, decision: 'aprobacion' | 'rechazo', motivo?: string) {
+  const signal = AbortSignal.timeout(15000);
+  await solicitar('/sanctum/csrf-cookie', signal);
+  const cuerpo = decision === 'rechazo' ? { motivo } : {};
+  const respuesta = await solicitar(`${rutaSolicitudes}/${id}/${decision}`, signal, cuerpo, camposSolicitud);
+  return leerJson(respuesta, detalleSolicitud);
+}
+
+export async function reintentarAvisoInstitucional(id: number) {
+  const signal = AbortSignal.timeout(15000);
+  await solicitar('/sanctum/csrf-cookie', signal);
+  await solicitar(`${rutaSolicitudes}/${id}/notificacion`, signal, {}, camposSolicitud);
+}
+
+export async function consultarMiInstitucion(signal: AbortSignal) {
+  const respuesta = await solicitar('/api/mi-institucion', signal);
+  return leerJson(respuesta, ambitoInstitucional);
 }
 
 export function mensajeSesion(error: unknown): string {

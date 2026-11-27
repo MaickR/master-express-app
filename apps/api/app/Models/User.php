@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -38,19 +39,54 @@ class User extends Authenticatable
     public function codigosDeSesion(): array
     {
         $internos = $this->codigosDeAcceso();
+        if ($internos !== []) {
+            return $internos;
+        }
+        $roles = $this->puedeAccederComoGraduando() ? ['graduando'] : [];
+        if ($this->puedeAccederComoInstitucion()) {
+            $roles[] = 'institucion';
+        }
 
-        return $internos !== [] ? $internos : ($this->puedeAccederComoGraduando() ? ['graduando'] : []);
+        return $roles;
     }
 
     public function puedeRecuperarContrasena(): bool
     {
-        return $this->codigosDeAcceso() !== [] || $this->puedeAccederComoGraduando();
+        return $this->codigosDeAcceso() !== [] || $this->puedeAccederComoGraduando()
+            || $this->puedeAccederComoInstitucion();
+    }
+
+    /**
+     * @return HasMany<VinculoInstitucional, $this>
+     */
+    public function vinculosInstitucionales(): HasMany
+    {
+        return $this->hasMany(VinculoInstitucional::class);
+    }
+
+    public function operaEnInstitucion(int $institucionId): bool
+    {
+        return $this->accesoInstitucionalVerificado()
+            && $this->vinculosInstitucionales()->where('estado', VinculoInstitucional::ACTIVO)
+                ->where('institucion_id', $institucionId)->exists();
     }
 
     private function puedeAccederComoGraduando(): bool
     {
         return $this->activa && $this->email_verified_at !== null
             && $this->roles()->where('codigo', 'graduando')->exists();
+    }
+
+    private function puedeAccederComoInstitucion(): bool
+    {
+        return $this->accesoInstitucionalVerificado()
+            && $this->vinculosInstitucionales()->where('estado', VinculoInstitucional::ACTIVO)->exists();
+    }
+
+    private function accesoInstitucionalVerificado(): bool
+    {
+        return $this->activa && $this->email_verified_at !== null
+            && $this->roles()->where('codigo', 'institucion')->exists();
     }
 
     /**

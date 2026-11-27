@@ -12,7 +12,9 @@ import {
   errorNit, errorNumeroDocumento, permiteEditarNit, soloDigitosDocumento, tiposDocumento, validarCampoRegistro,
   type CampoRegistro, type DatosRegistro, type VistaRegistro,
 } from './vistas-registro';
-import { camposDelServidor, datosDeCuenta, normalizarCorreo, useRegistroGraduando } from './use-registro-graduando';
+import { camposDelServidor, datosDeCuenta, normalizarCorreo, useRegistroPublico } from './use-registro-graduando';
+import { tiposInstitucion } from './validacion-institucion';
+import { useSesion } from './contexto-sesion';
 
 const Campo = Input as ComponentType<ComponentProps<'input'>>;
 const Etiqueta = Label as ComponentType<ComponentProps<'label'>>;
@@ -27,7 +29,11 @@ const erroresDeAlta: Partial<Record<CampoRegistro['id'], string>> = {
   tipoDocumento: 'Selecciona Cédula de ciudadanía o Tarjeta de identidad.',
   numeroDocumento: 'Ingresa hasta 32 dígitos del 0 al 9.',
   contrasena: 'Usa al menos 12 caracteres y una contraseña de hasta 72 bytes.',
-  confirmacion: 'Confirma la contraseña con el mismo valor.',
+  razonSocial: 'Ingresa la razón social (hasta 200 caracteres).',
+  nit: 'Ingresa el NIT con dígitos. Si usas un guion, debe separar dos grupos.',
+  sede: 'Ingresa la sede (hasta 150 caracteres).',
+  responsable: 'Ingresa el nombre completo con letras y signos propios del nombre.',
+  tipoInstitucion: 'Selecciona Colegio o Universidad.',
 };
 
 function errorDeEntrada(id: CampoRegistro['id'], valor: string) {
@@ -41,6 +47,9 @@ function enmascararCorreo(correo: string) {
 }
 
 export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro }) {
+  const { estado } = useSesion();
+  const institucional = Boolean(vista.solicitudPublica);
+  const sesion = institucional && estado.tipo === 'autenticado' ? estado.identidad : null;
   const [indice, establecerIndice] = useState(0);
   const [editandoRevision, establecerEditandoRevision] = useState(false);
   const [datos, establecerDatos] = useState<DatosRegistro>({});
@@ -55,10 +64,11 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
   const tituloPaso = useRef<HTMLHeadingElement>(null);
   const campoCodigo = useRef<HTMLInputElement>(null);
   const campoConError = useRef<CampoRegistro['id']>();
-  const registro = useRegistroGraduando();
+  const registro = useRegistroPublico(institucional ? 'institucion' : 'graduando');
   const { enviandoCodigo } = registro;
   const correo = normalizarCorreo(datos.correo);
   const correoConfirmado = Boolean(verificado && verificado === correo);
+  const verificaPorCodigo = (vista.registroPublico || institucional) && !sesion;
   const paso = vista.pasos[indice];
   const pasos = [...vista.pasos.map(({ corto }) => corto), 'Revisión'];
 
@@ -72,6 +82,11 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
   }, [indice, verificando, creada]);
 
   useEffect(() => {
+    if (!sesion) return;
+    establecerDatos(anteriores => anteriores.correo === sesion.correo ? anteriores : { ...anteriores, correo: sesion.correo });
+  }, [sesion]);
+
+  useEffect(() => {
     if (verificando && !enviandoCodigo && registro.solicitado === correo) campoCodigo.current?.focus();
   }, [verificando, enviandoCodigo, registro.solicitado, correo]);
 
@@ -82,6 +97,7 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
       return;
     }
 
+    if (id === 'correo' && sesion) return;
     if (id === 'correo' && normalizarCorreo(valor) !== correo) {
       establecerVerificado('');
       establecerCodigo('');
@@ -100,7 +116,7 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
 
   const avanzar = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault();
-    if (!paso || registro.ocupado) return;
+    if (!paso || registro.ocupado || (institucional && estado.tipo === 'comprobando')) return;
 
     const formulario = evento.currentTarget;
     const siguientes: DatosRegistro = {};
@@ -117,7 +133,7 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
       if (control instanceof HTMLElement) control.focus();
       return;
     }
-    if (vista.registroPublico && indice === 1 && !correoConfirmado) {
+    if (verificaPorCodigo && indice === 1 && !correoConfirmado) {
       establecerVerificando(true);
       establecerAviso('');
       establecerEditandoRevision(false);
@@ -127,7 +143,7 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
       }
       return;
     }
-    establecerIndice(editandoRevision && (!vista.registroPublico || correoConfirmado) ? vista.pasos.length : indice + 1);
+    establecerIndice(editandoRevision && (!verificaPorCodigo || correoConfirmado) ? vista.pasos.length : indice + 1);
     establecerEditandoRevision(false);
   };
 
@@ -155,8 +171,10 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
     } else if (resultado instanceof ErrorSesion) {
       if (resultado.estado === 422 && resultado.campos.includes('email')) {
         campoConError.current = 'correo';
-        irAlPaso(0);
-        establecerErrores({ correo: erroresDeAlta.correo });
+        irAlPaso(institucional ? 1 : 0);
+        establecerErrores({ correo: institucional
+          ? 'Revisa el correo. Si ya tienes una cuenta, inicia sesión para solicitar la representación.'
+          : erroresDeAlta.correo });
       } else {
         establecerAviso(avisoDeRegistro(resultado));
       }
@@ -223,11 +241,71 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
     }
   }
 
+  const camposServidorInstitucion = {
+    tipo: 'tipoInstitucion', razon_social: 'razonSocial', nit: 'nit', sede: 'sede',
+    representante: 'responsable', telefono: 'telefono', email: 'correo',
+  } as const;
+
+  async function enviarSolicitud() {
+    if (registro.ocupado || (!sesion && !correoConfirmado)) return;
+    establecerAviso('');
+    const cuerpo = {
+      tipo: datos.tipoInstitucion ?? '',
+      razon_social: datos.razonSocial?.trim() ?? '',
+      nit: datos.nit?.trim() ?? '',
+      sede: datos.sede?.trim() ?? '',
+      representante: datos.responsable?.trim() ?? '',
+      telefono: datos.telefono?.trim() ?? '',
+    };
+    const resultado = sesion
+      ? await registro.representar(cuerpo, correo)
+      : await registro.operar('solicitud', { ...cuerpo, email: correo });
+    if (resultado === true) {
+      establecerCodigo('');
+      establecerCreada(true);
+      return;
+    }
+    if (!(resultado instanceof ErrorSesion)) return;
+    if (resultado.estado === 409) {
+      establecerAviso('Ya hay una solicitud en curso para este correo. Sigue pendiente de revisión.');
+      return;
+    }
+    if (resultado.estado === 403) {
+      establecerAviso('Esta cuenta no puede solicitar la representación hasta tener el correo verificado.');
+      return;
+    }
+    if (resultado.estado === 422 && resultado.campos.includes('email') && !sesion) {
+      establecerVerificado('');
+      registro.cambiarCorreo();
+      establecerVerificando(true);
+      establecerIndice(1);
+      establecerAviso('Verifica el correo otra vez para enviar la solicitud.');
+      return;
+    }
+    if (resultado.estado === 422) {
+      const locales = resultado.campos
+        .map(campo => camposServidorInstitucion[campo as keyof typeof camposServidorInstitucion])
+        .filter(Boolean);
+      const primero = locales[0];
+      if (primero) {
+        campoConError.current = primero;
+        establecerEditandoRevision(true);
+        establecerErrores(Object.fromEntries(locales.map(campo => [campo, erroresDeAlta[campo]])));
+        establecerIndice(vista.pasos[0].campos.some(campo => campo.id === primero) ? 0 : 1);
+        return;
+      }
+      establecerAviso('Revisa los datos antes de volver a enviar la solicitud.');
+      return;
+    }
+    establecerAviso(avisoDeRegistro(resultado));
+  }
+
   const renderCampo = (campo: CampoRegistro) => {
     const confirmacionDistinta = vista.registroPublico && campo.id === 'confirmacion'
       && Boolean(datos.confirmacion) && datos.confirmacion !== datos.contrasena;
     const error = confirmacionDistinta ? erroresDeAlta.confirmacion : errores[campo.id];
-    const descripcion = [campo.id === 'contrasena' && 'ayuda-contrasena-registro', error && campo.id + '-error']
+    const descripcion = [campo.id === 'contrasena' && 'ayuda-contrasena-registro',
+      campo.id === 'correo' && sesion && 'correo-sesion', error && campo.id + '-error']
       .filter(Boolean).join(' ') || undefined;
     const esNumeroDocumento = campo.tipo === 'numeroDocumento';
     const habilitado = !esNumeroDocumento || Boolean(datos.tipoDocumento);
@@ -240,6 +318,11 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
     return (
       <div key={campo.id} className="grid min-w-0 gap-2">
         <Etiqueta htmlFor={campo.id}>{campo.etiqueta}{campo.opcional && ' (opcional)'}</Etiqueta>
+        {campo.id === 'correo' && sesion && (
+          <p id="correo-sesion" className="text-sm text-muted-foreground">
+            Usaremos el correo de tu sesión. No se crea otra cuenta ni se cambian tus roles.
+          </p>
+        )}
         {campo.id === 'contrasena' && (
           <p id="ayuda-contrasena-registro" className="text-sm text-muted-foreground">
             {vista.registroPublico
@@ -247,7 +330,15 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
               : 'Usa al menos 12 caracteres ficticios.'}
           </p>
         )}
-        {campo.tipo === 'tipoDocumento' ? (
+        {campo.tipo === 'tipoInstitucion' ? (
+          <select id={props.id} name={props.name} value={props.value} required
+            aria-invalid={props['aria-invalid']} aria-describedby={descripcion}
+            className="acceso__campo h-12 w-full min-w-0 rounded-md border border-input px-3 text-base aria-[invalid=true]:border-error focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            onChange={evento => actualizar(campo.id, evento.target.value)}>
+            <option value="">Selecciona Colegio o Universidad</option>
+            {tiposInstitucion.map(tipo => <option key={tipo.valor} value={tipo.valor}>{tipo.etiqueta}</option>)}
+          </select>
+        ) : campo.tipo === 'tipoDocumento' ? (
           <select id={props.id} name={props.name} value={props.value}
             aria-invalid={props['aria-invalid']} aria-describedby={descripcion}
             className="acceso__campo h-12 w-full min-w-0 rounded-md border border-input px-3 text-base aria-[invalid=true]:border-error focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
@@ -260,7 +351,8 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
             autoComplete={vista.registroPublico ? 'new-password' : 'off'} />
         ) : (
           <Campo {...props} type={campo.tipo === 'tel' || campo.tipo === 'email' ? campo.tipo : 'text'}
-            autoComplete={vista.registroPublico ? autocompletado[campo.id] : undefined}
+            readOnly={campo.id === 'correo' && Boolean(sesion)}
+            autoComplete={vista.registroPublico || institucional ? autocompletado[campo.id] : undefined}
             inputMode={esNumeroDocumento ? 'numeric' : undefined}
             onPaste={esNumeroDocumento || campo.tipo === 'nit' ? evento => {
               const { value, selectionStart, selectionEnd } = evento.currentTarget;
@@ -284,9 +376,25 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
     const valor = datos[campo.id]?.trim();
     if (!valor) return 'Sin indicar';
     if (campo.id === 'contrasena') return vista.registroPublico ? 'Definida' : 'Definida para esta vista previa';
+    if (campo.id === 'tipoInstitucion') {
+      return tiposInstitucion.find(tipo => tipo.valor === valor)?.etiqueta ?? valor;
+    }
     if (campo.id === 'numeroDocumento') return valor.length > 4 ? '•••• ' + valor.slice(-4) : '••••';
     return valor;
   };
+
+  if (creada && institucional) return (
+    <MarcoAcceso>
+      <h1 ref={tituloPaso} tabIndex={-1} className="acceso__titulo">Solicitud recibida</h1>
+      <div className="mt-4">
+        <AvisoAcceso tono="confirmacion">Solicitud recibida y pendiente de revisión.</AvisoAcceso>
+      </div>
+      <p className="mt-4 text-sm text-muted-foreground">
+        Un administrador autorizado revisará la solicitud. Este envío no activa el acceso institucional.
+      </p>
+      <Link to="/" className="acceso__enlace mt-4 inline-flex min-h-11 items-center text-sm">Volver al inicio</Link>
+    </MarcoAcceso>
+  );
 
   if (creada) return (
     <MarcoAcceso>
@@ -300,7 +408,13 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
     <MarcoAcceso>
       <h1 className="acceso__titulo text-center lg:text-left lg:text-[2rem]">{vista.titulo}</h1>
       <p id="registro-vista-previa" className="mt-2 text-center text-sm text-muted-foreground lg:text-left">
-        {vista.registroPublico ? 'Crea tu cuenta y verifica tu correo electrónico.' : 'Vista previa · Envío aún no habilitado.'}
+        {estado.tipo === 'comprobando' && institucional
+        ? 'Comprobando si ya hay una sesión…'
+        : vista.registroPublico
+          ? 'Crea tu cuenta y verifica tu correo electrónico.'
+          : institucional
+            ? 'La solicitud queda pendiente hasta que un administrador la revise.'
+            : 'Vista previa · Envío aún no habilitado.'}
       </p>
 
       <ol aria-label="Progreso del registro" className="mt-5 grid list-none grid-cols-3 gap-2 text-xs sm:text-sm">
@@ -334,7 +448,7 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
             </Button>
           )}
           {registro.espera('codigo', correo) > 0 && <p className="text-sm text-muted-foreground" role="status">
-            Podrás reenviar el código cuando termine el tiempo de espera.
+            Podrás solicitar otro código en {registro.espera('codigo', correo)} segundos.
           </p>}
           <form className="grid gap-2" onSubmit={confirmarCodigo} noValidate>
             <Etiqueta htmlFor="codigo-registro">Código de verificación</Etiqueta>
@@ -356,7 +470,7 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
         <form onSubmit={avanzar} noValidate autoComplete={vista.registroPublico ? undefined : 'off'}
           aria-describedby="registro-vista-previa" className="mt-4 grid gap-4">
           {paso.campos.map(renderCampo)}
-          {paso.verificacion && !vista.registroPublico && (
+          {paso.verificacion && !verificaPorCodigo && !sesion && (
             <AvisoAcceso tono="advertencia">
               <strong>Verificación por correo pendiente.</strong> El correo se podrá verificar cuando el servicio esté habilitado.
             </AvisoAcceso>
@@ -394,7 +508,7 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
                     <div className="py-2">
                       <dt className="text-sm font-medium">Verificación por correo</dt>
                       <dd className={'mt-0.5 text-sm ' + (correoConfirmado ? 'text-muted-foreground' : 'text-aviso')}>
-                        {correoConfirmado ? 'Correo verificado' : 'Pendiente'}
+                        {correoConfirmado ? 'Correo verificado' : sesion ? 'Sesión de esta cuenta' : 'Pendiente'}
                       </dd>
                     </div>
                   )}
@@ -408,6 +522,13 @@ export default function RegistroVistaPrevia({ vista }: { vista: VistaRegistro })
               <Button type="button" onClick={() => void crearCuenta()}
                 disabled={registro.ocupado || !correoConfirmado || registro.espera('cuenta') > 0}
                 className="acceso__accion mt-3 min-h-11 w-full">{registro.ocupado ? 'Creando cuenta…' : vista.accion}</Button>
+            </>
+          ) : vista.solicitudPublica ? (
+            <>
+              {aviso && <div className="mt-4"><AvisoAcceso>{aviso}</AvisoAcceso></div>}
+              <Button type="button" onClick={() => void enviarSolicitud()}
+                disabled={registro.ocupado || (!sesion && !correoConfirmado) || registro.espera('solicitud') > 0}
+                className="acceso__accion mt-3 min-h-11 w-full">{registro.ocupado ? 'Enviando solicitud…' : vista.accion}</Button>
             </>
           ) : (
             <>

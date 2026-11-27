@@ -2,8 +2,9 @@
 
 namespace App\Jobs;
 
-use App\Actions\Autenticacion\RegistrarGraduando;
+use App\Actions\Autenticacion\DesafioDeCorreo;
 use App\Actions\Autenticacion\TransporteDeCorreoSeguro;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -22,16 +23,18 @@ class EnviarCodigoDeRegistro implements ShouldBeEncrypted, ShouldQueue
         private readonly string $correo,
         private readonly string $emision,
         #[\SensitiveParameter] private readonly string $codigo,
+        private readonly string $proposito = DesafioDeCorreo::GRADUANDO,
     ) {}
 
-    public function handle(RegistrarGraduando $registro, TransporteDeCorreoSeguro $transporte): void
+    public function handle(DesafioDeCorreo $desafios, TransporteDeCorreoSeguro $transporte): void
     {
         if (! $transporte->permiteDestinatario($this->correo)) {
             return;
         }
 
         try {
-            if (! $registro->puedeEnviar($this->correo, $this->emision)) {
+            if (! $desafios->vigente($this->proposito, $this->correo, $this->emision)
+                || User::query()->where('email', $this->correo)->exists()) {
                 return;
             }
             if (! $transporte->habilitar($this->correo)) {
@@ -40,7 +43,7 @@ class EnviarCodigoDeRegistro implements ShouldBeEncrypted, ShouldQueue
 
             Mail::send(
                 ['html' => 'correo.verificacion', 'text' => 'correo.verificacion-texto'],
-                ['codigo' => $this->codigo, 'vigencia' => RegistrarGraduando::VIGENCIA_MINUTOS],
+                ['codigo' => $this->codigo, 'vigencia' => DesafioDeCorreo::VIGENCIA_MINUTOS],
                 fn (Message $mensaje) => $mensaje->to($this->correo)->subject('Tu código de verificación | MasterExpress'),
             );
         } catch (Throwable) {

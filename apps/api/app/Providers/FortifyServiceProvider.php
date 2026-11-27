@@ -3,7 +3,7 @@
 namespace App\Providers;
 
 use App\Actions\Autenticacion\IntentarAcceso;
-use App\Actions\Autenticacion\TransporteDeCorreoSeguro;
+use App\Actions\Autenticacion\OrigenPublico;
 use App\Http\Responses\SesionSinContenido;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -32,10 +32,9 @@ class FortifyServiceProvider extends ServiceProvider
     {
         ResetPassword::toMailUsing(function ($usuario, #[\SensitiveParameter] string $token): MailMessage {
             $correo = $usuario->getEmailForPasswordReset();
-            $origen = $this->origenDeRecuperacion($correo);
-            $url = $origen.'/restablecer-contrasena#'.http_build_query(
-                ['token' => $token, 'email' => $correo], '', '&', PHP_QUERY_RFC3986,
-            );
+            $url = app(OrigenPublico::class)->enlace('/restablecer-contrasena', $correo, [
+                'token' => $token, 'email' => $correo,
+            ]);
 
             return (new MailMessage)->subject('Restablece tu contraseña | MasterExpress')->view(
                 ['html' => 'correo.recuperacion', 'text' => 'correo.recuperacion-texto'],
@@ -74,40 +73,36 @@ class FortifyServiceProvider extends ServiceProvider
 
         RateLimiter::for('registro-graduando-solicitar', fn (Request $request): array => [
             Limit::perMinutes(15, 15)->by('ip:'.$request->ip()),
-            Limit::perMinutes(15, 3)->by($this->claveDeCorreoParaRegistro($request)),
+            Limit::perMinutes(15, 3)->by($this->claveDeCorreo($request, 'limite-registro-graduando')),
         ]);
 
         RateLimiter::for('registro-graduando-verificar', fn (Request $request): array => [
             Limit::perMinute(30)->by('ip:'.$request->ip()),
-            Limit::perMinutes(15, 20)->by($this->claveDeCorreoParaRegistro($request)),
+            Limit::perMinutes(15, 20)->by($this->claveDeCorreo($request, 'limite-registro-graduando')),
         ]);
+
+        RateLimiter::for('registro-institucion-solicitar', fn (Request $request): array => [
+            Limit::perMinutes(15, 15)->by('ip:'.$request->ip()),
+            Limit::perMinutes(15, 3)->by($this->claveDeCorreo($request, 'limite-registro-institucion')),
+        ]);
+
+        RateLimiter::for('registro-institucion-verificar', fn (Request $request): array => [
+            Limit::perMinute(30)->by('ip:'.$request->ip()),
+            Limit::perMinutes(15, 20)->by($this->claveDeCorreo($request, 'limite-registro-institucion')),
+        ]);
+
+        RateLimiter::for('activar-institucion', fn (Request $request) => Limit::perMinute(8)->by($request->ip()));
+
+        RateLimiter::for('decision-institucional', fn (Request $request) => Limit::perMinute(30)->by(
+            'usuario:'.($request->user()?->getKey() ?? $request->ip()),
+        ));
     }
 
-    private function claveDeCorreoParaRegistro(Request $request): string
+    private function claveDeCorreo(Request $request, string $uso): string
     {
-        $entrada = $request->isJson() ? $request->json('email') : null;
+        $entrada = $request->isJson() ? $request->json('email') : $request->input('email');
         $correo = is_string($entrada) ? Str::lower(trim($entrada)) : '';
 
-        return 'correo:'.hash_hmac('sha256', 'limite-registro-graduando|'.$correo, app('encrypter')->getKey());
-    }
-
-    private function origenDeRecuperacion(string $correo): string
-    {
-        $real = ! str_ends_with(strtolower($correo), '@example.invalid');
-        $origen = rtrim((string) config(
-            $real && app()->environment('local') ? 'mail.transaccional.origen_recuperacion_local' : 'auth.url_spa',
-        ), '/');
-
-        $transporte = app(TransporteDeCorreoSeguro::class);
-        if ($real && $origen === 'http://127.0.0.1:5173' && $transporte->sandboxLocalActivo()
-            && $transporte->permiteDestinatario($correo)) {
-            return $origen;
-        }
-
-        if ($real && ! preg_match('~\Ahttps://(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}(?::[0-9]{1,5})?\z~i', $origen)) {
-            throw new \LogicException('Configure un origen HTTPS para recuperar contraseñas por correo real.');
-        }
-
-        return $origen;
+        return 'correo:'.hash_hmac('sha256', $uso.'|'.$correo, app('encrypter')->getKey());
     }
 }

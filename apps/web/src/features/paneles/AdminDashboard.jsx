@@ -4,7 +4,7 @@ import {
   Users, CalendarDays, DollarSign, GraduationCap,
   TrendingUp, CheckCircle, AlertCircle, Shield,
   ClipboardList, BarChart3, Wallet, PiggyBank, Home, Mail, Trash2,
-  Loader2, ArrowUpRight
+  Loader2, ArrowUpRight, Building2
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/ui/card";
 import PanelOperativo from "@/shared/components/PanelOperativo";
@@ -22,6 +22,7 @@ import GestionCuentasInternas from "@/features/personal/GestionCuentasInternas";
 import ExportarExcel from "@/features/graduandos/ExportarExcel";
 import GestionCorreos from "@/features/correo/GestionCorreos";
 import PapeleraGraduandos from "@/features/graduandos/PapeleraGraduandos";
+import SolicitudesInstitucionales from "@/features/paneles/SolicitudesInstitucionales.jsx";
 
 const TABS = [
   { id: "panel",         label: "Panel Principal",     icon: Home,          group: "inicio" },
@@ -35,6 +36,7 @@ const TABS = [
   { id: "exportar",      label: "Exportar a Excel",        icon: ClipboardList, group: "datos" },
   { id: "administradores", label: "Administradores",       icon: Shield,        group: "gestion" },
   { id: "cuentas-internas", label: "Cuentas internas",       icon: Shield,        group: "gestion" },
+  { id: "solicitudes-institucionales", label: "Solicitudes institucionales", icon: Building2, group: "gestion" },
   { id: "correos",         label: "Correos Electrónicos", icon: Mail,          group: "datos" },
   { id: "papelera",        label: "Papelera",             icon: Trash2,        group: "datos" },
 ];
@@ -108,6 +110,7 @@ export default function AdminDashboard({ identidad }) {
       case "exportar":        return <ExportarExcel />;
       case "administradores": return <GestionAdministradores />;
       case "cuentas-internas": return <GestionCuentasInternas actorId={identidad.id} />;
+      case "solicitudes-institucionales": return <SolicitudesInstitucionales />;
       case "correos":         return <GestionCorreos />;
       case "papelera":        return <PapeleraGraduandos />;
       default:                return null;

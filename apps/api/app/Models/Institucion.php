@@ -16,4 +16,10 @@ class Institucion extends Model
     {
         return $this->hasMany(Evento::class);
     }
+
+    /** @return HasMany<Sede, $this> */
+    public function sedes(): HasMany
+    {
+        return $this->hasMany(Sede::class);
+    }
 }

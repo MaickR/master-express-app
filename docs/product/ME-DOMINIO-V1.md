@@ -180,3 +180,48 @@ Las suites existentes cubren el [vínculo de ceremonias](../../tests/vinculo-cer
 | Ceremonias e históricos | ¿Quién autoriza el vínculo, con qué evidencia y cómo se revisan las coincidencias o participaciones ambiguas? |
 | Portal y operación | ¿Qué podrá consultar la cuenta después del vínculo? ¿Quién atiende la recuperación, el abuso y los problemas de entrega? ¿Qué avisos, consentimiento y plazos de conservación se requieren? |
 | Institución y comercio | ¿Quién verifica a la institución y a sus representantes? ¿Cómo se separan la participación, la venta, el recaudo y la demanda? |
+
+## 15. Solicitud y aprobación institucional
+
+**Regla provisional de ME-REG2A.** Una persona puede pedir la representación de un colegio o una universidad desde `/registro/institucion`. El resultado es una solicitud `pendiente`. No crea acceso institucional, no inscribe graduandos y no abre ventas ni pagos. El representante nuevo define su contraseña en `/activar-institucion` después de la aprobación. El contrato técnico está en [ME-REG2A](../engineering/ME-REG2A.md).
+
+### Estados
+
+| Estado | Significado |
+| --- | --- |
+| `pendiente` | El correo ya se verificó, o la cuenta existente y verificada confirmó la solicitud en su sesión. Espera decisión. |
+| `aprobada` | Un administrador activo registró la aprobación. Existen la institución, la sede y el vínculo. El acceso solo queda utilizable si el flujo verificado ya terminó. |
+| `rechazada` | Un administrador activo registró un motivo. No hay institución nueva, vínculo ni rol nuevo. |
+
+La notificación de la decisión tiene su propio estado: `pendiente`, `enviando`, `enviada` o `fallida`. Un fallo de correo no devuelve la decisión a `pendiente`.
+
+### Transiciones
+
+- Una solicitud `pendiente` puede aprobarse o rechazarse una sola vez.
+- Aprobar o rechazar ocurre en una transacción. El correo se encola después de confirmarla.
+- No se puede rechazar una solicitud `aprobada`. No hay todavía un procedimiento de revocación.
+- Un representante nuevo solo recibe el rol `institucion` y un vínculo `activo` cuando define su contraseña con el enlace de un solo uso.
+- Una cuenta que ya existía y tenía el correo verificado conserva sus roles. La aprobación agrega `institucion` y activa el vínculo, sin cambiar la contraseña.
+
+### Colegio, universidad y representante
+
+`colegio` y `universidad` comparten este flujo. El tipo describe la institución y todavía no cambia los permisos. La sede nace con la aprobación y pertenece solo a esa institución. El representante es la persona de la solicitud. El rol `institucion` no alcanza por sí solo: hace falta un vínculo `activo` con esa institución. Sin ese par, no hay acceso a eventos, graduandos, ventas, pagos ni datos de otra institución.
+
+No se vincula una solicitud a una institución existente porque coincidan el nombre, el NIT o el dominio del correo. Si el NIT ya está registrado, la aprobación se detiene, la solicitud sigue `pendiente` y no se duplica la institución.
+
+### Permisos
+
+Solo un administrador activo decide. Colaborador, Graduando y los demás roles no aprueban ni rechazan. El cliente no puede enviar roles, usuario o institución de destino. Las reglas operativas de eventos y registros no se ampliaron.
+
+### Preguntas adicionales para Ernesto
+
+| Tema | Decisión pendiente |
+| --- | --- |
+| NIT | ¿El guion debe ser obligatorio? Hoy se conserva el texto y se admite un solo guion opcional entre dos grupos de dígitos, como el formulario ya aprobado. |
+| Varios representantes | ¿Una institución puede tener más de un representante y una persona puede representar más de una institución? Hoy hay como máximo una solicitud pendiente o aprobada por correo. |
+| Correo | ¿El correo del representante debe pertenecer a un dominio de la institución? Hoy no se exige. |
+| Cuenta sin verificar | ¿Qué camino tiene una cuenta ya creada cuyo correo todavía no está verificado? Hoy no puede usar el alta pública ni la sesión. |
+| Sede | ¿La sede es siempre obligatoria y una solicitud puede declarar varias? Hoy se exige una. |
+| Revocación | ¿Quién puede retirar una aprobación ya activada, con qué motivo y qué pasa con la sesión? Hoy no existe esa acción. |
+| Sesión visible | ¿Debe mostrarse Institución junto con los paneles de roles internos? ME-REG2B permite elegir entre Graduando e Institución cuando el vínculo está activo. Los roles internos mantienen su prioridad. |
+| Correo y enlace | ¿Se mantienen el asunto, el texto y los 30 minutos del enlace de activación? |
