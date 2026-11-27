@@ -301,18 +301,18 @@
   }
   .panel-marca img { @apply size-10 shrink-0 rounded-lg bg-marca-placa object-contain p-1; }
   .panel-marca strong { @apply block font-semibold; color: hsl(var(--sidebar-marca)); }
-  .panel-navegacion { @apply min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-5; }
+  .panel-navegacion { @apply min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4; }
   .panel-navegacion__grupo {
     @apply mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider;
     color: hsl(var(--sidebar-muted));
   }
   .panel-navegacion__destino {
-    @apply flex min-h-11 w-full items-center gap-2.5 rounded-lg border border-transparent px-3 py-2 text-left text-sm leading-snug;
+    @apply flex min-h-11 w-full items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-left text-sm leading-snug;
   }
   .panel-navegacion__destino:hover { @apply bg-sidebar-accent text-sidebar-accent-foreground; }
   .panel-navegacion__destino[aria-current="page"] {
     @apply border-sidebar-border bg-sidebar-accent font-semibold text-sidebar-accent-foreground;
-    box-shadow: inset 3px 0 hsl(var(--sidebar-marca));
+    box-shadow: inset 2px 0 hsl(var(--sidebar-marca));
   }
   .panel-navegacion__destino:focus-visible,
   .panel-menu-movil > button:focus-visible {
@@ -343,7 +343,26 @@
     background: hsl(var(--primary-suave));
     color: hsl(var(--primary-suave-foreground));
   }
-  button.panel-avatar { @apply size-11 border border-border; }
+  .panel-cuenta {
+    @apply inline-flex min-h-11 min-w-11 max-w-60 items-center justify-center gap-2.5 rounded-lg px-1 text-left hover:bg-muted aria-expanded:bg-muted sm:justify-start sm:px-2 lg:max-w-72;
+  }
+  .panel-cuenta__identidad { @apply hidden min-w-0 flex-1 sm:block; }
+  .panel-cuenta-menu {
+    @apply w-64 rounded-xl border-border p-1.5;
+    max-width: var(--radix-dropdown-menu-content-available-width);
+    max-height: var(--radix-dropdown-menu-content-available-height);
+    overflow-y: auto;
+  }
+  .panel-cuenta-menu__accion { @apply min-h-11 cursor-pointer px-3; }
+  .panel-cuenta-menu__accion[data-highlighted] {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: -2px;
+  }
+  .panel-perfil {
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+  }
+  .panel-perfil > button:last-child { @apply hidden; }
   .panel-salto {
     @apply sr-only;
   }
@@ -351,7 +370,9 @@
     @apply not-sr-only fixed left-3 top-3 z-[60] rounded-lg bg-card px-4 py-3 font-semibold text-foreground;
   }
   .panel-contenido { @apply min-w-0; scroll-margin-top: 5rem; }
-  .panel-contenido:focus { outline: none; }
+  .panel-contenido:focus,
+  .panel-contenido :is(h1, h2)[tabindex="-1"]:focus { outline: none; }
+  .panel-contenido :is(h1, h2)[tabindex="-1"] { scroll-margin-top: 5.5rem; }
   .panel-pagina { @apply mx-auto max-w-[100rem] space-y-7 p-4 sm:p-6 lg:p-8; }
   .panel-portada {
     @apply flex flex-col gap-5 rounded-2xl border border-border bg-card p-5 sm:p-7 md:flex-row md:items-center md:justify-between;
@@ -359,6 +380,8 @@
   }
   .panel-portada h1 { @apply break-words font-heading text-2xl font-bold tracking-tight sm:text-3xl; }
   .panel-portada p { @apply mt-1.5 break-words text-sm leading-relaxed text-muted-foreground; }
+  .panel-pagina.portal-institucional { @apply max-w-6xl space-y-6; }
+  .portal-encabezado h1 { @apply font-heading text-2xl font-bold tracking-tight sm:text-3xl; }
   .panel-accion {
     @apply inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-lg px-4 py-2 text-center text-sm font-semibold;
     background: hsl(var(--primary));
@@ -366,7 +389,7 @@
   }
   .panel-accion:hover { text-decoration: underline; }
   .panel-icono-boton:focus-visible,
-  .panel-avatar:focus-visible,
+  .panel-cuenta:focus-visible,
   .panel-accion:focus-visible,
   .panel-acceso:focus-visible,
   .panel-salto:focus-visible {

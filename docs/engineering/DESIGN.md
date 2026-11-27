@@ -65,6 +65,12 @@ El formulario mantiene las etiquetas persistentes, el foco visible y las zonas t
 - Los estados del panel indican en texto si hay una consulta en curso, un error recuperable o una lista vacía. El detalle del Colaborador usa los mismos tokens globales para los estados y conserva el texto que distingue cada estado.
 - La estructura incluye un enlace de salto, foco visible, controles principales de 44 px y soporte para la preferencia de movimiento reducido. La página permite ampliar con zoom.
 
+## Reutilización de interfaz por rol
+
+- Reutilizar `PanelOperativo` para cabecera, menú de cuenta, selector de tema y navegación adaptable. Usar `panel-portada` para la bienvenida y `portal-encabezado` para las secciones interiores.
+- Usar `DatosCuentaPortal` cuando la vista presenta nombre, correo, verificación y recuperación de la cuenta. Cada portal determina la verificación con los datos que tiene autorizados. La programación institucional y la vinculación del Graduando conservan vistas propias porque representan procesos distintos.
+- Componer estados con los componentes y tokens existentes. Mostrar carga, vacío y error cuando la vista consulta datos. Conservar el foco al navegar y comprobar cada consumidor afectado con teclado, temas, texto largo, móvil y zoom al 200 %.
+
 ## Alcance pendiente
 
 La revisión de contraste cubre muestras del ingreso, la cabecera, la navegación, los menús y los indicadores. La validación AA completa y la actualización visual de clases heredadas en módulos internos quedan pendientes.

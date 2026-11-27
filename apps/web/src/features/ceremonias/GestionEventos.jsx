@@ -6,7 +6,8 @@ import {
   camposAlta, consultarCeremonias, consultarEventos, consultarInstituciones,
   crearEvento as crearEventoLaravel, ensayoLaravel, mensajeEventos,
 } from "@/features/ceremonias/cliente-eventos";
-import { CalendarDays, Plus, Trash2, GraduationCap, MapPin, ArrowUpDown, FlaskConical } from "lucide-react";
+import { CalendarDays, Plus, Trash2, GraduationCap, ArrowUpDown, FlaskConical } from "lucide-react";
+import DatosEvento from "./datos-evento";
 import { Card, CardContent } from "@/shared/ui/card";
 import { Button, buttonVariants } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -15,8 +16,6 @@ import { Badge } from "@/shared/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 import { Dialog, DialogContent, DialogDescription as Descripcion, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/ui/dialog";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
 
 // * Los componentes JSX compartidos reenvían estas props sin declararlas en sus tipos inferidos.
 /** @type {React.ComponentType<import("@radix-ui/react-dialog").DialogDescriptionProps>} */
@@ -233,10 +232,6 @@ export default function GestionEventos({ onUpdate }) {
     }
   };
 
-  const formatearFecha = (fecha) => {
-    try { return format(parseISO(fecha), "d 'de' MMMM, yyyy", { locale: es }); }
-    catch { return fecha; }
-  };
 
   // Ordenamiento dinámico
   const eventosOrdenados = [...eventos].sort((a, b) => {
@@ -466,14 +461,7 @@ export default function GestionEventos({ onUpdate }) {
                           </Badge>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                        <span>{formatearFecha(evento.fecha)}</span>
-                        {evento.lugar && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" /> {evento.lugar}
-                          </span>
-                        )}
-                      </div>
+                      <DatosEvento fecha={evento.fecha} lugar={evento.lugar} />
                       {ensayoLaravel ? (
                         <div className="mt-3 space-y-2">
                           <BotonEnsayo variant="outline" size="sm" aria-expanded={Boolean(abiertas[evento.id])}

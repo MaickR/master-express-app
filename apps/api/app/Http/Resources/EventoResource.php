@@ -12,6 +12,10 @@ class EventoResource extends JsonResource
         return [
             'id' => $this->id,
             'institucion' => InstitucionResource::make($this->institucion),
+            'sede' => $this->whenLoaded('sede', fn (): array => [
+                'id' => $this->sede->id,
+                'nombre' => $this->sede->nombre,
+            ]),
             'fecha' => $this->fecha->toDateString(),
             'lugar' => $this->lugar,
             'numero_ceremonias' => $this->ceremonias_count,

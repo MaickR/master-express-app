@@ -1,7 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, CircleUserRound, GraduationCap, House, MailCheck } from 'lucide-react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ComponentType, type HTMLAttributes } from 'react';
+import { ArrowRight, CircleUserRound, GraduationCap, House } from 'lucide-react';
 import PanelOperativo from '@/shared/components/PanelOperativo';
+import { Button } from '@/shared/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
+import { Separator } from '@/shared/ui/separator';
 import type { Identidad } from './cliente-sesion';
+import DatosCuentaPortal, { CorreoVerificado } from './datos-cuenta-portal';
+
+type PropsBloque = ComponentType<HTMLAttributes<HTMLDivElement>>;
+const Tarjeta = Card as PropsBloque;
+const Encabezado = CardHeader as PropsBloque;
+const Titulo = CardTitle as PropsBloque;
+const Contenido = CardContent as PropsBloque;
+const BotonPerfil = Button as ComponentType<ButtonHTMLAttributes<HTMLButtonElement> & { variant: 'outline' }>;
 
 const grupos = [{
   id: 'portal',
@@ -16,48 +27,51 @@ export default function PortalGraduando({ identidad }: { identidad: Identidad })
   const titulo = useRef<HTMLHeadingElement>(null);
   useEffect(() => { titulo.current?.focus(); }, [seccion]);
 
-  const verificado = (
-    <span className="inline-flex max-w-full items-center gap-2 text-sm font-semibold text-exito">
-      <BadgeCheck aria-hidden="true" className="size-5 shrink-0" /> Correo verificado
-    </span>
-  );
+  const inicio = seccion === 'inicio';
+  const nombre = identidad.nombre.trim();
+  // * Laravel incluye graduando en la sesión de una cuenta activa con correo verificado.
+  const verificado = identidad.roles.includes('graduando');
 
   return (
     <PanelOperativo grupos={grupos} activo={seccion} rol="Graduando" nombre={identidad.nombre}
       alSeleccionar={elegirSeccion} alAbrirPerfil={() => elegirSeccion('perfil')}>
-      <div className="panel-pagina max-w-5xl">
-        <header className="rounded-2xl border border-border border-t-4 border-t-primary bg-card p-5 text-card-foreground sm:p-8">
-          <h1 ref={titulo} tabIndex={-1} className="text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">
-            {seccion === 'inicio' ? 'Portal de Graduandos' : 'Mi perfil'}
-          </h1>
-          {seccion === 'inicio' && (
-            <p className="mt-3 text-base text-muted-foreground [overflow-wrap:anywhere]">Bienvenido, {identidad.nombre}.</p>
-          )}
-          <div className="mt-4">{verificado}</div>
+      <div className="panel-pagina max-w-4xl space-y-6">
+        <header className={inicio ? 'panel-portada' : 'portal-encabezado'}>
+          <div className="min-w-0 [overflow-wrap:anywhere]">
+            <h1 ref={titulo} tabIndex={-1}>
+              {inicio ? (nombre ? `Hola, ${nombre}` : 'Portal de Graduandos') : 'Mi perfil'}
+            </h1>
+            {inicio && <p>Consulta el estado de tu cuenta y tus datos de perfil.</p>}
+          </div>
         </header>
-        {seccion === 'inicio' ? (
-          <section aria-labelledby="titulo-ceremonias" className="rounded-2xl border border-border bg-card p-5 sm:p-7">
-            <GraduationCap aria-hidden="true" className="mb-3 size-6 text-interactivo" />
-            <h2 id="titulo-ceremonias" className="text-lg font-semibold">Vinculación a ceremonias</h2>
-            <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
-              Crear tu cuenta y verificar el correo son los primeros pasos. La vinculación con una ceremonia requiere una autorización aparte.
-            </p>
+        {inicio ? (
+          <section aria-labelledby="titulo-ceremonias" className="max-w-2xl">
+            <Tarjeta className="shadow-none">
+              <Encabezado className="flex-row items-start gap-3 space-y-0 p-4 sm:p-5">
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary-suave text-primary-suave-foreground">
+                  <GraduationCap aria-hidden="true" className="size-5" />
+                </span>
+                <div className="min-w-0 space-y-2 [overflow-wrap:anywhere]">
+                  <Titulo><h2 id="titulo-ceremonias" className="text-lg leading-snug">Vinculación con una ceremonia</h2></Titulo>
+                  {verificado && <CorreoVerificado />}
+                </div>
+              </Encabezado>
+              <Contenido className="space-y-4 px-4 pb-4 sm:px-5 sm:pb-5">
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {verificado ? 'Tu cuenta está creada y verificada.' : 'Tu cuenta está creada.'}{' '}
+                  La vinculación con una ceremonia requiere confirmación de MasterExpress.
+                </p>
+                <Separator />
+                <BotonPerfil type="button" variant="outline"
+                  className="min-h-11 h-auto whitespace-normal shadow-none motion-reduce:transition-none"
+                  onClick={() => elegirSeccion('perfil')}>
+                  Ver mi perfil <ArrowRight aria-hidden="true" />
+                </BotonPerfil>
+              </Contenido>
+            </Tarjeta>
           </section>
         ) : (
-          <section aria-labelledby="datos-perfil" className="rounded-2xl border border-border bg-card p-5 sm:p-7">
-            <MailCheck aria-hidden="true" className="mb-3 size-6 text-interactivo" />
-            <h2 id="datos-perfil" className="text-lg font-semibold">Datos de tu cuenta</h2>
-            <dl className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
-              <div className="min-w-0">
-                <dt className="text-sm font-semibold">Nombre</dt>
-                <dd className="mt-1 text-sm text-muted-foreground [overflow-wrap:anywhere]">{identidad.nombre}</dd>
-              </div>
-              <div className="min-w-0">
-                <dt className="text-sm font-semibold">Correo electrónico</dt>
-                <dd className="mt-1 text-sm text-muted-foreground [overflow-wrap:anywhere]">{identidad.correo}</dd>
-              </div>
-            </dl>
-          </section>
+          <DatosCuentaPortal nombre={identidad.nombre} correo={identidad.correo} verificado={verificado || null} />
         )}
       </div>
     </PanelOperativo>

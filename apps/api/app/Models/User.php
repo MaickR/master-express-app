@@ -83,7 +83,7 @@ class User extends Authenticatable
             && $this->vinculosInstitucionales()->where('estado', VinculoInstitucional::ACTIVO)->exists();
     }
 
-    private function accesoInstitucionalVerificado(): bool
+    public function accesoInstitucionalVerificado(): bool
     {
         return $this->activa && $this->email_verified_at !== null
             && $this->roles()->where('codigo', 'institucion')->exists();
