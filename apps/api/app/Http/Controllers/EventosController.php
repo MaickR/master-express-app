@@ -15,7 +15,7 @@ class EventosController extends Controller
 {
     public function index(ListarEventos $request): JsonResponse
     {
-        $consulta = Evento::query()->with('institucion')->withCount('ceremonias')
+        $consulta = Evento::query()->with(['institucion', 'sede'])->withCount('ceremonias')
             ->orderByDesc('fecha')->orderByDesc('id');
 
         $institucionId = $request->validated('institucion_id');
@@ -30,7 +30,7 @@ class EventosController extends Controller
     public function store(CrearEvento $request, ProgramarEvento $programar): JsonResponse
     {
         $evento = $programar->ejecutar($request->user(), $request->validated('evento'));
-        $evento->load(['institucion', 'ceremonias'])->loadCount('ceremonias');
+        $evento->load(['institucion', 'sede', 'ceremonias'])->loadCount('ceremonias');
 
         return EventoResource::make($evento)->response()->setStatusCode(201)
             ->header('Cache-Control', 'no-store');
@@ -39,7 +39,7 @@ class EventosController extends Controller
     public function show(string $evento): JsonResponse
     {
         $programacion = $this->consultarEvento($evento);
-        $programacion->load(['institucion', 'ceremonias'])->loadCount('ceremonias');
+        $programacion->load(['institucion', 'sede', 'ceremonias'])->loadCount('ceremonias');
 
         return EventoResource::make($programacion)->response()->header('Cache-Control', 'no-store');
     }

@@ -13,23 +13,40 @@ class ProgramacionInstitucionalTest extends CasoMySql
 {
     protected array $tablas = [
         'users', 'roles', 'rol_user', 'instituciones', 'sedes', 'solicitudes_institucionales',
-        'vinculos_institucionales', 'eventos', 'ceremonias',
+        'vinculos_institucionales', 'eventos', 'ceremonias', 'graduandos', 'registros',
     ];
 
     public function test_cada_representante_ve_exclusivamente_su_institucion_y_sede(): void
     {
         $actorA = $this->cuenta('institucion');
         $actorB = $this->cuenta('institucion');
+        $administrador = $this->cuenta('administrador');
         [$vinculoA, $institucionA, $sedeA] = $this->vinculo($actorA);
         [$vinculoB, $institucionB, $sedeB] = $this->vinculo($actorB);
         $otraSedeA = DB::table('sedes')->insertGetId(['institucion_id' => $institucionA, 'nombre' => 'Otra sede']);
-        $eventoA = $this->evento($actorA, $institucionA, $sedeA);
         $eventoB = $this->evento($actorB, $institucionB, $sedeB);
         $eventoOtraSede = $this->evento($actorA, $institucionA, $otraSedeA);
         $eventoSinSede = $this->evento($actorA, $institucionA, null);
+        $ceremoniaHistorica = DB::table('ceremonias')->insertGetId([
+            'evento_id' => $eventoSinSede, 'nombre' => 'Ceremonia histórica', 'orden' => 1,
+        ]);
+        $graduando = DB::table('graduandos')->insertGetId(['nombre_completo' => 'Graduando QA']);
+        $registro = DB::table('registros')->insertGetId([
+            'graduando_id' => $graduando, 'ceremonia_id' => $ceremoniaHistorica, 'actor_id' => $administrador->id,
+            'operation_id' => (string) Str::uuid(), 'huella_solicitud' => str_repeat('c', 64),
+        ]);
+        $historico = DB::table('eventos')->find($eventoSinSede);
+        $registroPrevio = DB::table('registros')->find($registro);
+        $eventoA = $this->actingAs($administrador->refresh())->postJson('/api/eventos', [
+            'institucion_id' => $institucionA, 'sede_id' => $sedeA,
+            'fecha' => '2026-12-17', 'lugar' => 'Auditorio QA', 'numero_ceremonias' => 2,
+            'operation_id' => (string) Str::uuid(),
+        ])->assertCreated()->json('data.id');
+        $this->assertEquals($historico, DB::table('eventos')->find($eventoSinSede));
+        $this->assertEquals($registroPrevio, DB::table('registros')->find($registro));
+        $this->getJson('/api/eventos/'.$eventoSinSede)->assertOk()->assertJsonPath('data.sede', null);
+        DB::table('ceremonias')->where('evento_id', $eventoA)->where('orden', 1)->update(['hora' => '08:30:00']);
         DB::table('ceremonias')->insert([
-            ['evento_id' => $eventoA, 'nombre' => 'Ceremonia A2', 'orden' => 2, 'hora' => null],
-            ['evento_id' => $eventoA, 'nombre' => 'Ceremonia A1', 'orden' => 1, 'hora' => '08:30:00'],
             ['evento_id' => $eventoB, 'nombre' => 'Ceremonia B', 'orden' => 1, 'hora' => null],
         ]);
         $rutaA = $this->ruta($vinculoA);
@@ -41,7 +58,7 @@ class ProgramacionInstitucionalTest extends CasoMySql
             ->assertHeader('Cache-Control', 'no-store, private')
             ->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $eventoA)
             ->assertJsonPath('data.0.sede.id', $sedeA)
-            ->assertJsonPath('data.0.ceremonias.0.nombre', 'Ceremonia A1')
+            ->assertJsonPath('data.0.ceremonias.0.nombre', 'Ceremonia 1')
             ->assertJsonPath('data.0.ceremonias.0.hora', '08:30:00')
             ->assertJsonPath('data.0.ceremonias.1.orden', 2)
             ->assertJsonPath('data.0.ceremonias.1.hora', null)

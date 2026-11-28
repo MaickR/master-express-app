@@ -89,3 +89,63 @@ Para habilitar las entidades ficticias de Base44, defina `VITE_BASE44_DATOS_LOCA
 Las entidades de personal, eventos, ceremonias, graduandos, precios, gastos, reportes y archivos siguen usando Base44. Sus políticas de lectura y escritura están pendientes de migración y verificación. Fuera del modo ficticio, la sesión permite abrir el panel y la ruta del colaborador, pero la consulta y el registro de graduandos esperan un vínculo de identidad aprobado en servidor. El avatar administrativo usa iniciales de Laravel hasta que exista un vínculo equivalente. El envío a papelera desde Registros de Graduandos queda fuera del flujo hasta contar con autorización en servidor para esa operación. La pantalla de Papelera conserva su comportamiento existente. Los formularios de gestión de personal de Base44 siguen siendo deuda heredada y no aprovisionan cuentas Laravel.
 
 Vendedor, Finanzas, Inventario e Institución requieren fases de implementación propias. Para ME-UI2 quedan la revisión visual y de accesibilidad de paneles y el contrato de perfiles operativos antes de conectar datos reales. El alta productiva y las Policies por operación y recurso siguen pendientes.
+
+## Aprovisionamiento protegido para la demo
+
+ME-SEC-ADMIN1 usa Laravel en `testing` y el esquema `masterexpress_control_test` de una instancia MySQL dedicada que escucha en `127.0.0.1:33342`. La SPA se abre en `http://127.0.0.1:5199/` y la API escucha en `127.0.0.1:8039`. Use un perfil de Chrome independiente para que las cookies CSRF de los ensayos locales no se crucen.
+
+Abra `%LOCALAPPDATA%\MasterExpressControl\ME-SEC-ADMIN1\Preparar-Ernesto.ps1` desde una consola interactiva de PowerShell. Introduzca y confirme una contraseña exclusiva de QA de al menos 12 caracteres y máximo 72 bytes. La cuenta `ernesto.demo@example.invalid` recibe únicamente `administrador`. El aprovisionamiento confirma la instancia y guarda el hash y el rol con los modelos Laravel. Si el correo ya existe, verifica la contraseña proporcionada y conserva la cuenta. El buzón ficticio sirve para iniciar sesión en la demo local.
+
+### Procedimiento propuesto para un correo real
+
+1. Confirme con Ernesto su buzón y la custodia de las credenciales. Antes del alta real, apruebe el procedimiento y pruébelo en preproducción con HTTPS, correo verificado y un registro de auditoría.
+2. Aprovisione una cuenta nominativa con el rol acordado mediante una operación administrativa autorizada y auditada. Entregue al buzón confirmado un enlace de activación de uso único, limitado en tiempo y ligado a la cuenta. Ernesto establece su contraseña en ese flujo.
+3. Para un cambio posterior, exija autenticación reciente y mantenga el correo vigente mientras el nuevo buzón esté pendiente. Verifique la posesión del nuevo correo con un token de un solo uso y vuelva a comprobar la unicidad antes de confirmar el cambio en una transacción.
+4. Al confirmar, revoque las sesiones y tokens anteriores, avise al buzón anterior y audite el responsable y la fecha. Si la persona perdió acceso al buzón vigente, derive el caso a una recuperación aprobada y auditada con verificación de identidad.
+
+La aplicación carece de un flujo administrativo aprobado para alta productiva o cambio de correo. La verificación de correo nuevo, la activación y el cambio auditado descritos aquí son condiciones para implementar y validar antes del uso real. Mantenga las credenciales fuera de Git, telemetría y capturas.
+
+## Diagnóstico de acceso ME-ADMIN-QA2
+
+Chrome confirmó que el frontend de 5173 consulta 8000, mientras 5199 consulta 8039. El arranque CLI habitual resuelve masterexpress_control_dev en 3306. El entorno QA explícito resuelve masterexpress_control_test en 33342. La cuenta ernesto.demo@example.invalid existe en QA, activa, con rol administrador y hash bcrypt. El correo ficticio figura sin verificar. Los administradores internos actualmente pueden acceder en ese estado.
+
+El diagnóstico confirmó dos destinos de identidad distintos. La relación causal con el intento fallido original depende de la URL utilizada por la persona. No se trasladan cuentas ni hashes entre bases.
+
+La rotación interactiva se realiza con %LOCALAPPDATA%\MasterExpressControl\ME-SEC-ADMIN1\Rotar-Ernesto.ps1. Exige una clave distinta de la actual, confirmación y límites de longitud. Usa Hash y RevocarSesiones dentro de una transacción y confirma el puerto y esquema antes de escribir. El resultado rotacion-qa2.json contiene únicamente indicadores de hash y revocación.
+
+### Inventario observado en Chrome
+
+| Sección | Fuente | Alcance verificado y pendiente |
+| --- | --- | --- |
+| Panel Principal | Base44 local | Indicadores visibles. Los eventos Laravel no alimentan este conteo. |
+| Eventos | Laravel en ensayo | Listado y creación con ceremonias verificados en ME-OPS1A. Edición, borrado, cancelación y reprogramación pendientes. |
+| Paquetes | Base44 local | Pantalla y precios visibles. Mutaciones comerciales fuera del ensayo. |
+| Gastos | Base44 local | Estado vacío visible. Mutaciones fuera del ensayo. |
+| Resumen Financiero | Base44 local | Indicadores visibles. Conciliación con Laravel pendiente. |
+| Registros de Graduandos | Base44 local | Listado vacío visible. Identificadores independientes de Laravel. |
+| Reportes | Base44 local | Filtros e indicadores visibles. Datos de Laravel pendientes. |
+| Exportar a Excel | Base44 local | Filtros visibles. Archivo exportado no probado. |
+| Cuentas internas | Laravel | Controles de suspensión, reactivación y revocación cubiertos en ME-SEC-ADMIN1. |
+| Solicitudes institucionales | Laravel | Aprobar y rechazar desde Chrome guardó institución, sede, vínculo o motivo según el caso. |
+| Vinculación de graduandos | Laravel | Vista revisada. Corrección, anulación e historial conservan la evidencia anterior. |
+| Correos Electrónicos | Base44 local / EmailJS | Configuración visible. Entrega real no probada. Los avisos institucionales usan Laravel. |
+| Papelera | Base44 local | Estado vacío visible. Restauración no repetida. |
+| Colaboradores | Heredada aislada | Se retiraron navegación y acceso rápido porque el editor maneja el campo password de Base44. |
+
+Los correos de aprobación y rechazo de QA2 se entregaron al transporte array local en memoria ejecutando el handler de notificación. Se comprobaron enlace de activación, motivo y estado enviada. Un fallo controlado dejó fallida la notificación de rechazo. El reintento autorizado encoló un job en una cola exclusiva de QA2. queue:work terminó con código 0, el sumidero recibió un mensaje y el estado volvió a enviada. Resend no fue probado.
+
+La primera ejecución PHPUnit seleccionada tuvo siete casos satisfactorios y tres fallidos por supuestos de base vacía incompatibles con los fixtures persistentes. Una instancia temporal adicional fue detenida tras fallar por falta de espacio en C:. Esos fallos se conservan como limitación de la verificación y no prueban defectos de autorización.
+
+Para reiniciar la demo, abra PowerShell en apps/api, cargue con dot-source el archivo entorno-qa2.ps1 de la carpeta local anterior y ejecute php artisan serve --host=127.0.0.1 --port=8039 --no-reload. En otra consola, desde la raíz del repositorio, defina VITE_BASE44_DATOS_LOCALES=true y VITE_API_LOCAL_PORT=8039 en el proceso y ejecute npm run dev -- --mode ensayo-laravel --host 127.0.0.1 --port 5199 --strictPort. MySQL debe usar la carpeta persistente ME-SEC-ADMIN1/mysql y el puerto 33342, con mysqlx deshabilitado. Compruebe listeners antes de iniciar servicios.
+
+## Cierre ME-ADMIN-FINAL
+
+PASS. La instancia temporal de MySQL en 33344 se creó vacía tras comprobar espacio libre. Se aplicó el esquema existente y se ejecutó exclusivamente PHPUnit focalizado de eventos, programación institucional, sesión, cuentas, decisiones y notificaciones. Resultado final de 24 pruebas y 657 aserciones. La instancia temporal quedó detenida. La demo de 33342 conservó sus datos.
+
+PASS. Ernesto estableció una nueva clave mediante entrada oculta. Se verificaron hash nuevo, incremento de versión de sesión, revocación de sesiones anteriores, ingreso HTTP 204 y cierre seguido de HTTP 401. La clave introducida como actual fue rechazada antes del restablecimiento. NOT TESTED el rechazo HTTP de la contraseña anterior exacta, cuyo valor correcto no estuvo disponible. Las claves y el resultado privado del aprovisionamiento quedan fuera del repositorio.
+
+PASS. Chrome con Ernesto creó un evento en Instituto Horizonte QA, Sede La Alameda, con dos ceremonias. Consultó el historial de aprobaciones y el detalle. Repetir la decisión devolvió HTTP 409. El panel quedó sin entradas de los editores heredados de credenciales. Los indicadores identifican Base44 como su origen.
+
+PASS. Panel a 390 y 1440 px en claro y oscuro, ausencia de desbordamiento, menú móvil por teclado, Escape y retorno de foco. Se reutiliza la evidencia aceptada de zoom nativo al 200 %, diálogos, estados de error y vacío de las vistas conservadas.
+
+PASS. Typecheck, build, ESLint afectado, sintaxis PHP y git diff --check. NOT TESTED producción, correo Resend y activación productiva de programación. No se agregaron migraciones en este cambio. Los incidentes anteriores de base persistente se conservan como historia del ensayo, con la corrida temporal final satisfactoria.

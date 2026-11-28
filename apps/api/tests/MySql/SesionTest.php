@@ -591,6 +591,7 @@ class SesionTest extends CasoMySql
         $evento = app(ProgramarEvento::class)->ejecutar($administrador->refresh(), [
             'operation_id' => (string) Str::uuid(),
             'institucion_id' => $institucion->id,
+            'sede_id' => $institucion->sedes()->create(['nombre' => 'Sede QA'])->id,
             'fecha' => '2099-02-25',
             'numero_ceremonias' => 1,
         ]);

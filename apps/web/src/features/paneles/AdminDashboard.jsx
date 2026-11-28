@@ -9,7 +9,6 @@ import {
 import { Card, CardContent } from "@/shared/ui/card";
 import PanelOperativo from "@/shared/components/PanelOperativo";
 import IndicadoresPanel from "@/shared/components/IndicadoresPanel";
-import GestionColaboradores from "@/features/personal/GestionColaboradores";
 import GestionEventos from "@/features/ceremonias/GestionEventos";
 import GestionPrecios from "@/features/ventas/GestionPrecios";
 import GestionGastos from "@/features/finanzas/GestionGastos";
@@ -17,7 +16,6 @@ import TodosRegistros from "@/features/graduandos/TodosRegistros";
 import Reportes from "@/features/reportes/Reportes";
 import ResumenFinanciero from "@/features/finanzas/ResumenFinanciero";
 import Recomendaciones from "@/features/finanzas/Recomendaciones";
-import GestionAdministradores from "@/features/personal/GestionAdministradores";
 import GestionCuentasInternas from "@/features/personal/GestionCuentasInternas";
 import ExportarExcel from "@/features/graduandos/ExportarExcel";
 import GestionCorreos from "@/features/correo/GestionCorreos";
@@ -27,7 +25,6 @@ import VinculacionGraduandos from "@/features/paneles/VinculacionGraduandos.jsx"
 
 const TABS = [
   { id: "panel",         label: "Panel Principal",     icon: Home,          group: "inicio" },
-  { id: "colaboradores", label: "Colaboradores",        icon: Users,         group: "gestion" },
   { id: "eventos",       label: "Eventos",              icon: CalendarDays,  group: "gestion" },
   { id: "precios",       label: "Paquetes",             icon: DollarSign,    group: "gestion" },
   { id: "gastos",        label: "Gastos",               icon: Wallet,        group: "financiero" },
@@ -35,7 +32,6 @@ const TABS = [
   { id: "registros",     label: "Registros de Graduandos", icon: ClipboardList, group: "datos" },
   { id: "reportes",      label: "Reportes",                icon: BarChart3,     group: "datos" },
   { id: "exportar",      label: "Exportar a Excel",        icon: ClipboardList, group: "datos" },
-  { id: "administradores", label: "Administradores",       icon: Shield,        group: "gestion" },
   { id: "cuentas-internas", label: "Cuentas internas",       icon: Shield,        group: "gestion" },
   { id: "solicitudes-institucionales", label: "Solicitudes institucionales", icon: Building2, group: "gestion" },
   { id: "vinculacion-graduandos", label: "Vinculación de graduandos", icon: Link2, group: "gestion" },
@@ -102,7 +98,6 @@ export default function AdminDashboard({ identidad }) {
   const renderContent = () => {
     switch (activeTab) {
       case "panel":           return <PanelHome stats={stats} formatCurrency={formatCurrency} gananciaNeta={gananciaNeta} onNavigate={setActiveTab} />;
-      case "colaboradores":   return <GestionColaboradores onUpdate={loadStats} />;
       case "eventos":         return <GestionEventos onUpdate={loadStats} />;
       case "precios":         return <GestionPrecios onUpdate={loadStats} />;
       case "gastos":          return <GestionGastos onUpdate={loadStats} />;
@@ -110,7 +105,6 @@ export default function AdminDashboard({ identidad }) {
       case "registros":       return <TodosRegistros />;
       case "reportes":        return <Reportes />;
       case "exportar":        return <ExportarExcel />;
-      case "administradores": return <GestionAdministradores />;
       case "cuentas-internas": return <GestionCuentasInternas actorId={identidad.id} />;
       case "solicitudes-institucionales": return <SolicitudesInstitucionales />;
       case "vinculacion-graduandos": return <VinculacionGraduandos />;
@@ -166,6 +160,7 @@ function PanelHome({ stats, formatCurrency, gananciaNeta, onNavigate }) {
 
       <section aria-labelledby="indicadores-admin" className="space-y-3">
         <h2 id="indicadores-admin" className="font-heading text-lg font-semibold">Indicadores de la operación</h2>
+        <p className="text-sm text-muted-foreground">Datos de Base44. La programación creada en Laravel se consulta en Eventos.</p>
         <IndicadoresPanel indicadores={indicadores} />
         <Card className="border-border">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
@@ -190,7 +185,6 @@ function PanelHome({ stats, formatCurrency, gananciaNeta, onNavigate }) {
         <h2 id="accesos-admin" className="font-heading text-lg font-semibold">Accesos rápidos</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
           {[
-            { id: "colaboradores", label: "Gestionar colaboradores", desc: "Consulta y edita el equipo.", icon: Users },
             { id: "eventos", label: "Gestionar eventos", desc: "Consulta y crea eventos de graduación.", icon: CalendarDays },
             { id: "gastos", label: "Gestionar gastos", desc: "Consulta y registra gastos operativos.", icon: Wallet },
             { id: "registros", label: "Ver registros de graduandos", desc: "Consulta los registros de la operación.", icon: ClipboardList },

@@ -53,7 +53,11 @@ export async function solicitar(
   const local = import.meta.env.DEV;
   if (local && window.location.hostname !== '127.0.0.1') throw new ErrorSesion(0);
 
-  const origen = local ? 'http://127.0.0.1:8000' : window.location.origin;
+  const puertoLocal = import.meta.env.VITE_API_LOCAL_PORT || '8000';
+  if (local && (!/^\d{1,5}$/.test(puertoLocal) || Number(puertoLocal) < 1 || Number(puertoLocal) > 65535)) {
+    throw new ErrorSesion(0);
+  }
+  const origen = local ? `http://127.0.0.1:${puertoLocal}` : window.location.origin;
   const headers = new Headers({ Accept: 'application/json' });
   if (cuerpo) {
     headers.set('Content-Type', 'application/json');

@@ -74,7 +74,7 @@ class EnsayoEventos extends Command
 
         DB::transaction(function () use ($clave, $rol): void {
             foreach (self::INSTITUCIONES as $institucion) {
-                Institucion::query()->firstOrCreate($institucion);
+                Institucion::query()->firstOrCreate($institucion)->sedes()->firstOrCreate(['nombre' => 'Sede Principal']);
             }
 
             $cuenta = User::query()->lockForUpdate()->firstWhere('email', self::CORREO)

@@ -127,15 +127,27 @@ class RegistroInstitucionTest extends CasoMySql
             $this->llamar('GET', $ruta, [], $ingreso)->assertForbidden();
         }
         $this->llamar('POST', '/api/eventos', ['institucion_id' => $institucionId], $ingreso)->assertForbidden();
+        $this->llamar('POST', '/api/registro-graduando/codigo', ['email' => self::CORREO], $this->sesionNueva())->assertNoContent(202);
+        $transporte = Mail::mailer()->getSymfonyTransport();
+        $transporte->flush();
+        $this->assertSame(0, Artisan::call('queue:work', [
+            'connection' => 'database', '--queue' => 'registro-graduando', '--once' => true,
+        ]));
+        $this->assertCount(0, $transporte->messages());
+        $this->assertSame(1, User::query()->where('email', self::CORREO)->count());
+        $this->assertSame(['institucion'], $usuario->refresh()->codigosDeSesion());
     }
 
     #[TestWith([['graduando'], ['graduando', 'institucion']])]
     #[TestWith([['colaborador', 'graduando'], ['colaborador']])]
     public function test_cuenta_verificada_solicita_sin_duplicar_usuario_ni_roles(array $rolesOriginales, array $rolesDeSesion): void
     {
-        $titular = $this->cuenta($rolesOriginales, 'existente@example.invalid');
+        $correo = 'existente@example.invalid';
+        $titular = $rolesOriginales === ['graduando']
+            ? $this->registrarGraduando($correo)
+            : $this->cuenta($rolesOriginales, $correo);
         $claveOriginal = $titular->password;
-        $sesionPublica = $this->get('/sanctum/csrf-cookie')->assertNoContent();
+        $sesionPublica = $this->sesionNueva();
         $this->enviar('codigo', ['email' => $titular->email], $sesionPublica)
             ->assertUnprocessable()->assertJsonValidationErrors('email');
         $this->assertDatabaseCount('jobs', 0);
@@ -144,6 +156,9 @@ class RegistroInstitucionTest extends CasoMySql
         $this->llamar('POST', self::BASE.'representacion', $this->sinCorreo(), $this->ingresar($sinVerificar))->assertForbidden();
 
         $sesion = $this->ingresar($titular);
+        $this->llamar('GET', '/api/mi-sesion', [], $sesion)->assertOk()
+            ->assertJsonPath('data.id', $titular->id)
+            ->assertJsonPath('data.roles', $rolesOriginales === ['graduando'] ? ['graduando'] : ['colaborador']);
         $this->llamar('POST', self::BASE.'representacion', $this->datos(['email' => $titular->email, 'user_id' => $titular->id]), $sesion)
             ->assertUnprocessable()->assertJsonValidationErrors('solicitud');
         $alta = $this->llamar('POST', self::BASE.'representacion', $this->sinCorreo([
@@ -171,7 +186,15 @@ class RegistroInstitucionTest extends CasoMySql
         $vinculo = VinculoInstitucional::query()->where('user_id', $titular->id)
             ->where('estado', VinculoInstitucional::ACTIVO)->sole();
         $this->llamar('GET', '/api/mi-institucion', [], $sesion)->assertOk()
-            ->assertJsonPath('data.0.institucion_id', $vinculo->institucion_id);
+            ->assertJsonPath('data.0.institucion_id', $vinculo->institucion_id)
+            ->assertJsonPath('data.0.sede.id', $vinculo->sede_id);
+        if ($rolesOriginales === ['graduando']) {
+            $nuevoIngreso = $this->ingresar($titular);
+            $this->llamar('GET', '/api/mi-sesion', [], $nuevoIngreso)->assertOk()
+                ->assertJsonPath('data.id', $titular->id)->assertJsonPath('data.roles', $rolesDeSesion);
+            $this->llamar('GET', '/api/administracion/cuentas', [], $nuevoIngreso)->assertForbidden();
+            $this->llamar('POST', '/api/eventos', [], $nuevoIngreso)->assertForbidden();
+        }
 
         $vinculo->forceFill(['estado' => VinculoInstitucional::PENDIENTE])->save();
         $this->llamar('GET', '/api/mi-institucion', [], $sesion)->assertForbidden();
@@ -320,6 +343,21 @@ class RegistroInstitucionTest extends CasoMySql
         $this->enviar('solicitud', $this->datos([$campo => $valor]), $sesion)->assertUnprocessable();
     }
 
+    private function registrarGraduando(string $correo): User
+    {
+        $ruta = '/api/registro-graduando/';
+        $sesion = $this->sesionNueva();
+        $this->llamar('POST', $ruta.'codigo', ['email' => $correo], $sesion)->assertNoContent(202);
+        $codigo = $this->procesarCodigo($correo, 'registro-graduando');
+        $this->llamar('POST', $ruta.'confirmacion', ['email' => $correo, 'codigo' => $codigo], $sesion)->assertNoContent();
+        $this->llamar('POST', $ruta.'cuenta', [
+            'email' => $correo, 'nombres' => 'Daniela', 'apellidos' => 'Rincón',
+            'telefono' => '3000000000', 'password' => self::CLAVE, 'password_confirmation' => self::CLAVE,
+        ], $sesion)->assertNoContent();
+
+        return User::query()->where('email', $correo)->sole();
+    }
+
     private function solicitudLista(string $tipo, string $nit, string $correo): int
     {
         $sesion = $this->sesionNueva();
@@ -426,12 +464,12 @@ class RegistroInstitucionTest extends CasoMySql
             ? null : json_encode($datos, JSON_THROW_ON_ERROR));
     }
 
-    private function procesarCodigo(string $correo = self::CORREO): string
+    private function procesarCodigo(string $correo = self::CORREO, string $cola = 'registro-institucion'): string
     {
         $transporte = Mail::mailer()->getSymfonyTransport();
         $transporte->flush();
         $this->assertSame(0, Artisan::call('queue:work', [
-            'connection' => 'database', '--queue' => 'registro-institucion', '--once' => true,
+            'connection' => 'database', '--queue' => $cola, '--once' => true,
         ]));
         $mensajes = $transporte->messages();
         $this->assertCount(1, $mensajes, Artisan::output().' jobs='.DB::table('jobs')->count().' failed='.DB::table('failed_jobs')->count());
