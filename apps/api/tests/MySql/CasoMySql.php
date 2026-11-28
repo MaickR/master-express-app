@@ -20,6 +20,9 @@ abstract class CasoMySql extends TestCase
     public function beginDatabaseTransaction(): void
     {
         $this->assertTrue(app()->environment('testing'));
+        $this->assertNotSame(3328, (int) config('database.connections.mysql_pruebas.port'),
+            'MySQL 3328 está reservado para aceptación humana. Usa una instancia automatizada aislada.');
+        $this->assertNotSame('true', getenv('ME_QA_ACEPTACION_HUMANA'), 'No se ejecuta PHPUnit sobre aceptación humana.');
         $this->assertNotEmpty(config('database.connections.mysql_pruebas.username'), 'Configure la cuenta local de pruebas.');
         $conexion = DB::connection('mysql_pruebas');
 

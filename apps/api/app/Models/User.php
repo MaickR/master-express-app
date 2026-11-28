@@ -20,6 +20,13 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    public const array ROLES_INTERNOS = ['administrador', 'colaborador', 'vendedor', 'finanzas', 'inventario'];
+
+    public function esInterna(): bool
+    {
+        return $this->roles()->whereIn('codigo', self::ROLES_INTERNOS)->exists();
+    }
+
     public const array ROLES_DE_ACCESO = ['administrador', 'colaborador'];
 
     /**
@@ -65,7 +72,7 @@ class User extends Authenticatable
 
     public function puedeRecuperarContrasena(): bool
     {
-        return $this->codigosDeAcceso() !== [] || $this->puedeAccederComoGraduando()
+        return $this->esInterna() || $this->puedeAccederComoGraduando()
             || $this->puedeAccederComoInstitucion();
     }
 
@@ -121,6 +128,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'activa' => 'boolean',
+            'cambio_clave_pendiente' => 'boolean',
             'version_sesion' => 'integer',
         ];
     }

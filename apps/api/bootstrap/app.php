@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\ExigirCambioInicial;
 use App\Http\Middleware\VigenciaSesionRecordada;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 $esRecuperacion = fn (Request $request): bool => $request->is('forgot-password', 'reset-password');
+$esIdentidad = fn (Request $request): bool => $request->is('api/mi-perfil', 'api/mi-perfil/*', 'api/administracion/cuentas', 'api/administracion/cuentas/*');
 $esRegistroGraduando = fn (Request $request): bool => $request->is('api/registro-graduando/*');
 $esRegistroInstitucion = fn (Request $request): bool => $request->is(
     'api/registro-institucion/*',
@@ -25,26 +27,29 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
+        $middleware->api(append: [ExigirCambioInicial::class]);
         $middleware->trimStrings(except: ['codigo', 'numero_documento']);
-        $middleware->web(append: [VigenciaSesionRecordada::class]);
+        $middleware->web(append: [VigenciaSesionRecordada::class, ExigirCambioInicial::class]);
         $middleware->prependToPriorityList(AuthenticatesRequests::class, VigenciaSesionRecordada::class);
     })
     ->withSchedule(function (Schedule $agenda): void {
         $agenda->call(fn () => DB::table('desafios_de_registro')->where('vence_en', '<=', now()->timestamp)->delete())
             ->name('depurar-desafios-de-registro')->hourly();
     })
-    ->withExceptions(function (Exceptions $exceptions) use ($esRecuperacion, $esRegistroGraduando, $esRegistroInstitucion): void {
-        $exceptions->dontFlash(['token', 'codigo', 'numero_documento', 'motivo']);
+    ->withExceptions(function (Exceptions $exceptions) use ($esRecuperacion, $esRegistroGraduando, $esRegistroInstitucion, $esIdentidad): void {
+        $exceptions->dontFlash(['clave', 'current_password', 'token', 'codigo', 'numero_documento', 'motivo']);
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request): bool => $request->is('api', 'api/*', 'login', 'logout', 'sanctum/csrf-cookie')
                 || $esRecuperacion($request) || $request->expectsJson(),
         );
-        $exceptions->report(function (Throwable $error) use ($esRecuperacion, $esRegistroGraduando, $esRegistroInstitucion): ?bool {
+        $exceptions->report(function (Throwable $error) use ($esRecuperacion, $esRegistroGraduando, $esRegistroInstitucion, $esIdentidad): ?bool {
             if (! app()->bound('request')) {
                 return null;
             }
 
-            if ($esRegistroGraduando(request())) {
+            if ($esIdentidad(request())) {
+                Log::error('Falló una operación de identidad interna.', ['tipo' => $error::class]);
+            } elseif ($esRegistroGraduando(request())) {
                 Log::error('Falló una operación de registro de graduando.', ['tipo' => $error::class]);
             } elseif ($esRegistroInstitucion(request())) {
                 Log::error('Falló una operación de registro institucional.', ['tipo' => $error::class]);
@@ -56,8 +61,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return false;
         });
-        $exceptions->respond(function ($respuesta, $error, Request $request) use ($esRecuperacion, $esRegistroGraduando, $esRegistroInstitucion) {
-            if (! $esRecuperacion($request) && ! $esRegistroGraduando($request) && ! $esRegistroInstitucion($request)) {
+        $exceptions->respond(function ($respuesta, $error, Request $request) use ($esRecuperacion, $esRegistroGraduando, $esRegistroInstitucion, $esIdentidad) {
+            if (! $esRecuperacion($request) && ! $esRegistroGraduando($request) && ! $esRegistroInstitucion($request) && ! $esIdentidad($request)) {
                 return $respuesta;
             }
             if ($respuesta->getStatusCode() >= 500) {

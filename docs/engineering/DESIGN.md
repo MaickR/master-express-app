@@ -74,3 +74,5 @@ El formulario mantiene las etiquetas persistentes, el foco visible y las zonas t
 ## Alcance pendiente
 
 La revisión de contraste cubre muestras del ingreso, la cabecera, la navegación, los menús y los indicadores. La validación AA completa y la actualización visual de clases heredadas en módulos internos quedan pendientes.
+
+Las capacidades sin conexión se rigen por el [alcance PWA aprobado](../product/ME-PWA.md).

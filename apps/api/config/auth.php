@@ -6,7 +6,7 @@ return [
 
     'duracion_recuerdo' => 1440,
     'cola_recuperacion' => 'database',
-    'url_spa' => env('APP_ENV') === 'production' ? env('APP_URL') : 'http://127.0.0.1:5173',
+    'url_spa' => env('APP_ENV') === 'production' ? env('APP_URL') : (env('APP_ENV') === 'testing' ? env('ME_QA_SPA_URL', 'http://127.0.0.1:5173') : 'http://127.0.0.1:5173'),
 
     /*
     |--------------------------------------------------------------------------

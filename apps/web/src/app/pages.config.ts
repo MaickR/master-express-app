@@ -3,6 +3,7 @@ import type { Identidad, RolDeSesion } from '@/features/acceso/cliente-sesion';
 import { paneles } from '@/features/acceso/destinos';
 import PortalGraduando from '@/features/acceso/portal-graduando';
 import PortalInstitucion from '@/features/acceso/portal-institucion.jsx';
+import MiPerfil from '@/features/personal/mi-perfil';
 import AdminDashboard from '@/features/paneles/AdminDashboard';
 import ColaboradorDashboard from '@/features/paneles/ColaboradorDashboard';
 import RegistroGraduando from '@/features/graduandos/RegistroGraduando';
@@ -11,6 +12,7 @@ import Layout from './Layout';
 type PropsPantalla = { identidad: Identidad };
 
 export const paginasPrivadas: Array<{ ruta: string; rol: RolDeSesion; Pantalla: ComponentType<PropsPantalla> }> = [
+  { ruta: '/MiPerfil', rol: 'administrador', Pantalla: MiPerfil },
   { ruta: paneles.administrador.ruta, rol: 'administrador', Pantalla: AdminDashboard },
   {
     ruta: paneles.colaborador.ruta, rol: 'colaborador',

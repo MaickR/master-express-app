@@ -1,8 +1,20 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { execFile, spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 import { createInterface } from 'node:readline';
 import { setTimeout as esperar } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+
+const perfilAceptacion = process.env.LOCALAPPDATA && existsSync(join(process.env.LOCALAPPDATA, 'MasterExpress', 'aceptacion-local.dpapi'));
+if (process.argv.includes('--aceptacion') || (perfilAceptacion && !process.argv.includes('--desarrollo'))) {
+  const script = fileURLToPath(new URL('./aceptacion-local.ps1', import.meta.url));
+  const args = ['-NoProfile', '-File', script];
+  if (process.argv.includes('--reiniciar')) args.push('-ReiniciarWebApi');
+  const hijo = spawn('powershell.exe', args, { windowsHide: true, stdio: 'inherit' });
+  const codigo = await new Promise((resolve, reject) => { hijo.on('error', reject); hijo.on('close', resolve); });
+  process.exit(codigo ?? 1);
+}
 
 const host = '127.0.0.1';
 const urlWeb = `http://${host}:5173/`;

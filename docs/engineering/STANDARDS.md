@@ -22,6 +22,14 @@ La base actual usa React/JSX, Vite y Base44. React con TypeScript estricto y Lar
 // ? Cuestión por revisar.
 ```
 
+## Reglas de interfaz y datos para nuevas fases
+
+- Explique las acciones al usuario con términos del dominio. Reserve los detalles de Base44, Laravel, QA e infraestructura para documentación técnica.
+- Use acciones compactas con texto comprensible, foco visible y un área táctil suficiente. Verifique el contraste en Claro, Oscuro y Sistema.
+- Valide entradas numéricas según el dominio tanto en React como en Laravel. Compruebe unidad, rango, precisión y condiciones transversales antes de persistir.
+- En listados extensos, reutilice búsqueda, filtros y paginación. Aplique los filtros y los límites en el servidor.
+- Defina métricas con una fuente autoritativa, reglas compartidas y unidades coherentes entre pantallas.
+
 ## React, TypeScript y formularios
 
 - Migre de JSX a TSX de forma incremental cuando se autorice. Avance hacia TypeScript estricto y justifique cualquier uso de `any`.
@@ -31,7 +39,7 @@ La base actual usa React/JSX, Vite y Base44. React con TypeScript estricto y Lar
 
 ## Estilos y accesibilidad
 
-- Diseñe primero para móvil y compruebe la interfaz hasta pantallas grandes. Mantenga accesibles las acciones con zoom, textos largos y tablas anchas.
+- Diseñe primero para teléfono y compruebe también tableta y escritorio. Mantenga accesibles las acciones con zoom, textos largos y tablas anchas.
 - Reutilice Tailwind y los componentes shadcn/ui existentes. Use tokens visuales semánticos para los modos claro y oscuro y evite sistemas de estilos duplicados. Use BEM en CSS o SCSS personalizado cuando ayude. Evite imponer `font-size: 62.5%` global.
 - Tome WCAG AA como objetivo. Use HTML semántico, nombres accesibles, orden de tabulación lógico, foco visible y tamaños táctiles adecuados. Compruebe teclado y foco en diálogos. Acompañe el color con texto o un indicador equivalente.
 
@@ -55,7 +63,8 @@ La base actual usa React/JSX, Vite y Base44. React con TypeScript estricto y Lar
 ## QA
 
 - Use pruebas unitarias, de integración y de navegador según el riesgo. Cubra flujos normales y regresiones entre módulos y roles, incluidos permisos, persistencia y cálculos cuando se vean afectados.
-- Aísle las pruebas y use datos ficticios. No modifique datos reales durante QA ni altere pruebas para ocultar fallos. Genere artefactos de compilación o prueba solo en rutas autorizadas.
+- Ejecute de forma autónoma las comprobaciones autorizadas. Reserve la intervención del titular para credenciales privadas y decisiones de aceptación.
+- Aísle las pruebas automatizadas del almacenamiento persistente de aceptación y use datos ficticios. No modifique datos reales durante QA ni altere pruebas para ocultar fallos. Genere artefactos de compilación o prueba solo en rutas autorizadas.
 - Registre comando, alcance, resultado y limitaciones. Use **PASS** para una comprobación satisfactoria, **FAIL** ante un resultado incorrecto, **BLOCKED** cuando una condición impide comprobar y **NOT TESTED** cuando la comprobación no se ejecutó. Declare verificadas únicamente las funciones probadas.
 
 ## Git y agentes

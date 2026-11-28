@@ -1,21 +1,15 @@
 import * as React from "react";
+import * as ToastPrimitive from "@radix-ui/react-toast";
 import { cva } from "class-variance-authority";
 import { X } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
-const ToastProvider = React.forwardRef(({ ...props }, ref) => (
-  <div
-    ref={ref}
-    className="pointer-events-none fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]"
-    {...props}
-  />
-));
-ToastProvider.displayName = "ToastProvider";
+const ToastProvider = ToastPrimitive.Provider;
 
-const ToastViewport = React.forwardRef(({ ...props }, ref) => (
-  <div
+const ToastViewport = React.forwardRef(({ className, ...props }, ref) => (
+  <ToastPrimitive.Viewport
     ref={ref}
-    className="pointer-events-none fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]"
+    className={cn("pointer-events-none fixed inset-x-0 top-0 z-[100] m-0 flex max-h-screen list-none flex-col-reverse gap-2 p-4 sm:bottom-0 sm:left-auto sm:top-auto sm:w-[min(100%,420px)] sm:flex-col", className)}
     {...props}
   />
 ));
@@ -39,7 +33,7 @@ const toastVariants = cva(
 
 const Toast = React.forwardRef(({ className, variant, ...props }, ref) => {
   return (
-    <div
+    <ToastPrimitive.Root
       ref={ref}
       className={cn(toastVariants({ variant }), className)}
       {...props}
@@ -61,17 +55,18 @@ const ToastAction = React.forwardRef(({ className, ...props }, ref) => (
 ToastAction.displayName = "ToastAction";
 
 const ToastClose = React.forwardRef(({ className, ...props }, ref) => (
-  <button
+  <ToastPrimitive.Close
     ref={ref}
+    type="button"
+    aria-label="Cerrar notificación"
     className={cn(
-      "absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100 group-[.destructive]:text-red-300 group-[.destructive]:hover:text-red-50 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600",
+      "absolute right-1 top-1 grid size-11 place-items-center rounded-md text-current hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
       className
     )}
-    toast-close=""
     {...props}
   >
-    <X className="h-4 w-4" />
-  </button>
+    <X aria-hidden="true" className="h-4 w-4" />
+  </ToastPrimitive.Close>
 ));
 ToastClose.displayName = "ToastClose";
 

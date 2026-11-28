@@ -11,8 +11,9 @@ Envíe `Accept: application/json` y habilite credenciales en todas las peticione
 | `GET /sanctum/csrf-cookie` | `204`. Inicializa la sesión y emite la cookie `XSRF-TOKEN`. | |
 | `POST /login` | `204`. Recibe `email`, `password` y el booleano opcional `remember`. Rota la sesión y actualiza `XSRF-TOKEN`. | `422` para entrada inválida o acceso rechazado, `409` si ya hay sesión, `419` por falta de CSRF y `429` por exceso de intentos. |
 | `GET /api/mi-sesion` | `200`. Devuelve `data.id`, `data.nombre`, `data.correo` y `data.roles`. | `401` para acceso anónimo o sesión expirada. `403` si se revocaron todos los roles de acceso, con invalidación de esa sesión. |
-| `GET /api/administracion/cuentas` | `200`. Devuelve `data` con ID, nombre, correo y estado activo de cada cuenta interna y `hayMas` para paginar. | `401` sin sesión vigente y `403` sin rol Administrador. |
-| `POST /api/administracion/cuentas/{cuenta}` | `204`. El cuerpo acepta solo `accion` con `suspender`, `reactivar` o `revocar-sesiones`. | `401` sin sesión vigente, `403` sin rol Administrador, `404` si la cuenta no existe o está fuera del personal interno, `409` al intentar suspender al último administrador activo, `419` sin CSRF y `422` si el cuerpo es inválido. |
+| GET /api/administracion/cuentas | 200 con datos paginados y hayMas. Acepta q, rol, estado, acceso, desde, hasta y page. | 401 sin sesión, 403 sin autorización, 422 para filtros inválidos. |
+| POST /api/administracion/cuentas | 201. Recibe nombre, correo, rol y password opcional. | 401 sin sesión, 403 sin autorización, 419 sin CSRF, 422 para datos inválidos y 503 con el cambio de esquema pendiente. |
+| POST /api/administracion/cuentas/{cuenta} | 204 al editar, cambiar rol, suspender, reactivar, revocar o iniciar recuperación por correo. El restablecimiento temporal devuelve 200 con la clave generada. | 401 sin sesión, 403 sin autorización, 404 para cuenta fuera del ámbito, 409 para acciones incompatibles con la protección, 419 sin CSRF y 422 para datos inválidos. |
 | `POST /logout` | `204`. Invalida la sesión y renueva `XSRF-TOKEN`. | `401` sin sesión si CSRF es válido y `419` si CSRF falta o está vencido. |
 | `POST /forgot-password` | `202` sin cuerpo para todo correo sintácticamente válido. Recibe `email` y encola la solicitud. | `419` sin CSRF, `422` para formato inválido y `429` al superar los límites. |
 | `POST /reset-password` | `204`. Recibe `email`, `token`, `password` y `password_confirmation`. Consume el token y revoca las sesiones previas. | `419` sin CSRF, `422` para enlace inválido, vencido o consumido, o formulario inválido, y `429` por exceso de intentos. |
@@ -24,6 +25,13 @@ El panel de Administración ofrece **Cuentas internas** para cuentas con rol Adm
 La migración inicializa las cuentas existentes como activas y sus sesiones preexistentes con versión implícita cero. Cada revocación invalida el recuerdo, borra las sesiones de base de datos e incrementa la versión de sesión en la cuenta. El middleware rechaza una versión anterior aunque una petición en curso vuelva a guardar esa sesión. Configure la tabla de sesiones en la misma conexión de identidad para compartir la transacción.
 
 `eventos_de_cuenta` guarda el ID del actor, el ID de la cuenta, la acción y la fecha de cada cambio aplicado. Suspender una cuenta ya suspendida o reactivar una cuenta ya activa devuelve `204` sin un evento adicional. Las referencias impiden borrar físicamente cuentas que figuran en el historial.
+
+
+### Alta directa de personal
+
+Administración registra nombre, correo y rol autorizado. El correo se normaliza y conserva su unicidad. La respuesta de alta o restablecimiento administrativo entrega la clave generada una sola vez y prohíbe almacenarla en caché. Si el administrador la establece manualmente durante el alta, la respuesta omite ese valor. El operador comparte la clave por un canal privado. La entrega de una clave temporal no verifica el correo.
+
+Las cuentas nuevas y las restablecidas con una temporal pueden iniciar sesión para completar el cambio obligatorio. Mientras la marca esté activa, solo pueden consultar la sesión, obtener CSRF, cambiar la contraseña y salir. Al guardar una contraseña distinta se revocan las sesiones y el titular vuelve al ingreso. La recuperación por correo disponible también permite completar el cambio. Las cuentas existentes conservan su estado y la cuenta principal queda excluida del restablecimiento administrativo.
 
 ## Política de sesión
 

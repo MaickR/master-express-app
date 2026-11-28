@@ -12,6 +12,11 @@ class OrigenPublico
         ), '/');
 
         $transporte = app(TransporteDeCorreoSeguro::class);
+        if ($transporte->demostracionInterna($correo) && $transporte->habilitar($correo)
+            && preg_match('~\Ahttp://127\.0\.0\.1:[0-9]{1,5}\z~', $origen)) {
+            return $origen;
+        }
+
         if ($real && $origen === 'http://127.0.0.1:5173' && $transporte->sandboxLocalActivo()
             && $transporte->permiteDestinatario($correo)) {
             return $origen;

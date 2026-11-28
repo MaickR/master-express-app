@@ -4,6 +4,7 @@ use App\Http\Controllers\CuentasInternasController;
 use App\Http\Controllers\EventosController;
 use App\Http\Controllers\InstitucionesController;
 use App\Http\Controllers\MiInstitucionController;
+use App\Http\Controllers\MiPerfilController;
 use App\Http\Controllers\MiSesionController;
 use App\Http\Controllers\RegistrosController;
 use App\Http\Controllers\VinculosGraduandosController;
@@ -25,7 +26,15 @@ Route::middleware('auth:web')->prefix('mi-institucion')->controller(MiInstitucio
             ->whereNumber(['vinculo', 'evento'])->name('mi-institucion.eventos.show');
     });
 
-Route::middleware('auth:web')->prefix('administracion/cuentas')->group(function (): void {
+Route::middleware(['auth:web', 'throttle:30,1'])->prefix('mi-perfil')->controller(MiPerfilController::class)->group(function (): void {
+    Route::get('/', 'show');
+    Route::post('/', 'guardar');
+    Route::post('/contrasena', 'contrasena')->name('perfil.contrasena');
+});
+
+Route::middleware(['auth:web', 'throttle:30,1'])->prefix('administracion/cuentas')->group(function (): void {
+    Route::post('/', [CuentasInternasController::class, 'store']);
+    Route::get('/auditoria', [CuentasInternasController::class, 'auditoria']);
     Route::get('/', [CuentasInternasController::class, 'index'])->name('cuentas.index');
     Route::post('/{cuenta}', [CuentasInternasController::class, 'actualizar'])->whereNumber('cuenta')->name('cuentas.actualizar');
 });

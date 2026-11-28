@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class OperacionDeCuenta extends FormRequest
 {
@@ -23,8 +24,10 @@ class OperacionDeCuenta extends FormRequest
     public function rules(): array
     {
         return [
-            'operacion' => ['required', 'array:accion'],
-            'operacion.accion' => ['required', 'string', 'in:suspender,reactivar,revocar-sesiones'],
+            'operacion' => ['required', 'array:accion,rol,nombre'],
+            'operacion.rol' => ['exclude_unless:operacion.accion,cambiar-rol', 'required', Rule::in(User::ROLES_INTERNOS)],
+            'operacion.nombre' => ['exclude_unless:operacion.accion,editar', 'required', 'string', 'max:255'],
+            'operacion.accion' => ['required', 'string', 'in:suspender,reactivar,revocar-sesiones,recuperar,cambiar-rol,editar,restablecer-clave'],
         ];
     }
 

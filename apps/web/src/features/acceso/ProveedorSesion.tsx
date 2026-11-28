@@ -3,10 +3,12 @@ import { useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/ui/use-toast';
 import { consultarSesion, ErrorSesion, iniciarSesion, mensajeSesion, terminarSesion, type Credenciales } from './cliente-sesion';
+import CambioInicial from './cambio-inicial';
 import { ContextoSesion, type EstadoSesion } from './contexto-sesion';
 
 export default function ProveedorSesion({ children }: { children: ReactNode }) {
   const [estado, establecerEstado] = useState<EstadoSesion>({ tipo: 'comprobando' });
+  const avisoSalida = useRef<ReturnType<typeof toast>>();
   const consulta = useRef<AbortController>();
   const operacion = useRef<AbortController>();
   const clienteConsultas = useQueryClient();
@@ -71,6 +73,7 @@ export default function ProveedorSesion({ children }: { children: ReactNode }) {
       const siguiente = await accion(control.signal);
       if (!control.signal.aborted) {
         clienteConsultas.clear();
+        if (siguiente.tipo === 'autenticado') avisoSalida.current?.dismiss();
         establecerEstado(siguiente);
       }
     } finally {
@@ -87,12 +90,17 @@ export default function ProveedorSesion({ children }: { children: ReactNode }) {
     establecerEstado({ tipo: 'comprobando' });
     try {
       await terminarSesion(signal);
-      toast({ title: 'Cerraste sesión' });
+      avisoSalida.current?.dismiss();
+      avisoSalida.current = toast({ title: 'Cerraste sesión', duration: 4000 });
       return { tipo: 'anonimo' };
     } catch (error) {
       return { tipo: 'error', mensaje: `No se pudo confirmar el cierre de sesión. ${mensajeSesion(error)}` };
     }
   });
 
-  return <ContextoSesion.Provider value={{ estado, iniciar, cerrar, comprobar }}>{children}</ContextoSesion.Provider>;
+  return <ContextoSesion.Provider value={{ estado, iniciar, cerrar, comprobar }}>
+    {estado.tipo === 'autenticado' && estado.identidad.cambio_clave_pendiente
+      ? <CambioInicial key={estado.identidad.id} alTerminar={() => { clienteConsultas.clear(); establecerEstado({ tipo: 'anonimo', aviso: 'Contraseña actualizada. Ingresa con tu nueva contraseña.' }); }} alCerrar={() => void cerrar()} />
+      : children}
+  </ContextoSesion.Provider>;
 }
