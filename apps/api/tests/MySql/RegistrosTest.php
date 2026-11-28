@@ -28,6 +28,27 @@ class RegistrosTest extends CasoMySql
         $this->administrador = $this->usuario('administrador');
     }
 
+    public function test_cancelar_preserva_inscripciones_y_bloquea_nuevas(): void
+    {
+        $ceremonia = $this->ceremonia();
+        $operador = $this->usuario('colaborador');
+        $entrada = $this->entrada($ceremonia);
+        $ruta = $this->ruta($ceremonia);
+        $this->actingAs($operador, 'web');
+        $registro = $this->postJson($ruta, $entrada)->assertCreated()->json('data.id');
+
+        $this->actingAs($this->administrador, 'web');
+        $this->postJson('/api/eventos/'.$ceremonia->evento_id.'/cancelacion')->assertOk()
+            ->assertJsonPath('data.ceremonias.0.graduandos_vinculados', 1)
+            ->assertJsonPath('data.ceremonias.0.programas.0', 'Programa ficticio');
+
+        $this->actingAs($operador, 'web');
+        $this->getJson('/api/registros/'.$registro)->assertOk();
+        $this->postJson($ruta, $entrada)->assertCreated()->assertJsonPath('data.id', $registro);
+        $this->postJson($ruta, $this->entrada($ceremonia))->assertConflict();
+        $this->assertDatabaseCount('registros', 1);
+    }
+
     public function test_alta_consultas_filtradas_y_homonimos_por_id_interno(): void
     {
         $actor = $this->usuario('colaborador');

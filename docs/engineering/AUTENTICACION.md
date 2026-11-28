@@ -125,8 +125,8 @@ La rotación interactiva se realiza con %LOCALAPPDATA%\MasterExpressControl\ME-S
 
 | Sección | Fuente | Alcance verificado y pendiente |
 | --- | --- | --- |
-| Panel Principal | Base44 local | Indicadores visibles. Los eventos Laravel no alimentan este conteo. |
-| Eventos | Laravel en ensayo | Listado y creación con ceremonias verificados en ME-OPS1A. Edición, borrado, cancelación y reprogramación pendientes. |
+| Panel Principal | Laravel y datos heredados | El indicador de eventos activos consulta Laravel. Los indicadores financieros y de graduandos conservan su fuente anterior. |
+| Eventos | Laravel y MySQL | Administrador activo con cambio inicial completado. Alta, consulta, edición y cancelación según [ME-OPS2A](ME-OPS2A.md). La programación institucional conserva sus permisos por vínculo y sede. |
 | Paquetes | Base44 local | Pantalla y precios visibles. Mutaciones comerciales fuera del ensayo. |
 | Gastos | Base44 local | Estado vacío visible. Mutaciones fuera del ensayo. |
 | Resumen Financiero | Base44 local | Indicadores visibles. Conciliación con Laravel pendiente. |

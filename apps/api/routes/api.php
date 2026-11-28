@@ -65,6 +65,8 @@ Route::middleware('auth:web')->prefix('eventos')->group(function (): void {
     Route::get('/', [EventosController::class, 'index'])->name('eventos.index');
     Route::post('/', [EventosController::class, 'store'])->name('eventos.store');
     Route::get('/{evento}', [EventosController::class, 'show'])->whereNumber('evento')->name('eventos.show');
+    Route::post('/{evento}', [EventosController::class, 'update'])->whereNumber('evento')->name('eventos.update');
+    Route::post('/{evento}/cancelacion', [EventosController::class, 'cancelar'])->whereNumber('evento')->name('eventos.cancelar');
     Route::get('/{evento}/ceremonias', [EventosController::class, 'ceremonias'])
         ->whereNumber('evento')->name('eventos.ceremonias.index');
     Route::get('/{evento}/ceremonias/{ceremonia}', [EventosController::class, 'ceremonia'])

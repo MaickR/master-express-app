@@ -62,7 +62,7 @@ export default function Recomendaciones() {
       if (graduandos.length === 0) {
         recs.push({
           tipo: "info", icon: Lightbulb,
-          texto: "Aún no hay graduandos registrados. Cree eventos y comience a registrar graduandos para iniciar la operación."
+          texto: "Aún no hay graduandos registrados para este resumen."
         });
       }
 
@@ -80,11 +80,11 @@ export default function Recomendaciones() {
     setLoading(false);
   };
 
-  const coloresIcono = { warning: "text-aviso dark:text-amber-500", info: "text-primary", success: "text-exito dark:text-green-500" };
+  const coloresIcono = { warning: "text-aviso", info: "text-info", success: "text-exito" };
   const coloresBg = {
-    warning: "bg-amber-50 border-amber-200",
-    info: "bg-primary/5 border-primary/20",
-    success: "bg-green-50 border-green-200"
+    warning: "bg-aviso-suave border-border",
+    info: "bg-info-suave border-border",
+    success: "bg-exito-suave border-border"
   };
 
   if (loading) return (

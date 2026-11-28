@@ -15,6 +15,8 @@ class CeremoniaResource extends JsonResource
             'nombre' => $this->nombre,
             'hora' => $this->hora,
             'orden' => $this->orden,
+            'graduandos_vinculados' => $this->whenLoaded('registros', fn () => $this->registros->count()),
+            'programas' => $this->whenLoaded('registros', fn () => $this->registros->pluck('programa_academico')->filter()->unique()->sort()->values()),
         ];
     }
 }

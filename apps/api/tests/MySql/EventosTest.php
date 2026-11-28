@@ -12,6 +12,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -20,6 +21,79 @@ class EventosTest extends CasoMySql
     private const string RUTA = '/api/eventos';
 
     protected array $tablas = ['users', 'roles', 'rol_user', 'instituciones', 'sedes', 'eventos', 'ceremonias'];
+
+    public function test_dia_operativo_de_bogota_y_reintento_despues_de_medianoche(): void
+    {
+        $this->autenticar('administrador');
+        $this->travelTo(Carbon::parse('2030-05-01 04:59:59', 'UTC'), function (): void {
+            $institucion = $this->institucion();
+            $entrada = $this->entrada($institucion, ['fecha' => '2030-04-30']);
+            $id = $this->postJson(self::RUTA, $entrada)->assertCreated()->assertJsonPath('data.estado', 'en_ejecucion')->json('data.id');
+            $this->postJson(self::RUTA, array_replace($entrada, ['fecha' => '2030-04-29', 'operation_id' => (string) Str::uuid()]))
+                ->assertUnprocessable()->assertJsonValidationErrors('evento.fecha');
+            $this->postJson(self::RUTA, array_replace($entrada, ['fecha' => '2030-04-31', 'operation_id' => (string) Str::uuid()]))
+                ->assertUnprocessable()->assertJsonValidationErrors('evento.fecha');
+            $this->postJson(self::RUTA, array_replace($entrada, ['fecha' => '2030-05-01', 'operation_id' => (string) Str::uuid()]))
+                ->assertCreated()->assertJsonPath('data.estado', 'proximo');
+            $this->travel(1)->seconds();
+            $this->getJson(self::RUTA.'?vista=historial')->assertOk()
+                ->assertJsonPath('fecha_operativa', '2030-05-01')->assertJsonPath('data.0.estado', 'finalizado');
+            $this->postJson(self::RUTA, $entrada)->assertCreated()->assertJsonPath('data.id', $id);
+            $this->postJson(self::RUTA.'/'.$id, ['revision' => 1, 'lugar' => 'Corrección histórica'])
+                ->assertConflict();
+            $this->postJson(self::RUTA.'/'.$id.'/cancelacion')->assertConflict();
+            $this->assertDatabaseHas('eventos', ['id' => $id, 'fecha' => '2030-04-30', 'lugar' => null]);
+        });
+    }
+
+    public function test_edita_atomicamente_consulta_y_cancela_con_auditoria(): void
+    {
+        $actor = $this->autenticar('administrador');
+        $entrada = $this->entrada($this->institucion());
+        $evento = $this->postJson(self::RUTA, $entrada)->assertCreated()->json('data');
+        $otro = $this->postJson(self::RUTA, array_replace($entrada, ['operation_id' => (string) Str::uuid()]))->assertCreated()->json('data');
+        $ruta = self::RUTA.'/'.$evento['id'];
+        $ceremonia = ['id' => $evento['ceremonias'][0]['id'], 'nombre' => 'Ceremonia de diseño', 'hora' => '08:30'];
+        $cambios = [
+            'revision' => 1, 'lugar' => 'Auditorio QA', 'responsable' => 'Equipo QA',
+            'graduandos_previstos' => 0, 'observaciones' => 'Ingresar por recepción.',
+            'ceremonias' => [$ceremonia],
+        ];
+        $this->postJson($ruta, array_replace($cambios, ['ceremonias' => [$ceremonia, array_replace($ceremonia, ['id' => $otro['ceremonias'][0]['id']])]]))
+            ->assertUnprocessable()->assertJsonValidationErrors('evento.ceremonias.1.id');
+        $this->assertDatabaseHas('ceremonias', ['id' => $ceremonia['id'], 'nombre' => 'Ceremonia 1', 'hora' => null]);
+        $this->postJson($ruta, $cambios)->assertOk()->assertJsonPath('data.revision', 2)
+            ->assertJsonPath('data.graduandos_previstos', 0)->assertJsonPath('data.ceremonias.0.nombre', $ceremonia['nombre']);
+        $this->getJson($ruta)->assertOk()->assertJsonPath('data.ceremonias.0.hora', '08:30:00');
+        $this->postJson($ruta, $cambios)->assertConflict();
+        $this->getJson(self::RUTA.'?vista=activa&buscar=dise%C3%B1o&estado=proximo&desde=2099-01-01&hasta=2099-03-01')
+            ->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.id', $evento['id']);
+        $this->getJson(self::RUTA.'?vista=activa&buscar='.$evento['id'])->assertOk()->assertJsonPath('meta.total', 1);
+        $this->getJson(self::RUTA.'?desde=2099-04-01&hasta=2099-03-01')->assertUnprocessable();
+
+        $cancelado = $this->postJson($ruta.'/cancelacion')->assertOk()->assertJsonPath('data.estado', 'cancelado')
+            ->assertJsonCount(3, 'data.ceremonias')->json('data.cancelado_en');
+        $this->postJson($ruta.'/cancelacion')->assertOk()->assertJsonPath('data.cancelado_en', $cancelado);
+        $this->postJson($ruta, array_replace($cambios, ['revision' => 2]))->assertConflict();
+        $this->assertDatabaseHas('eventos', ['id' => $evento['id'], 'cancelado_por' => $actor->id, 'lugar' => 'Auditorio QA']);
+        $this->getJson(self::RUTA.'?vista=activa&buscar=Auditorio')->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson(self::RUTA.'?vista=historial&estado=cancelado')->assertOk()->assertJsonPath('data.0.id', $evento['id']);
+
+        $this->autenticar('colaborador');
+        $this->postJson($ruta, $cambios)->assertForbidden();
+        $this->postJson(self::RUTA.'/'.PHP_INT_MAX.'/cancelacion')->assertForbidden();
+    }
+
+    public function test_activacion_explicita_del_contrato_fuera_del_ensayo(): void
+    {
+        $this->autenticar('administrador');
+        $this->app->instance('env', 'production');
+        $this->getJson(self::RUTA)->assertForbidden();
+        config(['eventos.habilitados' => true]);
+        $this->postJson(self::RUTA, $this->entrada($this->institucion()))->assertCreated();
+        $this->autenticar('colaborador');
+        $this->getJson(self::RUTA)->assertForbidden();
+    }
 
     public function test_alta_y_consultas_con_identidad_institucional_estable_y_ceremonias_ordenadas(): void
     {

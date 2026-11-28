@@ -20,6 +20,7 @@ Se sirve un solo WOFF2 latino variable de Inter v20 desde el mismo origen, con p
 | --- | --- |
 | Página, tarjetas y contenido en portales | `background`, `foreground`, `card`, `card-foreground`, `popover`, `popover-foreground` |
 | Texto de apoyo y superficies atenuadas | `muted`, `muted-foreground` |
+| Información operativa | `info`, `info-suave` |
 | Acciones, enlaces y selección | `primary`, `primary-foreground`, `interactivo`, `primary-suave`, `primary-suave-foreground`, `secondary`, `secondary-foreground`, `accent`, `accent-foreground` |
 | Bordes, campos y foco | `border`, `input`, `ring` |
 | Éxito, advertencia, error y acción destructiva | `exito`, `aviso`, `error`, sus variantes `-suave`, `destructive`, `destructive-foreground` |
@@ -73,6 +74,6 @@ El formulario mantiene las etiquetas persistentes, el foco visible y las zonas t
 
 ## Alcance pendiente
 
-La revisión de contraste cubre muestras del ingreso, la cabecera, la navegación, los menús y los indicadores. La validación AA completa y la actualización visual de clases heredadas en módulos internos quedan pendientes.
+Las tarjetas y los badges de Panel Principal, Eventos, Gastos y Resumen Financiero usan pares semánticos para texto, iconos y superficies. Los controles de Eventos reutilizan los diálogos existentes, con confirmación de cancelación y acciones de 44 px. La cobertura específica de la fase se registra en [ME-OPS2A](ME-OPS2A.md). Queda pendiente la evaluación integral de WCAG 2.2 AA del producto.
 
 Las capacidades sin conexión se rigen por el [alcance PWA aprobado](../product/ME-PWA.md).

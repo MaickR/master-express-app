@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/integrations/base44/base44Client";
 import {
   Users, CalendarDays, DollarSign, GraduationCap,
@@ -10,6 +11,7 @@ import { Card, CardContent } from "@/shared/ui/card";
 import PanelOperativo from "@/shared/components/PanelOperativo";
 import IndicadoresPanel from "@/shared/components/IndicadoresPanel";
 import GestionEventos from "@/features/ceremonias/GestionEventos";
+import { consultarEventos } from "@/features/ceremonias/cliente-eventos";
 import GestionPrecios from "@/features/ventas/GestionPrecios";
 import GestionGastos from "@/features/finanzas/GestionGastos";
 import TodosRegistros from "@/features/graduandos/TodosRegistros";
@@ -54,28 +56,35 @@ const gruposNavegacion = GROUPS.map(grupo => ({
 export default function AdminDashboard({ identidad }) {
   const [activeTab, setActiveTab] = useState("panel");
   const [stats, setStats] = useState({
-    totalGraduandos: 0, colaboradoresActivos: 0, eventosActivos: 0,
+    totalGraduandos: 0, colaboradoresActivos: 0,
     ingresosTotales: 0, pagosCompletos: 0, pagosPendientes: 0, totalGastos: 0
   });
   const [loading, setLoading] = useState(true);
   const [errorIndicadores, setErrorIndicadores] = useState(false);
+  const programacion = useQuery({
+    queryKey: ["programacion", identidad.id, "listado", "activa", 1, {}],
+    queryFn: ({ signal }) => consultarEventos(1, signal, { vista: "activa" }),
+    enabled: activeTab === "panel",
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
+    gcTime: 0,
+    retry: false,
+  });
   useEffect(() => { void loadStats(); }, []);
 
   const loadStats = async () => {
     setLoading(true);
     setErrorIndicadores(false);
     try {
-      const [graduandosRaw, colaboradores, eventos, gastos] = await Promise.all([
+      const [graduandosRaw, colaboradores, gastos] = await Promise.all([
         base44.entities.Graduando.list(),
         base44.entities.Colaborador.filter({ activo: true }),
-        base44.entities.Evento.filter({ activo: true }),
         base44.entities.Gasto.list()
       ]);
       const graduandos = graduandosRaw.filter(g => !g.eliminado);
       setStats({
         totalGraduandos: graduandos.length,
         colaboradoresActivos: colaboradores.length,
-        eventosActivos: eventos.length,
         ingresosTotales: graduandos.reduce((s, g) => s + (g.valor_total || 0), 0),
         pagosCompletos: graduandos.filter(g => g.estado_pago === 'completo').length,
         pagosPendientes: graduandos.filter(g => g.estado_pago === 'pendiente').length,
@@ -97,8 +106,8 @@ export default function AdminDashboard({ identidad }) {
   // Renderiza solo el tab activo — sin key animada para evitar re-mount
   const renderContent = () => {
     switch (activeTab) {
-      case "panel":           return <PanelHome stats={stats} formatCurrency={formatCurrency} gananciaNeta={gananciaNeta} onNavigate={setActiveTab} />;
-      case "eventos":         return <GestionEventos onUpdate={loadStats} />;
+      case "panel":           return <PanelHome stats={stats} programacion={programacion} formatCurrency={formatCurrency} gananciaNeta={gananciaNeta} onNavigate={setActiveTab} />;
+      case "eventos":         return <GestionEventos actorId={identidad.id} />;
       case "precios":         return <GestionPrecios onUpdate={loadStats} />;
       case "gastos":          return <GestionGastos onUpdate={loadStats} />;
       case "resumen":         return <ResumenFinanciero />;
@@ -118,7 +127,7 @@ export default function AdminDashboard({ identidad }) {
     <PanelOperativo grupos={gruposNavegacion} activo={activeTab} rol="Administrador" nombre={identidad.nombre}
       alSeleccionar={setActiveTab}>
       <div className="panel-pagina">
-        {activeTab !== "panel" && activeTab !== "cuentas-internas" && <h1 className="sr-only">{activeTabDef?.label}</h1>}
+        {activeTab !== "panel" && activeTab !== "cuentas-internas" && <h1 className="sr-only" tabIndex={-1}>{activeTabDef?.label}</h1>}
         {activeTab === "panel" && loading ? (
           <div className="panel-estado" role="status">
             <Loader2 aria-hidden="true" className="mx-auto size-6 animate-spin text-muted-foreground" />
@@ -136,12 +145,12 @@ export default function AdminDashboard({ identidad }) {
 }
 
 // ─── Panel Home ───────────────────────────────────────────────────────────────
-function PanelHome({ stats, formatCurrency, gananciaNeta, onNavigate }) {
+function PanelHome({ stats, programacion, formatCurrency, gananciaNeta, onNavigate }) {
   /** @type {React.ComponentProps<typeof IndicadoresPanel>["indicadores"]} */
   const indicadores = [
     { label: "Graduandos", value: stats.totalGraduandos, icon: GraduationCap },
     { label: "Colaboradores", value: stats.colaboradoresActivos, icon: Users },
-    { label: "Eventos", value: stats.eventosActivos, icon: CalendarDays },
+    { label: "Eventos activos", value: programacion.data?.total ?? (programacion.isFetching ? "Cargando…" : "Sin consulta"), icon: CalendarDays },
     { label: "Pagos completos", value: stats.pagosCompletos, icon: CheckCircle, tono: "exito" },
     { label: "Pagos pendientes", value: stats.pagosPendientes, icon: AlertCircle, tono: "aviso" },
     { label: "Ingresos", value: formatCurrency(stats.ingresosTotales), icon: TrendingUp, tono: "exito" },
@@ -153,19 +162,19 @@ function PanelHome({ stats, formatCurrency, gananciaNeta, onNavigate }) {
     <div className="space-y-7">
       <div className="panel-portada">
         <div>
-          <h1>Panel de administración</h1>
+          <h1 tabIndex={-1}>Panel de administración</h1>
           <p>Consulta los registros, las ceremonias y los resultados de la operación.</p>
         </div>
       </div>
 
       <section aria-labelledby="indicadores-admin" className="space-y-3">
         <h2 id="indicadores-admin" className="font-heading text-lg font-semibold">Indicadores de la operación</h2>
-        <p className="text-sm text-muted-foreground">Datos de Base44. La programación creada en Laravel se consulta en Eventos.</p>
         <IndicadoresPanel indicadores={indicadores} />
+        {programacion.isError && <p role="alert" className="text-sm text-error">No se pudo consultar el total de eventos activos. <button className="underline" type="button" onClick={() => programacion.refetch()}>Volver a intentar</button></p>}
         <Card className="border-border">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="panel-indicador__icono shrink-0" data-tono={esPositivo ? "exito" : "aviso"}>
+              <span className="panel-indicador__icono shrink-0" data-tono={esPositivo ? "exito" : "error"}>
                 <PiggyBank aria-hidden="true" className="size-5" />
               </span>
               <div className="min-w-0">
