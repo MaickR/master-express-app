@@ -18,7 +18,9 @@ class ListarVinculosGraduandos extends FormRequest
     public function rules(): array
     {
         return [
-            'page' => ['sometimes', 'required', 'integer', 'min:1'],
+            'page' => ['sometimes', 'required', 'integer', 'between:1,2147483647'],
+            'buscar' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'vinculacion' => ['sometimes', 'required', 'in:activa,sin_vinculo'],
         ];
     }
 
@@ -26,6 +28,8 @@ class ListarVinculosGraduandos extends FormRequest
     {
         return [
             'page.*' => 'Ingresa un número de página válido.',
+            'buscar.*' => 'La búsqueda admite hasta 150 caracteres.',
+            'vinculacion.*' => 'Selecciona un estado de vinculación válido.',
         ];
     }
 }

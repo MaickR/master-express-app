@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { createServer } from 'node:net';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readdir, copyFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,15 +14,16 @@ if (process.env.ME_QA_ACEPTACION_HUMANA === 'true' || (process.argv.includes('--
 }
 console.log('Proceso de ensayo automatizado:', process.pid);
 const raiz = fileURLToPath(new URL('../', import.meta.url));
+const graduandos = process.argv.includes('--graduandos');
 const eventos = process.argv.includes('--eventos');
-const suite = eventos
+const suite = graduandos ? ['tests/MySql/GestionGraduandosTest.php', 'tests/MySql/RegistrosTest.php', 'tests/MySql/VinculacionGraduandosTest.php', 'tests/MySql/GestionGraduandosConcurrenciaTest.php'] : eventos
   ? ['tests/MySql/EventosTest.php', 'tests/MySql/RegistrosTest.php', 'tests/MySql/ProgramacionInstitucionalTest.php', 'tests/Feature/EnsayoEventosTest.php']
   : ['tests/MySql/AdminCoreTest.php'];
-const chrome = eventos ? 'tests/eventos-chrome.mjs' : 'tests/admin-core-chrome.mjs';
+const chrome = graduandos ? 'tests/graduandos-chrome.mjs' : eventos ? 'tests/eventos-chrome.mjs' : 'tests/admin-core-chrome.mjs';
 const api = join(raiz, 'apps/api');
 const baseTemporal = process.env.ME_QA_TEMP_DIR || tmpdir();
 await mkdir(baseTemporal, { recursive: true });
-const carpeta = await mkdtemp(join(baseTemporal, eventos ? 'me-ops2a-' : 'me-admin-core-'));
+const carpeta = await mkdtemp(join(baseTemporal, graduandos ? 'me-ops2c-' : eventos ? 'me-ops2a-' : 'me-admin-core-'));
 const datos = join(carpeta, 'mysql');
 const bin = 'C:/Program Files/MySQL/MySQL Server 9.1/bin';
 const puerto = 3338;
@@ -77,7 +78,32 @@ try {
      GRANT ALL ON masterexpress_control_test.* TO 'qa_admin_core'@'127.0.0.1';
      ALTER USER 'root'@'localhost' IDENTIFIED BY '${claveRoot}';`);
   console.log('PASS MySQL nuevo en 127.0.0.1:3338; esquema aislado, cuenta restringida y credenciales aleatorias en memoria.');
+  if (graduandos) {
+    const anteriores = join(carpeta, 'migraciones-previas');
+    await mkdir(anteriores);
+    for (const archivo of await readdir(join(api, 'database/migrations'))) {
+      if (!archivo.startsWith('2026_11_28_000014')) await copyFile(join(api, 'database/migrations', archivo), join(anteriores, archivo));
+    }
+    console.log(await ejecutar('php', ['artisan', 'migrate', '--path=' + anteriores, '--realpath', '--force']));
+    await ejecutar(join(bin, 'mysql.exe'), ['--no-defaults', '-h127.0.0.1', `-P${puerto}`, '-uqa_admin_core', 'masterexpress_control_test'],
+      "INSERT INTO graduandos (id,nombre_completo) VALUES (702,'Registro previo ficticio QA');", { env: { ...env, MYSQL_PWD: claveDb } });
+    const respaldo = await ejecutar(join(bin, 'mysqldump.exe'), ['--no-defaults', '--host=127.0.0.1', `--port=${puerto}`, '--user=qa_admin_core', '--single-transaction', '--no-tablespaces', 'masterexpress_control_test'], undefined, { env: { ...env, MYSQL_PWD: claveDb } });
+    await writeFile(join(carpeta, 'respaldo-sintetico-previo.sql'), respaldo);
+    await ejecutar(join(bin, 'mysql.exe'), ['--no-defaults', '-h127.0.0.1', `-P${puerto}`, '-uroot'],
+      'CREATE DATABASE masterexpress_respaldo_ops2c CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;', { env: { ...env, MYSQL_PWD: claveRoot } });
+    await ejecutar(join(bin, 'mysql.exe'), ['--no-defaults', '-h127.0.0.1', `-P${puerto}`, '-uroot', 'masterexpress_respaldo_ops2c'], respaldo, { env: { ...env, MYSQL_PWD: claveRoot } });
+    const restaurado = await ejecutar(join(bin, 'mysql.exe'), ['--no-defaults', '-h127.0.0.1', `-P${puerto}`, '-uroot', '--batch', '--skip-column-names', 'masterexpress_respaldo_ops2c', '-e', 'SELECT id,nombre_completo FROM graduandos WHERE id=702'], undefined, { env: { ...env, MYSQL_PWD: claveRoot } });
+    if (restaurado.trim() !== '702\tRegistro previo ficticio QA') throw new Error('No coincidió el respaldo restaurado.');
+    console.log('PASS Respaldo transaccional y restauración del esquema previo en clon aislado.');
+  }
   console.log(await ejecutar('php', ['artisan', 'migrate', '--database=mysql_pruebas', '--force']));
+  if (graduandos) {
+    const legado = await ejecutar(join(bin, 'mysql.exe'), ['--no-defaults', '-h127.0.0.1', `-P${puerto}`, '-uqa_admin_core', '--batch', '--skip-column-names', 'masterexpress_control_test', '-e', 'SELECT id,nombre_completo,revision,creado_por,numero_documento FROM graduandos WHERE id=702'], undefined, { env: { ...env, MYSQL_PWD: claveDb } });
+    if (legado.trim() !== '702\tRegistro previo ficticio QA\t1\tNULL\tNULL') throw new Error('La migración no conservó el registro previo.');
+    await ejecutar(join(bin, 'mysql.exe'), ['--no-defaults', '-h127.0.0.1', `-P${puerto}`, '-uqa_admin_core', 'masterexpress_control_test', '-e', 'DELETE FROM graduandos WHERE id=702'], undefined, { env: { ...env, MYSQL_PWD: claveDb } });
+    console.log('PASS Migración aditiva: identidad y nombre previos intactos; documento y actor sin atribución inventada.');
+  }
+
   console.log(await ejecutar('php', ['artisan', 'db:seed', '--class=RolSeeder', '--force']));
   try { if (!process.argv.includes('--solo-chrome')) console.log(await ejecutar('php', ['vendor/phpunit/phpunit/phpunit', ...suite])); }
   catch (error) { console.log(error.message); if (!process.argv.includes('--iterar')) throw error; }
@@ -97,28 +123,30 @@ echo 'PASS Identidad sintética creada exclusivamente en instancia nueva; buzón
 `);
     // La credencial de automatización solo vive en memoria y se entrega por stdin.
     const claveQa = randomBytes(24).toString('hex');
-    if (eventos) {
+    if (eventos || graduandos) {
       console.log(await ejecutar('php', ['artisan', 'qa:ensayo-eventos', 'preparar'], undefined, { env: { ...env, ME_QA_CLAVE: claveQa } }));
     } else {
       console.log(await ejecutar('php', [semilla], JSON.stringify({ clave: claveQa })));
     }
     iniciar('php', ['-S', '127.0.0.1:8018', '../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php'], { cwd: join(api, 'public') });
     iniciar(process.execPath, ['node_modules/vite/bin/vite.js', '--config', 'apps/web/vite.config.js', '--host', '127.0.0.1', '--port', '5189', '--strictPort'],
-      { cwd: raiz, env: { ...env, VITE_BASE44_DATOS_LOCALES: 'true', VITE_API_LOCAL_PORT: '8018' } });
+      { cwd: raiz, env: { ...env, VITE_BASE44_DATOS_LOCALES: 'true', VITE_API_LOCAL_PORT: '8018', ME_QA_VITE_CACHE_DIR: join(carpeta, 'vite-cache') } });
     console.log('PASS Servicios QA iniciados: http://127.0.0.1:5189/; Laravel 8018.');
     if (process.argv.includes('--chrome')) {
-      console.log(await ejecutar(process.execPath, [join(raiz, chrome), carpeta], JSON.stringify({ clave: claveQa }), { cwd: raiz }));
+      try { console.log(await ejecutar(process.execPath, [join(raiz, chrome), carpeta], JSON.stringify({ clave: claveQa }), { cwd: raiz })); } catch (error) { console.log(error.message); if (!process.argv.includes('--iterar')) throw error; }
     }
     console.log(`Evidencia QA: ${carpeta}`);
     if (!process.argv.includes('--chrome') || process.argv.includes('--iterar')) {
     const comandos = createInterface({ input: process.stdin });
     comandos.on('line', async linea => {
       try {
+        if (linea === 'cerrar') process.emit('SIGINT');
         if (linea === 'phpunit') console.log(await ejecutar('php', ['vendor/phpunit/phpunit/phpunit', ...suite]));
         if (linea === 'chrome') console.log(await ejecutar(process.execPath, [join(raiz, chrome), carpeta], JSON.stringify({ clave: claveQa }), { cwd: raiz }));
       } catch (error) { console.log(error.message); }
     });
     await new Promise(resolve => { process.on('SIGINT', resolve); process.on('SIGTERM', resolve); });
+    comandos.close();
     }
   }
 } catch (error) {

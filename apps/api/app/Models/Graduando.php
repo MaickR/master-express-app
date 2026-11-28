@@ -11,6 +11,11 @@ class Graduando extends Model
 {
     protected $table = 'graduandos';
 
+    protected function casts(): array
+    {
+        return ['creado_por' => 'integer', 'revision' => 'integer'];
+    }
+
     /** @return HasMany<Registro, $this> */
     public function registros(): HasMany
     {

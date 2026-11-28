@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CuentasInternasController;
 use App\Http\Controllers\EventosController;
+use App\Http\Controllers\GraduandosController;
 use App\Http\Controllers\InstitucionesController;
 use App\Http\Controllers\MiInstitucionController;
 use App\Http\Controllers\MiPerfilController;
@@ -71,4 +72,13 @@ Route::middleware('auth:web')->prefix('eventos')->group(function (): void {
         ->whereNumber('evento')->name('eventos.ceremonias.index');
     Route::get('/{evento}/ceremonias/{ceremonia}', [EventosController::class, 'ceremonia'])
         ->whereNumber(['evento', 'ceremonia'])->name('eventos.ceremonias.show');
+});
+
+Route::middleware(['auth:web', 'throttle:60,1'])->prefix('graduandos')->controller(GraduandosController::class)->group(function (): void {
+    Route::get('/programacion', 'programacion');
+    Route::get('/filtros', 'filtros');
+    Route::get('/', 'index');
+    Route::post('/', 'store');
+    Route::get('/{graduando}', 'show')->whereNumber('graduando');
+    Route::post('/{graduando}', 'update')->whereNumber('graduando');
 });

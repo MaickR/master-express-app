@@ -5,6 +5,7 @@ import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Separator } from '@/shared/ui/separator';
 import type { Identidad } from './cliente-sesion';
+import GestionGraduandos from '@/features/graduandos/gestion-graduandos';
 import DatosCuentaPortal, { CorreoVerificado } from './datos-cuenta-portal';
 
 type PropsBloque = ComponentType<HTMLAttributes<HTMLDivElement>>;
@@ -45,7 +46,8 @@ export default function PortalGraduando({ identidad }: { identidad: Identidad })
           </div>
         </header>
         {inicio ? (
-          <section aria-labelledby="titulo-ceremonias" className="max-w-2xl">
+          <section aria-labelledby="titulo-ceremonias" className="space-y-4">
+            <GestionGraduandos actorId={identidad.id} lectura />
             <Tarjeta className="shadow-none">
               <Encabezado className="flex-row items-start gap-3 space-y-0 p-4 sm:p-5">
                 <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary-suave text-primary-suave-foreground">

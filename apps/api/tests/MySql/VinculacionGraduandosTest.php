@@ -5,6 +5,7 @@ namespace Tests\MySql;
 use App\Actions\ProgramarEvento;
 use App\Models\AuditoriaVinculoGraduando;
 use App\Models\Ceremonia;
+use App\Models\Evento;
 use App\Models\Graduando;
 use App\Models\Institucion;
 use App\Models\Registro;
@@ -182,11 +183,12 @@ class VinculacionGraduandosTest extends CasoMySql
         $this->assertThrows(fn () => $vinculo->cuenta()->firstOrFail()->delete(), QueryException::class);
     }
 
-    public function test_la_vinculacion_no_cambia_inscripciones_ni_permisos_de_registro(): void
+    public function test_la_vinculacion_concede_consulta_propia_sin_cambiar_inscripciones(): void
     {
         $colaborador = $this->usuario('colaborador');
         $ceremonia = $this->ceremonia();
         $graduando = Graduando::query()->create(['nombre_completo' => 'Persona inscrita']);
+        $graduando->forceFill(['creado_por' => $colaborador->id])->save();
         $this->actingAs($colaborador, 'web');
         $id = $this->postJson('/api/ceremonias/'.$ceremonia->id.'/registros', [
             'operation_id' => (string) Str::uuid(),
@@ -206,10 +208,10 @@ class VinculacionGraduandosTest extends CasoMySql
             'evento_id' => $ceremonia->evento_id,
             'graduando_id' => $graduando->id,
             'programa_academico' => 'Programa ficticio',
-        ])->assertForbidden();
+        ])->assertConflict();
 
         $this->actingAs($cuenta, 'web');
-        $this->getJson('/api/registros/'.$id)->assertForbidden();
+        $this->getJson('/api/registros/'.$id)->assertOk();
         $this->assertSame($antes, Registro::query()->findOrFail($id)->getRawOriginal());
         $this->assertDatabaseCount('registros', 1);
     }
@@ -284,6 +286,7 @@ class VinculacionGraduandosTest extends CasoMySql
         $primera = $this->cuentaGraduando('Cuenta Equivocada');
         $correcta = $this->cuentaGraduando('Cuenta Correcta');
         $graduando = Graduando::query()->create(['nombre_completo' => 'Persona con dos ceremonias']);
+        $graduando->forceFill(['creado_por' => $colaborador->id])->save();
         $evento = $this->eventoConDosCeremonias();
         $ceremonias = $evento->ceremonias()->get();
         $this->assertCount(2, $ceremonias);
@@ -313,7 +316,7 @@ class VinculacionGraduandosTest extends CasoMySql
         $this->getJson('/api/mi-institucion')->assertForbidden();
         $this->getJson('/api/mi-institucion/vinculos/1/eventos')->assertForbidden();
         foreach ($registros as $id) {
-            $this->getJson('/api/registros/'.$id)->assertForbidden();
+            $this->getJson('/api/registros/'.$id)->assertOk();
         }
 
         $this->actingAs($colaborador, 'web');
@@ -357,7 +360,7 @@ class VinculacionGraduandosTest extends CasoMySql
             'cuenta_id' => $correcta->id,
         ])->assertConflict();
         $this->actingAs($primera, 'web');
-        $this->getJson('/api/registros/'.$registros[0])->assertForbidden();
+        $this->getJson('/api/registros/'.$registros[0])->assertNotFound();
         $this->getJson('/api/mi-institucion')->assertForbidden();
         $this->assertSame($antes, Registro::query()->orderBy('id')->get()->map->getRawOriginal()->all());
     }
@@ -383,7 +386,7 @@ class VinculacionGraduandosTest extends CasoMySql
         return $cuenta->refresh();
     }
 
-    private function eventoConDosCeremonias(): \App\Models\Evento
+    private function eventoConDosCeremonias(): Evento
     {
         $institucion = Institucion::query()->create(['nombre' => 'Institución ficticia', 'tipo' => 'universidad']);
 

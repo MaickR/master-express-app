@@ -20,7 +20,8 @@ class ListarRegistros extends FormRequest
         return [
             'evento_id' => ['sometimes', 'required', 'integer', 'min:1'],
             'ceremonia_id' => ['sometimes', 'required', 'integer', 'min:1'],
-            'page' => ['sometimes', 'required', 'integer', 'min:1'],
+            'graduando_id' => ['sometimes', 'required', 'integer', 'min:1'],
+            'page' => ['sometimes', 'required', 'integer', 'between:1,2147483647'],
         ];
     }
 

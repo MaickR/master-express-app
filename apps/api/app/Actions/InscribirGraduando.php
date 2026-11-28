@@ -6,6 +6,7 @@ use App\Models\Evento;
 use App\Models\Graduando;
 use App\Models\Registro;
 use App\Models\User;
+use App\Policies\GraduandoPolicy;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -50,6 +51,8 @@ class InscribirGraduando
             if (! $graduando) {
                 throw ValidationException::withMessages(['registro.graduando_id' => 'El graduando seleccionado no existe.']);
             }
+
+            abort_unless(app(GraduandoPolicy::class)->update($actorVigente, $graduando), 404);
 
             $registro = new Registro(['programa_academico' => $programa]);
             $registro->forceFill(['operation_id' => $operationId, 'huella_solicitud' => $huella]);

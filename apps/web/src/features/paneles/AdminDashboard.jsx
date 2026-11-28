@@ -14,7 +14,8 @@ import GestionEventos from "@/features/ceremonias/GestionEventos";
 import { consultarEventos } from "@/features/ceremonias/cliente-eventos";
 import GestionPrecios from "@/features/ventas/GestionPrecios";
 import GestionGastos from "@/features/finanzas/GestionGastos";
-import TodosRegistros from "@/features/graduandos/TodosRegistros";
+import { listarGraduandos } from "@/features/graduandos/cliente-graduandos";
+import GestionGraduandos from "@/features/graduandos/gestion-graduandos";
 import Reportes from "@/features/reportes/Reportes";
 import ResumenFinanciero from "@/features/finanzas/ResumenFinanciero";
 import Recomendaciones from "@/features/finanzas/Recomendaciones";
@@ -56,11 +57,17 @@ const gruposNavegacion = GROUPS.map(grupo => ({
 export default function AdminDashboard({ identidad }) {
   const [activeTab, setActiveTab] = useState("panel");
   const [stats, setStats] = useState({
-    totalGraduandos: 0, colaboradoresActivos: 0,
+    colaboradoresActivos: 0,
     ingresosTotales: 0, pagosCompletos: 0, pagosPendientes: 0, totalGastos: 0
   });
   const [loading, setLoading] = useState(true);
   const [errorIndicadores, setErrorIndicadores] = useState(false);
+  const graduandosOperativos = useQuery({
+    queryKey: ["gestion-graduandos", identidad.id, "resumen"],
+    queryFn: ({ signal }) => listarGraduandos(1, {}, signal),
+    enabled: activeTab === "panel", gcTime: 0, retry: false,
+    refetchOnWindowFocus: "always", refetchOnReconnect: "always",
+  });
   const programacion = useQuery({
     queryKey: ["programacion", identidad.id, "listado", "activa", 1, {}],
     queryFn: ({ signal }) => consultarEventos(1, signal, { vista: "activa" }),
@@ -83,7 +90,6 @@ export default function AdminDashboard({ identidad }) {
       ]);
       const graduandos = graduandosRaw.filter(g => !g.eliminado);
       setStats({
-        totalGraduandos: graduandos.length,
         colaboradoresActivos: colaboradores.length,
         ingresosTotales: graduandos.reduce((s, g) => s + (g.valor_total || 0), 0),
         pagosCompletos: graduandos.filter(g => g.estado_pago === 'completo').length,
@@ -106,17 +112,17 @@ export default function AdminDashboard({ identidad }) {
   // Renderiza solo el tab activo — sin key animada para evitar re-mount
   const renderContent = () => {
     switch (activeTab) {
-      case "panel":           return <PanelHome stats={stats} programacion={programacion} formatCurrency={formatCurrency} gananciaNeta={gananciaNeta} onNavigate={setActiveTab} />;
+      case "panel":           return <PanelHome graduandosOperativos={graduandosOperativos} stats={stats} programacion={programacion} formatCurrency={formatCurrency} gananciaNeta={gananciaNeta} onNavigate={setActiveTab} />;
       case "eventos":         return <GestionEventos actorId={identidad.id} />;
       case "precios":         return <GestionPrecios onUpdate={loadStats} />;
       case "gastos":          return <GestionGastos onUpdate={loadStats} />;
       case "resumen":         return <ResumenFinanciero />;
-      case "registros":       return <TodosRegistros />;
+      case "registros":       return <GestionGraduandos actorId={identidad.id} />;
       case "reportes":        return <Reportes />;
       case "exportar":        return <ExportarExcel />;
       case "cuentas-internas": return <GestionCuentasInternas actorId={identidad.id} />;
       case "solicitudes-institucionales": return <SolicitudesInstitucionales />;
-      case "vinculacion-graduandos": return <VinculacionGraduandos />;
+      case "vinculacion-graduandos": return <VinculacionGraduandos actorId={identidad.id} />;
       case "correos":         return <GestionCorreos />;
       case "papelera":        return <PapeleraGraduandos />;
       default:                return null;
@@ -145,10 +151,10 @@ export default function AdminDashboard({ identidad }) {
 }
 
 // ─── Panel Home ───────────────────────────────────────────────────────────────
-function PanelHome({ stats, programacion, formatCurrency, gananciaNeta, onNavigate }) {
+function PanelHome({ graduandosOperativos, stats, programacion, formatCurrency, gananciaNeta, onNavigate }) {
   /** @type {React.ComponentProps<typeof IndicadoresPanel>["indicadores"]} */
   const indicadores = [
-    { label: "Graduandos", value: stats.totalGraduandos, icon: GraduationCap },
+    { label: "Graduandos", value: graduandosOperativos.data?.total ?? (graduandosOperativos.isFetching ? "Cargando…" : "Sin consulta"), icon: GraduationCap },
     { label: "Colaboradores", value: stats.colaboradoresActivos, icon: Users },
     { label: "Eventos activos", value: programacion.data?.total ?? (programacion.isFetching ? "Cargando…" : "Sin consulta"), icon: CalendarDays },
     { label: "Pagos completos", value: stats.pagosCompletos, icon: CheckCircle, tono: "exito" },

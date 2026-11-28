@@ -1,3 +1,4 @@
+import GestionGraduandos from "@/features/graduandos/gestion-graduandos";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Building2, CalendarDays, GraduationCap, House, UserRound } from "lucide-react";
@@ -175,6 +176,7 @@ export default function PortalInstitucion({ identidad }) {
             )}
           </>
         )}
+        {seccion === "inicio" && <GestionGraduandos actorId={identidad.id} lectura />}
         {seccion === "cuenta" && (
           <DatosCuentaPortal nombre={identidad.nombre} correo={identidad.correo}
             verificado={ambito.isSuccess ? instituciones.some(item => item.correo_verificado) : null} />

@@ -333,17 +333,18 @@ export type GraduandoOperativo = z.infer<typeof graduandoOperativo>;
 export type VinculoGraduandoCreado = z.infer<typeof vinculoGraduandoCreado>['data'];
 const rutaVinculos = '/api/administracion/vinculos-graduandos';
 
-export async function listarGraduandosOperativos(pagina: number, signal: AbortSignal) {
-  const respuesta = await solicitar(`${rutaVinculos}/graduandos?page=${pagina}`, signal);
+export async function listarGraduandosOperativos(pagina: number, signal: AbortSignal, buscar = '', vinculacion = '') {
+  const respuesta = await solicitar(`${rutaVinculos}/graduandos?${new URLSearchParams({ page: String(pagina), ...(buscar ? { buscar } : {}), ...(vinculacion ? { vinculacion } : {}) })}`, signal);
   return leerJson(respuesta, paginaGraduandos);
 }
 
-export async function listarCuentasGraduando(pagina: number, signal: AbortSignal) {
-  const respuesta = await solicitar(`${rutaVinculos}/cuentas?page=${pagina}`, signal);
+export async function listarCuentasGraduando(pagina: number, signal: AbortSignal, buscar = '') {
+  const respuesta = await solicitar(`${rutaVinculos}/cuentas?${new URLSearchParams({ page: String(pagina), ...(buscar ? { buscar } : {}) })}`, signal);
   return leerJson(respuesta, paginaCuentasGraduando);
 }
 
 export async function vincularGraduando(graduandoId: number, cuentaId: number) {
+  if (!navigator.onLine) throw new ErrorSesion(0);
   const signal = AbortSignal.timeout(15000);
   await solicitar('/sanctum/csrf-cookie', signal);
   const respuesta = await solicitar(rutaVinculos, signal, {
@@ -374,6 +375,7 @@ const correccionVinculo = vinculoGraduandoCreado.extend({
 });
 
 export async function anularVinculoGraduando(id: number, motivo: string) {
+  if (!navigator.onLine) throw new ErrorSesion(0);
   const signal = AbortSignal.timeout(15000);
   await solicitar('/sanctum/csrf-cookie', signal);
   const respuesta = await solicitar(`${rutaVinculos}/${id}/anulacion`, signal, { motivo });
@@ -381,6 +383,7 @@ export async function anularVinculoGraduando(id: number, motivo: string) {
 }
 
 export async function corregirVinculoGraduando(id: number, cuentaId: number, motivo: string) {
+  if (!navigator.onLine) throw new ErrorSesion(0);
   const signal = AbortSignal.timeout(15000);
   await solicitar('/sanctum/csrf-cookie', signal);
   const respuesta = await solicitar(`${rutaVinculos}/${id}/correccion`, signal, { motivo, cuenta_id: cuentaId });

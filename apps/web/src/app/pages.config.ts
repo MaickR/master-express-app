@@ -5,8 +5,6 @@ import PortalGraduando from '@/features/acceso/portal-graduando';
 import PortalInstitucion from '@/features/acceso/portal-institucion.jsx';
 import MiPerfil from '@/features/personal/mi-perfil';
 import AdminDashboard from '@/features/paneles/AdminDashboard';
-import ColaboradorDashboard from '@/features/paneles/ColaboradorDashboard';
-import RegistroGraduando from '@/features/graduandos/RegistroGraduando';
 import Layout from './Layout';
 
 type PropsPantalla = { identidad: Identidad };
@@ -16,11 +14,11 @@ export const paginasPrivadas: Array<{ ruta: string; rol: RolDeSesion; Pantalla: 
   { ruta: paneles.administrador.ruta, rol: 'administrador', Pantalla: AdminDashboard },
   {
     ruta: paneles.colaborador.ruta, rol: 'colaborador',
-    Pantalla: ({ identidad }) => createElement(Layout, { identidad, Pantalla: ColaboradorDashboard }),
+    Pantalla: ({ identidad }) => createElement(Layout, { identidad }),
   },
   {
     ruta: '/RegistroGraduando', rol: 'colaborador',
-    Pantalla: ({ identidad }) => createElement(Layout, { identidad, Pantalla: RegistroGraduando }),
+    Pantalla: ({ identidad }) => createElement(Layout, { identidad }),
   },
   { ruta: paneles.graduando.ruta, rol: 'graduando', Pantalla: PortalGraduando },
   { ruta: paneles.institucion.ruta, rol: 'institucion', Pantalla: PortalInstitucion },

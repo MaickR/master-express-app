@@ -55,10 +55,11 @@ function mensajeError(error) {
   return mensajeSesion(error);
 }
 
-export default function VinculacionGraduandos() {
+export default function VinculacionGraduandos({ actorId }) {
   const [pagina, establecerPagina] = useState(1);
   const [paginaCuentas, establecerPaginaCuentas] = useState(1);
   const [busqueda, establecerBusqueda] = useState("");
+  const [estadoVinculo, establecerEstadoVinculo] = useState("");
   const [busquedaCuenta, establecerBusquedaCuenta] = useState("");
   const [graduando, establecerGraduando] = useState(null);
   const [cuentaId, establecerCuentaId] = useState("");
@@ -72,15 +73,21 @@ export default function VinculacionGraduandos() {
   const filtroGraduandos = useRef(null);
   const cliente = useQueryClient();
   const lista = useQuery({
-    queryKey: ["vinculos-graduandos", pagina],
-    queryFn: ({ signal }) => listarGraduandosOperativos(pagina, signal),
+    queryKey: ["vinculos-graduandos", actorId, pagina, busqueda, estadoVinculo],
+    queryFn: ({ signal }) => listarGraduandosOperativos(pagina, signal, busqueda.trim(), estadoVinculo),
     retry: false,
+    gcTime: 0,
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
   });
   const cuentas = useQuery({
-    queryKey: ["cuentas-graduando", paginaCuentas],
-    queryFn: ({ signal }) => listarCuentasGraduando(paginaCuentas, signal),
+    queryKey: ["cuentas-graduando", actorId, paginaCuentas, busquedaCuenta],
+    queryFn: ({ signal }) => listarCuentasGraduando(paginaCuentas, signal, busquedaCuenta.trim()),
     enabled: graduando !== null,
     retry: false,
+    gcTime: 0,
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
   });
   const cerrarDialogos = async () => {
     establecerConfirmar(false);
@@ -91,6 +98,7 @@ export default function VinculacionGraduandos() {
     establecerErrorMotivo("");
     await cliente.invalidateQueries({ queryKey: ["vinculos-graduandos"] });
     await cliente.invalidateQueries({ queryKey: ["cuentas-graduando"] });
+    await cliente.invalidateQueries({ queryKey: ["gestion-graduandos"] });
   };
   const correccion = useMutation({
     mutationFn: () => corregirVinculoGraduando(graduando.vinculo.id, Number(cuentaId), motivo.trim()),
@@ -123,14 +131,8 @@ export default function VinculacionGraduandos() {
       await cerrarDialogos();
     },
   });
-  const texto = busqueda.trim().toLocaleLowerCase("es-CO");
-  const visibles = (lista.data?.data ?? []).filter(item => !texto || [
-    item.nombre_completo, String(item.id),
-  ].some(campo => campo.toLocaleLowerCase("es-CO").includes(texto)));
-  const textoCuenta = busquedaCuenta.trim().toLocaleLowerCase("es-CO");
-  const cuentasVisibles = (cuentas.data?.data ?? []).filter(item => !textoCuenta || [
-    item.nombre, item.correo, String(item.id),
-  ].some(campo => campo.toLocaleLowerCase("es-CO").includes(textoCuenta)));
+  const visibles = lista.data?.data ?? [];
+  const cuentasVisibles = cuentas.data?.data ?? [];
   const cuenta = cuentasVisibles.find(item => String(item.id) === cuentaId)
     ?? (cuentas.data?.data ?? []).find(item => String(item.id) === cuentaId);
   const avisos = avisosDeRevision(graduando, cuenta);
@@ -182,10 +184,21 @@ export default function VinculacionGraduandos() {
       </Card>
 
       <label className="grid max-w-md gap-1 text-sm font-medium" htmlFor="buscar-graduando-operativo">
-        Buscar en esta página
-        <input ref={filtroGraduandos} id="buscar-graduando-operativo" value={busqueda} onChange={evento => establecerBusqueda(evento.target.value)}
+        Buscar graduando
+        <input ref={filtroGraduandos} id="buscar-graduando-operativo" value={busqueda} onChange={evento => { establecerBusqueda(evento.target.value); establecerPagina(1); }}
           placeholder="Nombre o identificador"
           className="h-11 rounded-md border border-input bg-background px-3 text-base" />
+      </label>
+
+      <label className="grid max-w-md gap-1 text-sm font-medium" htmlFor="estado-vinculo-graduando">
+        Estado de vinculación
+        <select id="estado-vinculo-graduando" value={estadoVinculo}
+          onChange={evento => { establecerEstadoVinculo(evento.target.value); establecerPagina(1); }}
+          className="h-11 rounded-md border border-input bg-background px-3 text-base">
+          <option value="">Todos</option>
+          <option value="activa">Con vínculo activo</option>
+          <option value="sin_vinculo">Sin vínculo activo</option>
+        </select>
       </label>
 
       {(lista.isError || (errorActivo && !confirmar && !anular)) && (
@@ -289,16 +302,16 @@ export default function VinculacionGraduandos() {
                 </p>
               )}
               <label className="grid gap-1 font-medium" htmlFor="buscar-cuenta-graduando">
-                Buscar cuenta en esta página
+                Buscar cuenta
                 <input id="buscar-cuenta-graduando" value={busquedaCuenta}
-                  onChange={evento => establecerBusquedaCuenta(evento.target.value)}
+                  onChange={evento => { establecerBusquedaCuenta(evento.target.value); establecerPaginaCuentas(1); establecerCuentaId(""); }}
                   placeholder="Nombre, correo o identificador"
                   className="h-11 rounded-md border border-input bg-background px-3 text-base font-normal" />
               </label>
               {cuentas.isPending && <p role="status">Cargando cuentas…</p>}
               {cuentas.isError && <p role="alert" className="text-destructive">{mensajeError(cuentas.error)}</p>}
               {cuentas.data && cuentasVisibles.length === 0 && (
-                <p>No hay cuentas de Graduando elegibles en esta página. Una cuenta elegible está activa, tiene el correo verificado y todavía no tiene vinculación.</p>
+                <p>No hay cuentas de Graduando elegibles para esta búsqueda. Una cuenta elegible está activa, tiene el correo verificado y todavía no tiene vinculación.</p>
               )}
               <fieldset className="space-y-2">
                 <legend className="sr-only">Cuenta de Graduando</legend>

@@ -17,6 +17,10 @@ class RegistrosController extends Controller
     {
         $consulta = $policy->consulta($request->user())->with(['graduando', 'ceremonia'])->latest('id');
 
+        if ($request->validated('graduando_id') !== null) {
+            $consulta->where('graduando_id', $request->validated('graduando_id'));
+        }
+
         if ($request->validated('ceremonia_id') !== null) {
             $consulta->where('ceremonia_id', $request->validated('ceremonia_id'));
         }

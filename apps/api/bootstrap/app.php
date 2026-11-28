@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 $esRecuperacion = fn (Request $request): bool => $request->is('forgot-password', 'reset-password');
-$esIdentidad = fn (Request $request): bool => $request->is('api/mi-perfil', 'api/mi-perfil/*', 'api/administracion/cuentas', 'api/administracion/cuentas/*');
+$esIdentidad = fn (Request $request): bool => $request->is('api/graduandos', 'api/graduandos/*', 'api/ceremonias/*/registros', 'api/registros', 'api/registros/*', 'api/mi-perfil', 'api/mi-perfil/*', 'api/administracion/cuentas', 'api/administracion/cuentas/*');
 $esRegistroGraduando = fn (Request $request): bool => $request->is('api/registro-graduando/*');
 $esRegistroInstitucion = fn (Request $request): bool => $request->is(
     'api/registro-institucion/*',

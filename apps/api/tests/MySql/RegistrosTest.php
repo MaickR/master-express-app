@@ -21,6 +21,8 @@ class RegistrosTest extends CasoMySql
 
     private User $administrador;
 
+    private ?int $creadorDeGraduandos = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -102,7 +104,7 @@ class RegistrosTest extends CasoMySql
         $this->postJson($this->ruta($otra), array_replace($entrada, ['evento_id' => $otra->evento_id]))->assertConflict();
         $this->postJson($ruta, array_replace($entrada, ['operation_id' => (string) Str::uuid()]))->assertConflict();
 
-        $this->actingAs($this->usuario('colaborador'), 'web');
+        $this->actingAs($this->administrador, 'web');
         $this->postJson($ruta, $entrada)->assertConflict()->assertJsonMissingPath('data.id');
         $this->postJson($this->ruta($otra), array_replace($entrada, ['evento_id' => $otra->evento_id]))->assertCreated();
 
@@ -140,15 +142,16 @@ class RegistrosTest extends CasoMySql
         $this->assertDatabaseCount('registros', 0);
     }
 
-    public function test_consultas_y_altas_respetan_roles_y_ambito_del_ensayo(): void
+    public function test_consultas_y_altas_respetan_roles_ambitos_y_activacion_explicita(): void
     {
         $ceremonia = $this->ceremonia();
+        $colaborador = $this->usuario('colaborador');
         $entrada = $this->entrada($ceremonia);
         $ruta = $this->ruta($ceremonia);
 
         $this->getJson('/api/registros')->assertUnauthorized();
         $this->postJson($ruta, $entrada)->assertUnauthorized();
-        $this->actingAs($this->usuario('colaborador'), 'web');
+        $this->actingAs($colaborador, 'web');
         $id = $this->postJson($ruta, $entrada)->assertCreated()->json('data.id');
 
         $this->actingAs($this->usuario('colaborador', 'institucion'), 'web');
@@ -162,7 +165,7 @@ class RegistrosTest extends CasoMySql
         $this->actingAs($this->administrador, 'web');
         $this->getJson('/api/registros')->assertOk()->assertJsonCount(1, 'data');
         $this->getJson('/api/registros/'.$id)->assertOk();
-        $this->postJson($ruta, $entrada)->assertForbidden();
+        $this->postJson($ruta, $entrada)->assertConflict();
 
         $this->app->instance('env', 'production');
         $this->getJson('/api/registros/'.$id)->assertForbidden();
@@ -208,6 +211,10 @@ class RegistrosTest extends CasoMySql
         $actor = User::factory()->create(['name' => 'Persona ficticia', 'email' => Str::uuid().'@example.invalid']);
         $actor->roles()->attach(Rol::query()->whereIn('codigo', $roles)->pluck('id'));
 
+        if (in_array('colaborador', $roles, true)) {
+            $this->creadorDeGraduandos = $actor->id;
+        }
+
         return $actor->refresh();
     }
 
@@ -227,6 +234,9 @@ class RegistrosTest extends CasoMySql
     private function entrada(Ceremonia $ceremonia, ?Graduando $graduando = null): array
     {
         $graduando ??= Graduando::query()->create(['nombre_completo' => 'Graduando ficticio']);
+        if ($graduando->creado_por === null && $this->creadorDeGraduandos !== null) {
+            $graduando->forceFill(['creado_por' => $this->creadorDeGraduandos])->save();
+        }
 
         return [
             'operation_id' => (string) Str::uuid(),

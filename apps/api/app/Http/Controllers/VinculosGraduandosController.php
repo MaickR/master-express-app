@@ -11,13 +11,30 @@ use App\Models\Graduando;
 use App\Models\User;
 use App\Models\VinculoGraduando;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Collection;
 
 class VinculosGraduandosController extends Controller
 {
     public function graduandos(ListarVinculosGraduandos $request): JsonResponse
     {
-        $request->validated();
-        $pagina = Graduando::query()->with(['vinculos.cuenta:id,name,email'])->orderBy('id')->simplePaginate(25);
+        $consulta = Graduando::query()->with(['vinculos.cuenta:id,name,email']);
+        $buscar = trim((string) $request->validated('buscar', ''));
+        if ($buscar !== '') {
+            $consulta->where(function ($filtro) use ($buscar): void {
+                $filtro->where('nombre_completo', 'like', '%'.addcslashes($buscar, '%_\\').'%');
+                if (ctype_digit($buscar)) {
+                    $filtro->orWhere('id', $buscar);
+                }
+            });
+        }
+        $estado = $request->validated('vinculacion');
+        if ($estado !== null) {
+            $relacion = fn ($vinculos) => $vinculos->where('estado', VinculoGraduando::ACTIVO);
+            $estado === 'activa'
+                ? $consulta->whereHas('vinculos', $relacion)
+                : $consulta->whereDoesntHave('vinculos', $relacion);
+        }
+        $pagina = $consulta->orderBy('id')->simplePaginate(25);
         $homonimos = $this->homonimos($pagina->getCollection()->pluck('nombre_completo'));
 
         return response()->json([
@@ -41,13 +58,21 @@ class VinculosGraduandosController extends Controller
 
     public function cuentas(ListarVinculosGraduandos $request): JsonResponse
     {
-        $request->validated();
-        $pagina = User::query()
+        $consulta = User::query()
             ->select(['id', 'name', 'email'])
             ->conAccesoEfectivoDeGraduando()
-            ->whereDoesntHave('vinculosDeGraduando', fn ($vinculos) => $vinculos->where('estado', VinculoGraduando::ACTIVO))
-            ->orderBy('id')
-            ->simplePaginate(25);
+            ->whereDoesntHave('vinculosDeGraduando', fn ($vinculos) => $vinculos->where('estado', VinculoGraduando::ACTIVO));
+        $buscar = trim((string) $request->validated('buscar', ''));
+        if ($buscar !== '') {
+            $consulta->where(function ($filtro) use ($buscar): void {
+                $patron = '%'.addcslashes($buscar, '%_\\').'%';
+                $filtro->where('name', 'like', $patron)->orWhere('email', 'like', $patron);
+                if (ctype_digit($buscar)) {
+                    $filtro->orWhere('id', $buscar);
+                }
+            });
+        }
+        $pagina = $consulta->orderBy('id')->simplePaginate(25);
 
         return response()->json([
             'data' => $pagina->getCollection()->map(fn (User $cuenta): array => [
@@ -106,10 +131,10 @@ class VinculosGraduandosController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, string>  $nombres
+     * @param  Collection<int, string>  $nombres
      * @return array<string, bool>
      */
-    private function homonimos(\Illuminate\Support\Collection $nombres): array
+    private function homonimos(Collection $nombres): array
     {
         $distintos = $nombres->filter(fn ($nombre): bool => is_string($nombre) && $nombre !== '')->unique()->values();
         if ($distintos->isEmpty()) {

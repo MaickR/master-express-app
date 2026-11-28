@@ -11,6 +11,7 @@ const base44Dist = normalizePath(dirname(createRequire(import.meta.url).resolve(
 
 export default defineConfig({
   logLevel: 'error',
+  cacheDir: process.env.ME_QA_VITE_CACHE_DIR,
   envDir: repositorio,
   envPrefix: ['VITE_BASE44_', 'VITE_API_LOCAL_PORT'],
   build: {
