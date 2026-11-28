@@ -11,6 +11,7 @@ const contratoSesion = z.object({
     nombre: z.string(),
     correo: z.string(),
     roles: z.array(rolesDeSesion).nonempty(),
+    cambio_clave_pendiente: z.boolean().optional(),
   }),
 });
 export type Identidad = z.infer<typeof contratoSesion>['data'];
@@ -18,11 +19,12 @@ export type Credenciales = { email: string; password: string; remember?: boolean
 export type DatosRestablecimiento = { email: string; token: string; password: string; password_confirmation: string };
 
 const contratoCuentas = z.object({
-  data: z.array(z.object({ id: z.number().int(), nombre: z.string(), correo: z.string(), activa: z.boolean() })),
+  data: z.array(z.object({ id: z.number().int(), nombre: z.string(), correo: z.string(), activa: z.boolean(), principal: z.boolean(), roles: z.array(z.string()), creada_en: z.string().nullable(), acceso_disponible: z.boolean(), cambio_clave_pendiente: z.boolean() })),
   hayMas: z.boolean(),
+  alta_disponible: z.boolean().optional(),
 });
 const rutaCuentas = '/api/administracion/cuentas';
-export type AccionDeCuenta = 'suspender' | 'reactivar' | 'revocar-sesiones';
+export type AccionDeCuenta = 'suspender' | 'reactivar' | 'revocar-sesiones' | 'recuperar';
 
 export class ErrorSesion extends Error {
   constructor(
@@ -102,8 +104,10 @@ export async function consultarSesion(signal: AbortSignal): Promise<Identidad> {
   return resultado.data.data;
 }
 
-export async function consultarCuentas(pagina: number, signal: AbortSignal) {
-  const respuesta = await solicitar(`${rutaCuentas}?page=${pagina}`, signal);
+export async function consultarCuentas(pagina: number, signal: AbortSignal, filtros: Record<string, string> = {}) {
+  const parametros = new URLSearchParams({ page: String(pagina) });
+  for (const [clave, valor] of Object.entries(filtros)) if (valor.trim()) parametros.set(clave, valor.trim());
+  const respuesta = await solicitar(rutaCuentas + '?' + parametros, signal);
   const resultado = contratoCuentas.safeParse(await respuesta.json().catch(() => null));
   if (!resultado.success) throw new ErrorSesion(0);
   return resultado.data;

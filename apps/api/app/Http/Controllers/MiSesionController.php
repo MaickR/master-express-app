@@ -27,6 +27,7 @@ class MiSesionController
             'nombre' => $usuario->name,
             'correo' => $usuario->email,
             'roles' => $roles,
+            ...($usuario->cambio_clave_pendiente ? ['cambio_clave_pendiente' => true] : []),
         ]])->header('Cache-Control', 'no-store');
     }
 }

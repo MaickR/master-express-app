@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeftRight, ChevronDown, ChevronRight, LogOut, Menu, UserRound } from "lucide-react";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/shared/ui/dialog";
 import { Button } from "@/shared/ui/button";
@@ -71,6 +71,7 @@ function MarcaPanel() {
  * }} props
  */
 export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccionar, avatar, alAbrirPerfil, children }) {
+  const navegar = useNavigate();
   const { estado, cerrar } = useSesion();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [perfilAbierto, setPerfilAbierto] = useState(false);
@@ -163,7 +164,7 @@ export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccio
                   const enfocarDestino = enfocarAlCerrarCuenta.current;
                   enfocarAlCerrarCuenta.current = false;
                   if (!enfocarDestino) return;
-                  if (!alAbrirPerfil) {
+                  if (!alAbrirPerfil && rol !== "Administrador") {
                     evento.preventDefault();
                     setPerfilAbierto(true);
                   } else if (enfocarTitulo()) {
@@ -178,7 +179,8 @@ export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccio
                 {(alAbrirPerfil || estado.tipo === "autenticado") && (
                   <DropdownMenuItem className="panel-cuenta-menu__accion" onSelect={() => {
                     enfocarAlCerrarCuenta.current = true;
-                    alAbrirPerfil?.();
+                    if (rol === "Administrador") navegar("/MiPerfil");
+                    else alAbrirPerfil?.();
                   }}>
                     <UserRound aria-hidden="true" /> Ver perfil
                   </DropdownMenuItem>
@@ -195,7 +197,7 @@ export default function PanelOperativo({ grupos, activo, rol, nombre, alSeleccio
             </DropdownMenu>
           </div>
         </header>
-        {!alAbrirPerfil && estado.tipo === "autenticado" && (
+        {!alAbrirPerfil && rol !== "Administrador" && estado.tipo === "autenticado" && (
           <Dialog open={perfilAbierto} onOpenChange={setPerfilAbierto}>
             <DialogContent aria-describedby={undefined}
               className="panel-perfil w-[calc(100%-2rem)] max-w-sm rounded-xl sm:rounded-xl motion-reduce:data-[state=open]:animate-none motion-reduce:data-[state=closed]:animate-none"

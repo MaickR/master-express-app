@@ -26,6 +26,9 @@ class TransporteDeCorreoSeguro
         }
 
         $correo = strtolower($correo);
+        if ($this->demostracionInterna($correo)) {
+            return true;
+        }
 
         if (str_ends_with($correo, '@example.invalid')) {
             return ! app()->isProduction();
@@ -43,7 +46,7 @@ class TransporteDeCorreoSeguro
         }
 
         $mailer = config('mail.default');
-        $real = ! str_ends_with(strtolower($correo), '@example.invalid');
+        $real = ! str_ends_with(strtolower($correo), '@example.invalid') && ! $this->demostracionInterna($correo);
         if ($real ? $mailer !== 'smtp' || ! $this->configuracionResend() : ! in_array($mailer, ['array', 'smtp'], true)) {
             return false;
         }
@@ -65,6 +68,13 @@ class TransporteDeCorreoSeguro
             && $flujo->isTLS() && $transporte->getUsername() === 'resend'
             && ($ssl['verify_peer'] ?? true) === true && ($ssl['verify_peer_name'] ?? true) === true
             && ($ssl['allow_self_signed'] ?? false) === false;
+    }
+
+    public function demostracionInterna(string $correo): bool
+    {
+        // * En QA, los correos internos solo pueden llegar a array o SMTP de bucle local.
+        return app()->environment('testing') && config('database.default') === 'mysql_pruebas'
+            && str_ends_with(strtolower($correo), '@masterexpress.app');
     }
 
     private function configuracionResend(): bool

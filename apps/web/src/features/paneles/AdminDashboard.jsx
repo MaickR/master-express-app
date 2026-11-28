@@ -118,7 +118,7 @@ export default function AdminDashboard({ identidad }) {
     <PanelOperativo grupos={gruposNavegacion} activo={activeTab} rol="Administrador" nombre={identidad.nombre}
       alSeleccionar={setActiveTab}>
       <div className="panel-pagina">
-        {activeTab !== "panel" && <h1 className="sr-only">{activeTabDef?.label}</h1>}
+        {activeTab !== "panel" && activeTab !== "cuentas-internas" && <h1 className="sr-only">{activeTabDef?.label}</h1>}
         {activeTab === "panel" && loading ? (
           <div className="panel-estado" role="status">
             <Loader2 aria-hidden="true" className="mx-auto size-6 animate-spin text-muted-foreground" />

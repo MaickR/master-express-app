@@ -6,7 +6,7 @@ $rutasEnsayo = env('APP_ENV') === 'testing'
     : [];
 
 return [
-    'paths' => ['api/mi-sesion', 'api/mi-institucion', 'api/mi-institucion/vinculos/*/eventos', 'api/mi-institucion/vinculos/*/eventos/*', 'api/administracion/cuentas', 'api/administracion/cuentas/*', 'api/administracion/solicitudes-institucionales', 'api/administracion/solicitudes-institucionales/*', 'api/administracion/vinculos-graduandos', 'api/administracion/vinculos-graduandos/*', 'api/registro-graduando/*', 'api/registro-institucion/*', 'login', 'logout', 'forgot-password', 'reset-password', 'sanctum/csrf-cookie', ...$rutasEnsayo],
+    'paths' => ['api/mi-perfil', 'api/mi-perfil/*', 'api/mi-sesion', 'api/mi-institucion', 'api/mi-institucion/vinculos/*/eventos', 'api/mi-institucion/vinculos/*/eventos/*', 'api/administracion/cuentas', 'api/administracion/cuentas/*', 'api/administracion/solicitudes-institucionales', 'api/administracion/solicitudes-institucionales/*', 'api/administracion/vinculos-graduandos', 'api/administracion/vinculos-graduandos/*', 'api/registro-graduando/*', 'api/registro-institucion/*', 'login', 'logout', 'forgot-password', 'reset-password', 'sanctum/csrf-cookie', ...$rutasEnsayo],
     'allowed_methods' => ['GET', 'POST'],
     'allowed_origins' => array_values(array_filter(
         array_map('trim', explode(',', (string) $origenes)),
