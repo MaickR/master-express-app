@@ -37,6 +37,10 @@ class ProgramarEvento
                 return $previo;
             }
 
+            if ($programacion['fecha'] < Evento::fechaOperativa()) {
+                throw ValidationException::withMessages(['evento.fecha' => 'Selecciona hoy o una fecha futura en Colombia.']);
+            }
+
             $institucion = Institucion::query()->find($institucionId);
             if (! $institucion) {
                 throw ValidationException::withMessages(['evento.institucion_id' => 'La institución seleccionada no existe.']);

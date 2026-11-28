@@ -77,6 +77,17 @@ class ProgramacionInstitucionalTest extends CasoMySql
             ->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $eventoB)
             ->assertJsonPath('data.0.ceremonias.0.nombre', 'Ceremonia B');
         $this->getJson($rutaB.'/'.$eventoA)->assertNotFound();
+
+        $this->actingAs($administrador->refresh())->postJson('/api/eventos/'.$eventoA, [
+            'revision' => 1, 'observaciones' => 'Nota de operación interna',
+        ])->assertOk();
+        $this->postJson('/api/eventos/'.$eventoA.'/cancelacion')->assertOk();
+        $this->actingAs($actorA)->getJson($rutaA.'/'.$eventoA)->assertOk()
+            ->assertJsonPath('data.estado', 'cancelado')
+            ->assertJsonPath('data.ceremonias.0.hora', '08:30:00')
+            ->assertJsonMissingPath('data.observaciones')
+            ->assertJsonMissingPath('data.cancelado_por')
+            ->assertJsonMissingPath('data.ceremonias.0.programas');
     }
 
     public function test_ambito_elegido_paginacion_vacio_y_vinculo_revocado(): void

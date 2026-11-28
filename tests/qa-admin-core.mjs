@@ -1,4 +1,4 @@
-// Ensayo exclusivo de ME-ADMIN-CORE. Instancia MySQL nueva; no abre bases previas.
+// Ensayos focalizados sobre una instancia MySQL nueva; no abren bases previas.
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { createServer } from 'node:net';
@@ -14,10 +14,15 @@ if (process.env.ME_QA_ACEPTACION_HUMANA === 'true' || (process.argv.includes('--
 }
 console.log('Proceso de ensayo automatizado:', process.pid);
 const raiz = fileURLToPath(new URL('../', import.meta.url));
+const eventos = process.argv.includes('--eventos');
+const suite = eventos
+  ? ['tests/MySql/EventosTest.php', 'tests/MySql/RegistrosTest.php', 'tests/MySql/ProgramacionInstitucionalTest.php', 'tests/Feature/EnsayoEventosTest.php']
+  : ['tests/MySql/AdminCoreTest.php'];
+const chrome = eventos ? 'tests/eventos-chrome.mjs' : 'tests/admin-core-chrome.mjs';
 const api = join(raiz, 'apps/api');
 const baseTemporal = process.env.ME_QA_TEMP_DIR || tmpdir();
 await mkdir(baseTemporal, { recursive: true });
-const carpeta = await mkdtemp(join(baseTemporal, 'me-admin-core-'));
+const carpeta = await mkdtemp(join(baseTemporal, eventos ? 'me-ops2a-' : 'me-admin-core-'));
 const datos = join(carpeta, 'mysql');
 const bin = 'C:/Program Files/MySQL/MySQL Server 9.1/bin';
 const puerto = 3338;
@@ -74,7 +79,7 @@ try {
   console.log('PASS MySQL nuevo en 127.0.0.1:3338; esquema aislado, cuenta restringida y credenciales aleatorias en memoria.');
   console.log(await ejecutar('php', ['artisan', 'migrate', '--database=mysql_pruebas', '--force']));
   console.log(await ejecutar('php', ['artisan', 'db:seed', '--class=RolSeeder', '--force']));
-  try { if (!process.argv.includes('--solo-chrome')) console.log(await ejecutar('php', ['vendor/phpunit/phpunit/phpunit', 'tests/MySql/AdminCoreTest.php'])); }
+  try { if (!process.argv.includes('--solo-chrome')) console.log(await ejecutar('php', ['vendor/phpunit/phpunit/phpunit', ...suite])); }
   catch (error) { console.log(error.message); if (!process.argv.includes('--iterar')) throw error; }
   if (!process.argv.includes('--servir')) process.exitCode = 0;
   else {
@@ -92,21 +97,25 @@ echo 'PASS Identidad sintética creada exclusivamente en instancia nueva; buzón
 `);
     // La credencial de automatización solo vive en memoria y se entrega por stdin.
     const claveQa = randomBytes(24).toString('hex');
-    console.log(await ejecutar('php', [semilla], JSON.stringify({ clave: claveQa })));
+    if (eventos) {
+      console.log(await ejecutar('php', ['artisan', 'qa:ensayo-eventos', 'preparar'], undefined, { env: { ...env, ME_QA_CLAVE: claveQa } }));
+    } else {
+      console.log(await ejecutar('php', [semilla], JSON.stringify({ clave: claveQa })));
+    }
     iniciar('php', ['-S', '127.0.0.1:8018', '../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php'], { cwd: join(api, 'public') });
     iniciar(process.execPath, ['node_modules/vite/bin/vite.js', '--config', 'apps/web/vite.config.js', '--host', '127.0.0.1', '--port', '5189', '--strictPort'],
       { cwd: raiz, env: { ...env, VITE_BASE44_DATOS_LOCALES: 'true', VITE_API_LOCAL_PORT: '8018' } });
     console.log('PASS Servicios QA iniciados: http://127.0.0.1:5189/; Laravel 8018.');
     if (process.argv.includes('--chrome')) {
-      console.log(await ejecutar(process.execPath, [join(raiz, 'tests/admin-core-chrome.mjs'), carpeta], JSON.stringify({ clave: claveQa }), { cwd: raiz }));
+      console.log(await ejecutar(process.execPath, [join(raiz, chrome), carpeta], JSON.stringify({ clave: claveQa }), { cwd: raiz }));
     }
     console.log(`Evidencia QA: ${carpeta}`);
     if (!process.argv.includes('--chrome') || process.argv.includes('--iterar')) {
     const comandos = createInterface({ input: process.stdin });
     comandos.on('line', async linea => {
       try {
-        if (linea === 'phpunit') console.log(await ejecutar('php', ['vendor/phpunit/phpunit/phpunit', 'tests/MySql/AdminCoreTest.php']));
-        if (linea === 'chrome') console.log(await ejecutar(process.execPath, [join(raiz, 'tests/admin-core-chrome.mjs'), carpeta], JSON.stringify({ clave: claveQa }), { cwd: raiz }));
+        if (linea === 'phpunit') console.log(await ejecutar('php', ['vendor/phpunit/phpunit/phpunit', ...suite]));
+        if (linea === 'chrome') console.log(await ejecutar(process.execPath, [join(raiz, chrome), carpeta], JSON.stringify({ clave: claveQa }), { cwd: raiz }));
       } catch (error) { console.log(error.message); }
     });
     await new Promise(resolve => { process.on('SIGINT', resolve); process.on('SIGTERM', resolve); });

@@ -42,7 +42,7 @@ class CrearEvento extends FormRequest
             'evento.sede_id.*' => 'Selecciona una sede de la institución elegida.',
             'evento.fecha.*' => 'Ingresa una fecha válida en formato AAAA-MM-DD.',
             'evento.lugar.*' => 'Ingresa un lugar de hasta 255 caracteres.',
-            'evento.numero_ceremonias.*' => 'Selecciona entre una y seis ceremonias para el ensayo.',
+            'evento.numero_ceremonias.*' => 'Selecciona entre una y seis ceremonias.',
             'evento.operation_id.*' => 'Envía un identificador de operación UUID.',
         ];
     }

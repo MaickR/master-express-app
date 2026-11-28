@@ -49,6 +49,8 @@ export default function ProgramacionInstitucional({ ambito, usuarioId, actualiza
     queryFn: ({ signal }) => consultarProgramacionInstitucional(ambito.vinculo_id, pagina, signal),
     retry: false,
     gcTime: 0,
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
   });
 
   function irAPagina(nuevaPagina: number) {
@@ -99,7 +101,10 @@ export default function ProgramacionInstitucional({ ambito, usuarioId, actualiza
                   <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary-suave text-primary-suave-foreground">
                     <CalendarDays aria-hidden="true" className="size-5" />
                   </span>
-                  <DatosEvento fecha={evento.fecha} lugar={evento.lugar} destacarFecha />
+                  <div className="min-w-0 space-y-1">
+                    <DatosEvento fecha={evento.fecha} lugar={evento.lugar} destacarFecha />
+                    {evento.estado === "cancelado" && <p className="text-sm font-semibold text-error">Evento cancelado</p>}
+                  </div>
                 </EncabezadoEvento>
                 <ContenidoEvento className="px-4 pb-2 sm:px-5">
                   <details className="group border-t border-border">

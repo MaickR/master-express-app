@@ -2,7 +2,7 @@
 
 namespace App\Actions;
 
-use App\Models\Ceremonia;
+use App\Models\Evento;
 use App\Models\Graduando;
 use App\Models\Registro;
 use App\Models\User;
@@ -36,12 +36,15 @@ class InscribirGraduando
                 abort_unless(hash_equals($previo->huella_solicitud, $huella), 409, 'El identificador ya corresponde a otra solicitud.');
             }
 
-            $ceremonia = Ceremonia::query()->where('evento_id', $eventoId)->sharedLock()->find($ceremoniaId);
+            $evento = Evento::query()->sharedLock()->find($eventoId);
+            $ceremonia = $evento?->ceremonias()->sharedLock()->find($ceremoniaId);
             abort_unless($ceremonia, 404, 'La ceremonia no existe en este evento.');
 
             if ($previo) {
                 return $previo;
             }
+
+            abort_if($evento->cancelado_en !== null, 409, 'El evento está cancelado y no admite nuevas inscripciones.');
 
             $graduando = Graduando::query()->sharedLock()->find($graduandoId);
             if (! $graduando) {

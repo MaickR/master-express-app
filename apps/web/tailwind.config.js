@@ -66,6 +66,7 @@ module.exports = {
 			exito: { DEFAULT: 'hsl(var(--exito))', suave: 'hsl(var(--exito-suave))' },
 			aviso: { DEFAULT: 'hsl(var(--aviso))', suave: 'hsl(var(--aviso-suave))' },
 			error: { DEFAULT: 'hsl(var(--error))', suave: 'hsl(var(--error-suave))' },
+			info: { DEFAULT: 'hsl(var(--info))', suave: 'hsl(var(--info-suave))' },
   			chart: {
   				'1': 'hsl(var(--chart-1))',
   				'2': 'hsl(var(--chart-2))',
