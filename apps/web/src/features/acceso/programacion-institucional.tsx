@@ -60,7 +60,7 @@ export default function ProgramacionInstitucional({ ambito, usuarioId, actualiza
     <section className="space-y-4" aria-labelledby="ambito-programacion">
       <div className="space-y-1 [overflow-wrap:anywhere]">
         <h2 id="ambito-programacion" ref={titulo} tabIndex={-1} className="text-lg font-semibold leading-snug">{ambito.nombre}</h2>
-        {ambito.sede && <p className="text-sm text-muted-foreground">Sede {ambito.sede.nombre}</p>}
+        {ambito.sede && <p className="text-sm text-muted-foreground">{ambito.sede.nombre}</p>}
       </div>
       {consulta.isFetching && (
         <div role="status" className="space-y-3">

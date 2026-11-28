@@ -389,6 +389,7 @@ class VinculacionGraduandosTest extends CasoMySql
 
         return app(ProgramarEvento::class)->ejecutar($this->administrador, [
             'institucion_id' => $institucion->id,
+            'sede_id' => $institucion->sedes()->create(['nombre' => 'Sede QA'])->id,
             'fecha' => '2099-03-01',
             'numero_ceremonias' => 2,
             'operation_id' => (string) Str::uuid(),
@@ -401,6 +402,7 @@ class VinculacionGraduandosTest extends CasoMySql
 
         return app(ProgramarEvento::class)->ejecutar($this->administrador, [
             'institucion_id' => $institucion->id,
+            'sede_id' => $institucion->sedes()->create(['nombre' => 'Sede QA'])->id,
             'fecha' => '2099-02-25',
             'numero_ceremonias' => 1,
             'operation_id' => (string) Str::uuid(),

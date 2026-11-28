@@ -19,7 +19,7 @@ class EventosTest extends CasoMySql
 {
     private const string RUTA = '/api/eventos';
 
-    protected array $tablas = ['users', 'roles', 'rol_user', 'instituciones', 'eventos', 'ceremonias'];
+    protected array $tablas = ['users', 'roles', 'rol_user', 'instituciones', 'sedes', 'eventos', 'ceremonias'];
 
     public function test_alta_y_consultas_con_identidad_institucional_estable_y_ceremonias_ordenadas(): void
     {
@@ -30,6 +30,7 @@ class EventosTest extends CasoMySql
         $respuesta = $this->postJson(self::RUTA, $entrada)->assertCreated()
             ->assertHeader('Cache-Control', 'no-store, private')
             ->assertJsonPath('data.institucion.id', $institucion->id)
+            ->assertJsonPath('data.sede.id', $entrada['sede_id'])
             ->assertJsonPath('data.fecha', $entrada['fecha'])
             ->assertJsonPath('data.numero_ceremonias', 3)
             ->assertJsonPath('data.ceremonias.2.nombre', 'Ceremonia 3')
@@ -41,7 +42,7 @@ class EventosTest extends CasoMySql
         $id = $respuesta->json('data.id');
         $rutaEvento = self::RUTA.'/'.$id;
 
-        $this->assertDatabaseHas('eventos', ['id' => $id, 'actor_id' => $actor->id, 'institucion_id' => $institucion->id]);
+        $this->assertDatabaseHas('eventos', ['id' => $id, 'actor_id' => $actor->id, 'institucion_id' => $institucion->id, 'sede_id' => $entrada['sede_id']]);
         $this->getJson($rutaEvento)->assertOk()->assertExactJson($respuesta->json());
         $this->getJson($rutaEvento.'/ceremonias')->assertOk()->assertJsonCount(3, 'data');
         $this->getJson($rutaEvento.'/ceremonias/'.$respuesta->json('data.ceremonias.0.id'))
@@ -78,12 +79,16 @@ class EventosTest extends CasoMySql
 
         $this->postJson(self::RUTA, array_replace($entrada, [
             'institucion_id' => (string) $institucion->id,
+            'sede_id' => (string) $entrada['sede_id'],
             'operation_id' => strtoupper($entrada['operation_id']),
             'numero_ceremonias' => '3',
             'lugar' => '   ',
         ]))->assertCreated()->assertExactJson($datos);
         $this->postJson(self::RUTA, array_replace($entrada, ['numero_ceremonias' => 4]))->assertConflict();
         $this->postJson(self::RUTA, array_replace($entrada, ['institucion_id' => $this->institucion()->id]))->assertConflict();
+
+        $otraSede = $institucion->sedes()->create(['nombre' => 'Sede alterna']);
+        $this->postJson(self::RUTA, array_replace($entrada, ['sede_id' => $otraSede->id]))->assertConflict();
 
         $evento = Evento::query()->findOrFail($datos['data']['id']);
         $this->assertSame(3, $evento->ceremonias()->count());
@@ -123,7 +128,12 @@ class EventosTest extends CasoMySql
 
         $this->postJson(self::RUTA, array_replace($entrada, ['institucion_id' => PHP_INT_MAX]))
             ->assertUnprocessable()->assertJsonValidationErrors('evento.institucion_id');
-        $this->postJson(self::RUTA, $entrada + ['actor_id' => $actor->id, 'activo' => true, 'sede_id' => 1])
+        $sedeAjena = $this->institucion()->sedes()->create(['nombre' => 'Sede ajena']);
+        $this->postJson(self::RUTA, array_replace($entrada, ['sede_id' => $sedeAjena->id]))
+            ->assertUnprocessable()->assertJsonValidationErrors('evento.sede_id');
+        $this->postJson(self::RUTA, Arr::except($entrada, 'sede_id'))
+            ->assertUnprocessable()->assertJsonValidationErrors('evento.sede_id');
+        $this->postJson(self::RUTA, $entrada + ['actor_id' => $actor->id, 'activo' => true])
             ->assertUnprocessable()->assertJsonValidationErrors('evento');
         $this->postJson(self::RUTA, $entrada + ['ceremonias' => [['evento_id' => 1]]])
             ->assertUnprocessable()->assertJsonValidationErrors('evento');
@@ -149,6 +159,11 @@ class EventosTest extends CasoMySql
         $this->getJson(self::RUTA)->assertUnauthorized();
         $this->postJson(self::RUTA, $entrada)->assertUnauthorized();
 
+        foreach (['colaborador', 'graduando', 'institucion'] as $rol) {
+            $this->autenticar($rol);
+            $this->postJson(self::RUTA, $entrada)->assertForbidden();
+        }
+
         $this->autenticar('colaborador', 'institucion');
         $this->getJson(self::RUTA)->assertForbidden();
         $this->getJson(self::RUTA.'/'.PHP_INT_MAX.'/ceremonias/1')->assertForbidden();
@@ -171,8 +186,12 @@ class EventosTest extends CasoMySql
 
         $this->autenticar('administrador');
         $institucion = $this->institucion();
+        $sede = $institucion->sedes()->create(['nombre' => 'Sede QA']);
         $this->getJson($ruta)->assertOk()->assertHeader('Cache-Control', 'no-store, private')
-            ->assertJsonFragment(['id' => $institucion->id, 'nombre' => 'Institución ficticia', 'tipo' => 'universidad']);
+            ->assertJsonFragment([
+                'id' => $institucion->id, 'nombre' => 'Institución ficticia', 'tipo' => 'universidad',
+                'sedes' => [['id' => $sede->id, 'nombre' => 'Sede QA']],
+            ]);
         $this->app->instance('env', 'production');
         $this->getJson($ruta)->assertForbidden();
     }
@@ -188,7 +207,8 @@ class EventosTest extends CasoMySql
         }
 
         foreach (EnsayoEventos::INSTITUCIONES as $institucion) {
-            $this->assertSame(1, Institucion::query()->where($institucion)->count());
+            $sedes = Institucion::query()->where($institucion)->sole()->sedes();
+            $this->assertSame(1, $sedes->where('nombre', 'Sede Principal')->count());
         }
         $cuenta = User::query()->where('email', EnsayoEventos::CORREO)->sole();
         $this->assertTrue($cuenta->activa);
@@ -256,6 +276,7 @@ class EventosTest extends CasoMySql
     {
         return array_replace([
             'institucion_id' => $institucion->id,
+            'sede_id' => $institucion->sedes()->create(['nombre' => 'Sede QA'])->id,
             'operation_id' => (string) Str::uuid(),
             'fecha' => '2099-02-25',
             'numero_ceremonias' => 3,

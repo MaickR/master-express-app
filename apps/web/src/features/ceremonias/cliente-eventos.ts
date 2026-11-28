@@ -12,6 +12,8 @@ export const ensayoLaravel: boolean = Boolean((import.meta as MetadatosVite).env
   && window.location.hostname === '127.0.0.1';
 
 const contratoInstitucion = z.object({ id: z.number().int(), nombre: z.string(), tipo: z.string() });
+const contratoSede = z.object({ id: z.number().int(), nombre: z.string() });
+const contratoCatalogo = contratoInstitucion.extend({ sedes: z.array(contratoSede) });
 const contratoCeremonia = z.object({
   id: z.number().int(),
   evento_id: z.number().int(),
@@ -22,6 +24,7 @@ const contratoCeremonia = z.object({
 const contratoEvento = z.object({
   id: z.number().int(),
   institucion: contratoInstitucion,
+  sede: contratoSede.nullable(),
   fecha: z.string(),
   lugar: z.string().nullable(),
   numero_ceremonias: z.number().int(),
@@ -31,17 +34,14 @@ const contratoListado = z.object({
   data: z.array(contratoEvento),
   links: z.object({ next: z.string().nullable() }),
 });
-const contratoProgramacionInstitucional = contratoListado.extend({
-  data: z.array(contratoEvento.extend({
-    sede: z.object({ id: z.number().int(), nombre: z.string() }).nullable(),
-    ceremonias: z.array(contratoCeremonia),
-  })),
-});
+const contratoEventoConCeremonias = contratoEvento.extend({ ceremonias: z.array(contratoCeremonia) });
+const contratoProgramacionInstitucional = contratoListado.extend({ data: z.array(contratoEventoConCeremonias) });
 
-export type InstitucionEnsayo = z.infer<typeof contratoInstitucion>;
+export type InstitucionEnsayo = z.infer<typeof contratoCatalogo>;
 export type CeremoniaEnsayo = z.infer<typeof contratoCeremonia>;
 export type AltaEvento = {
   institucion_id: number;
+  sede_id: number;
   fecha: string;
   lugar: string | null;
   numero_ceremonias: number;
@@ -49,13 +49,14 @@ export type AltaEvento = {
 };
 
 // * Conserva la forma que ya pinta GestionEventos para reutilizar sus tarjetas.
-function adaptarEvento({ id, institucion, fecha, lugar, numero_ceremonias }: z.infer<typeof contratoEvento>) {
-  return { id, fecha, lugar, numero_ceremonias, nombre_institucion: institucion.nombre, tipo_institucion: institucion.tipo };
+function adaptarEvento({ id, institucion, sede, fecha, lugar, numero_ceremonias }: z.infer<typeof contratoEvento>) {
+  return { id, fecha, lugar, numero_ceremonias, sede, nombre_institucion: institucion.nombre, tipo_institucion: institucion.tipo };
 }
 export type EventoEnsayo = ReturnType<typeof adaptarEvento>;
 
 export const camposAlta = {
   'evento.institucion_id': 'institucion',
+  'evento.sede_id': 'sede',
   'evento.fecha': 'fecha',
   'evento.lugar': 'lugar',
   'evento.numero_ceremonias': 'numCer',
@@ -69,7 +70,7 @@ async function leer<T>(respuesta: Response, contrato: z.ZodType<T>): Promise<T> 
 
 export async function consultarInstituciones(signal: AbortSignal): Promise<InstitucionEnsayo[]> {
   const respuesta = await solicitar('/api/instituciones', signal);
-  return (await leer(respuesta, z.object({ data: z.array(contratoInstitucion) }))).data;
+  return (await leer(respuesta, z.object({ data: z.array(contratoCatalogo) }))).data;
 }
 
 export async function consultarEventos(pagina: number, signal: AbortSignal) {
@@ -93,8 +94,8 @@ export async function crearEvento(datos: AltaEvento) {
   const signal = AbortSignal.timeout(15000);
   await solicitar('/sanctum/csrf-cookie', signal);
   const respuesta = await solicitar('/api/eventos', signal, datos, [...Object.keys(camposAlta), 'evento']);
-  const { data } = await leer(respuesta, z.object({ data: contratoEvento }));
-  return { evento: adaptarEvento(data), ceremonias: data.ceremonias ?? [] };
+  const { data } = await leer(respuesta, z.object({ data: contratoEventoConCeremonias }));
+  return { evento: adaptarEvento(data), ceremonias: data.ceremonias };
 }
 
 export function mensajeEventos(error: unknown): string {
@@ -103,7 +104,9 @@ export function mensajeEventos(error: unknown): string {
       case 403: return 'Tu cuenta no tiene acceso al ensayo de eventos en Laravel.';
       case 404: return 'El evento ya no está disponible. Actualiza la lista.';
       case 409: return 'Este intento ya se registró con otros datos. Revisa la lista antes de crear otro evento.';
-      case 422: return 'Revisa los campos marcados.';
+      case 422: return error.campos.some(campo => Object.hasOwn(camposAlta, campo))
+        ? 'Revisa los campos marcados.'
+        : 'Laravel rechazó los datos del evento. Revisa la información e intenta de nuevo.';
       case 401: case 419: case 429: case 0: return mensajeSesion(error);
     }
   }

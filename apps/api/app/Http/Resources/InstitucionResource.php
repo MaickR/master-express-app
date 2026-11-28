@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Sede;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,6 +14,10 @@ class InstitucionResource extends JsonResource
             'id' => $this->id,
             'nombre' => $this->nombre,
             'tipo' => $this->tipo,
+            'sedes' => $this->whenLoaded('sedes', fn () => $this->sedes->map(fn (Sede $sede): array => [
+                'id' => $sede->id,
+                'nombre' => $sede->nombre,
+            ])),
         ];
     }
 }
