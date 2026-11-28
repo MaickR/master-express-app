@@ -21,6 +21,21 @@ class IdentidadSinExposicionTest extends TestCase
         $this->assertArrayNotHasKey('password', $usuario->toArray());
     }
 
+    public function test_cors_de_programacion_institucional_respeta_el_origen_y_exige_sesion(): void
+    {
+        $origen = 'http://127.0.0.1:5173';
+        $origenAjeno = 'https://otro.example.invalid';
+        config(['cors.allowed_origins' => [$origen]]);
+
+        foreach (['/api/mi-institucion/vinculos/1/eventos', '/api/mi-institucion/vinculos/1/eventos/2'] as $ruta) {
+            $this->getJson($ruta, ['Origin' => $origen])
+                ->assertUnauthorized()
+                ->assertHeader('Access-Control-Allow-Origin', $origen);
+            $respuestaAjena = $this->getJson($ruta, ['Origin' => $origenAjeno])->assertUnauthorized();
+            $this->assertNotSame($origenAjeno, $respuestaAjena->headers->get('Access-Control-Allow-Origin'));
+        }
+    }
+
     public function test_solo_se_exponen_las_rutas_aprobadas_de_la_api_y_autenticacion(): void
     {
         $rutasApi = collect(app('router')->getRoutes()->getRoutes())
@@ -54,6 +69,11 @@ class IdentidadSinExposicionTest extends TestCase
             ['api/ceremonias/{ceremonia}/registros', ['POST']],
             ['api/administracion/cuentas', ['GET', 'HEAD']],
             ['api/administracion/cuentas/{cuenta}', ['POST']],
+            ['api/administracion/vinculos-graduandos/graduandos', ['GET', 'HEAD']],
+            ['api/administracion/vinculos-graduandos/cuentas', ['GET', 'HEAD']],
+            ['api/administracion/vinculos-graduandos', ['POST']],
+            ['api/administracion/vinculos-graduandos/{vinculo}/anulacion', ['POST']],
+            ['api/administracion/vinculos-graduandos/{vinculo}/correccion', ['POST']],
             ['api/instituciones', ['GET', 'HEAD']],
             ['api/eventos', ['GET', 'HEAD']],
             ['api/eventos', ['POST']],

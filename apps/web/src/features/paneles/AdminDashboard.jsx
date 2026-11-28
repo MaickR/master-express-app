@@ -4,7 +4,7 @@ import {
   Users, CalendarDays, DollarSign, GraduationCap,
   TrendingUp, CheckCircle, AlertCircle, Shield,
   ClipboardList, BarChart3, Wallet, PiggyBank, Home, Mail, Trash2,
-  Loader2, ArrowUpRight, Building2
+  Loader2, ArrowUpRight, Building2, Link2
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/ui/card";
 import PanelOperativo from "@/shared/components/PanelOperativo";
@@ -23,6 +23,7 @@ import ExportarExcel from "@/features/graduandos/ExportarExcel";
 import GestionCorreos from "@/features/correo/GestionCorreos";
 import PapeleraGraduandos from "@/features/graduandos/PapeleraGraduandos";
 import SolicitudesInstitucionales from "@/features/paneles/SolicitudesInstitucionales.jsx";
+import VinculacionGraduandos from "@/features/paneles/VinculacionGraduandos.jsx";
 
 const TABS = [
   { id: "panel",         label: "Panel Principal",     icon: Home,          group: "inicio" },
@@ -37,6 +38,7 @@ const TABS = [
   { id: "administradores", label: "Administradores",       icon: Shield,        group: "gestion" },
   { id: "cuentas-internas", label: "Cuentas internas",       icon: Shield,        group: "gestion" },
   { id: "solicitudes-institucionales", label: "Solicitudes institucionales", icon: Building2, group: "gestion" },
+  { id: "vinculacion-graduandos", label: "Vinculación de graduandos", icon: Link2, group: "gestion" },
   { id: "correos",         label: "Correos Electrónicos", icon: Mail,          group: "datos" },
   { id: "papelera",        label: "Papelera",             icon: Trash2,        group: "datos" },
 ];
@@ -111,6 +113,7 @@ export default function AdminDashboard({ identidad }) {
       case "administradores": return <GestionAdministradores />;
       case "cuentas-internas": return <GestionCuentasInternas actorId={identidad.id} />;
       case "solicitudes-institucionales": return <SolicitudesInstitucionales />;
+      case "vinculacion-graduandos": return <VinculacionGraduandos />;
       case "correos":         return <GestionCorreos />;
       case "papelera":        return <PapeleraGraduandos />;
       default:                return null;
@@ -191,6 +194,7 @@ function PanelHome({ stats, formatCurrency, gananciaNeta, onNavigate }) {
             { id: "eventos", label: "Gestionar eventos", desc: "Consulta y crea eventos de graduación.", icon: CalendarDays },
             { id: "gastos", label: "Gestionar gastos", desc: "Consulta y registra gastos operativos.", icon: Wallet },
             { id: "registros", label: "Ver registros de graduandos", desc: "Consulta los registros de la operación.", icon: ClipboardList },
+            { id: "vinculacion-graduandos", label: "Vincular graduandos", desc: "Relaciona una cuenta con su identidad operativa.", icon: Link2 },
           ].map(action => (
             <button key={action.id} type="button" onClick={() => onNavigate(action.id)} className="panel-acceso">
               <span className="panel-indicador__icono shrink-0">

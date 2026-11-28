@@ -225,3 +225,22 @@ Solo un administrador activo decide. Colaborador, Graduando y los demás roles n
 | Revocación | ¿Quién puede retirar una aprobación ya activada, con qué motivo y qué pasa con la sesión? Hoy no existe esa acción. |
 | Sesión visible | ¿Debe mostrarse Institución junto con los paneles de roles internos? ME-REG2B permite elegir entre Graduando e Institución cuando el vínculo está activo. Los roles internos mantienen su prioridad. |
 | Correo y enlace | ¿Se mantienen el asunto, el texto y los 30 minutos del enlace de activación? |
+
+## 16. Vinculación provisional de la cuenta de Graduando
+
+**Regla provisional de ME-PORT1B1.** La cuenta de acceso, la persona graduando y la inscripción a una ceremonia siguen siendo relaciones distintas. El comprador tampoco se deriva de este vínculo. Una coincidencia de correo, documento, nombre o teléfono no vincula, no fusiona personas y no concede acceso. Si dos registros parecen la misma persona, permanecen separados hasta una revisión por identificador.
+
+Solo un administrador activo confirma la relación. La cuenta debe tener el rol Graduando, estar activa y tener el correo verificado. El graduando operativo ya debe existir. La decisión guarda el administrador responsable y la fecha. El mismo par no puede repetirse. Como la cardinalidad sigue abierta, una cuenta ya vinculada o un graduando ya vinculado no reciben un segundo acceso: la nueva relación queda sin conceder y pendiente de revisión.
+
+La operación no cambia inscripciones, pagos ni la `RegistroPolicy`. Anular o corregir un vínculo conserva la fila, exige un motivo y registra al administrador y la fecha. El acceso activo anterior queda retirado. Las inscripciones siguen en su ceremonia: trasladar una inscripción es una rectificación operativa aparte y no se hace desde esta corrección. El portal de Graduandos todavía no consulta sus ceremonias.
+
+### Preguntas para Ernesto
+
+| Tema | Decisión pendiente |
+| --- | --- |
+| Cardinalidad | ¿Una cuenta puede representar varios graduandos y un graduando puede tener varias cuentas? Hoy un segundo acceso no se concede. |
+| Evidencia | ¿Qué documento, lista o participación debe ver el administrador antes de confirmar? Hoy compara los identificadores y los nombres, sin consultar el número de documento. |
+| Homónimos | ¿El nombre compartido exige una evidencia adicional o basta el identificador elegido? Hoy no se fusionan y el aviso queda en la revisión. |
+| Revocación | La anulación retira el acceso activo, conserva la evidencia y no cierra la sesión de la cuenta. ¿Debe también cerrar la sesión? |
+| Traslado | ¿Una corrección de identidad puede mover inscripciones a otra ceremonia? Hoy no. Queda para una fase de rectificación operativa. |
+| Consulta del portal | ¿Qué ceremonias e inscripciones puede ver la cuenta después del vínculo? Hoy el portal no las muestra. |

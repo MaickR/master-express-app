@@ -96,6 +96,10 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('decision-institucional', fn (Request $request) => Limit::perMinute(30)->by(
             'usuario:'.($request->user()?->getKey() ?? $request->ip()),
         ));
+
+        RateLimiter::for('vinculacion-graduandos', fn (Request $request) => Limit::perMinute(30)->by(
+            'usuario:'.($request->user()?->getKey() ?? $request->ip()),
+        ));
     }
 
     private function claveDeCorreo(Request $request, string $uso): string

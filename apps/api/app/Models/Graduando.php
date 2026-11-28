@@ -16,4 +16,10 @@ class Graduando extends Model
     {
         return $this->hasMany(Registro::class);
     }
+
+    /** @return HasMany<VinculoGraduando, $this> */
+    public function vinculos(): HasMany
+    {
+        return $this->hasMany(VinculoGraduando::class);
+    }
 }

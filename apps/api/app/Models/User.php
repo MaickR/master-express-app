@@ -5,6 +5,8 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -50,6 +52,17 @@ class User extends Authenticatable
         return $roles;
     }
 
+    /** @param Builder<User> $consulta */
+    #[Scope]
+    protected function conAccesoEfectivoDeGraduando(Builder $consulta): void
+    {
+        // * codigosDeSesion() da prioridad a los roles internos sobre los portales externos.
+        $consulta->where('activa', true)
+            ->whereNotNull('email_verified_at')
+            ->whereHas('roles', fn (Builder $roles) => $roles->where('codigo', 'graduando'))
+            ->whereDoesntHave('roles', fn (Builder $roles) => $roles->whereIn('codigo', self::ROLES_DE_ACCESO));
+    }
+
     public function puedeRecuperarContrasena(): bool
     {
         return $this->codigosDeAcceso() !== [] || $this->puedeAccederComoGraduando()
@@ -62,6 +75,14 @@ class User extends Authenticatable
     public function vinculosInstitucionales(): HasMany
     {
         return $this->hasMany(VinculoInstitucional::class);
+    }
+
+    /**
+     * @return HasMany<VinculoGraduando, $this>
+     */
+    public function vinculosDeGraduando(): HasMany
+    {
+        return $this->hasMany(VinculoGraduando::class);
     }
 
     public function operaEnInstitucion(int $institucionId): bool

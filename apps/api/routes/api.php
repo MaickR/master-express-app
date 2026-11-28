@@ -6,6 +6,7 @@ use App\Http\Controllers\InstitucionesController;
 use App\Http\Controllers\MiInstitucionController;
 use App\Http\Controllers\MiSesionController;
 use App\Http\Controllers\RegistrosController;
+use App\Http\Controllers\VinculosGraduandosController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +29,18 @@ Route::middleware('auth:web')->prefix('administracion/cuentas')->group(function 
     Route::get('/', [CuentasInternasController::class, 'index'])->name('cuentas.index');
     Route::post('/{cuenta}', [CuentasInternasController::class, 'actualizar'])->whereNumber('cuenta')->name('cuentas.actualizar');
 });
+
+Route::middleware(['auth:web', 'throttle:vinculacion-graduandos'])
+    ->prefix('administracion/vinculos-graduandos')
+    ->name('vinculos-graduandos.')
+    ->controller(VinculosGraduandosController::class)
+    ->group(function (): void {
+        Route::get('/graduandos', 'graduandos')->name('graduandos');
+        Route::get('/cuentas', 'cuentas')->name('cuentas');
+        Route::post('/', 'store')->name('store');
+        Route::post('/{vinculo}/anulacion', 'anular')->whereNumber('vinculo')->name('anular');
+        Route::post('/{vinculo}/correccion', 'corregir')->whereNumber('vinculo')->name('corregir');
+    });
 
 Route::get('/instituciones', [InstitucionesController::class, 'index'])->middleware('auth:web')->name('instituciones.index');
 
