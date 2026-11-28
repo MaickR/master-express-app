@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -68,6 +68,8 @@ export default function VinculacionGraduandos() {
   const [errorMotivo, establecerErrorMotivo] = useState("");
   const [anular, establecerAnular] = useState(null);
   const [resultado, establecerResultado] = useState(null);
+  const activadorRevision = useRef(null);
+  const filtroGraduandos = useRef(null);
   const cliente = useQueryClient();
   const lista = useQuery({
     queryKey: ["vinculos-graduandos", pagina],
@@ -135,7 +137,8 @@ export default function VinculacionGraduandos() {
   const ocupado = vinculacion.isPending || correccion.isPending || anulacion.isPending;
   const errorActivo = vinculacion.error || correccion.error || anulacion.error;
 
-  function preparar(item, siguienteModo) {
+  function preparar(item, siguienteModo, activador) {
+    activadorRevision.current = activador;
     establecerModo(siguienteModo);
     establecerGraduando(item);
     establecerCuentaId("");
@@ -180,7 +183,7 @@ export default function VinculacionGraduandos() {
 
       <label className="grid max-w-md gap-1 text-sm font-medium" htmlFor="buscar-graduando-operativo">
         Buscar en esta página
-        <input id="buscar-graduando-operativo" value={busqueda} onChange={evento => establecerBusqueda(evento.target.value)}
+        <input ref={filtroGraduandos} id="buscar-graduando-operativo" value={busqueda} onChange={evento => establecerBusqueda(evento.target.value)}
           placeholder="Nombre o identificador"
           className="h-11 rounded-md border border-input bg-background px-3 text-base" />
       </label>
@@ -224,7 +227,7 @@ export default function VinculacionGraduandos() {
                       {`Cuenta ${item.vinculo.cuenta_id}${item.vinculo.cuenta_nombre ? ` · ${item.vinculo.cuenta_nombre}` : ""}${item.vinculo.cuenta_correo ? ` · ${item.vinculo.cuenta_correo}` : ""}. Decidida el ${fecha(item.vinculo.decidida_en)}`}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" className="min-h-11 h-auto whitespace-normal" onClick={() => preparar(item, "corregir")}>
+                      <Button type="button" className="min-h-11 h-auto whitespace-normal" onClick={evento => preparar(item, "corregir", evento.currentTarget)}>
                         Corregir vínculo
                       </Button>
                       <Button type="button" variant="outline" className="min-h-11 h-auto whitespace-normal"
@@ -234,7 +237,7 @@ export default function VinculacionGraduandos() {
                     </div>
                   </div>
                 ) : (
-                  <Button type="button" className="min-h-11 h-auto whitespace-normal" onClick={() => preparar(item, "vincular")}>
+                  <Button type="button" className="min-h-11 h-auto whitespace-normal" onClick={evento => preparar(item, "vincular", evento.currentTarget)}>
                     Vincular cuenta
                   </Button>
                 )}
@@ -261,7 +264,11 @@ export default function VinculacionGraduandos() {
       </div>
 
       <Dialog open={graduando !== null} onOpenChange={abierto => { if (!abierto && !ocupado) establecerGraduando(null); }}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg" onCloseAutoFocus={evento => {
+          evento.preventDefault();
+          const destino = activadorRevision.current?.isConnected ? activadorRevision.current : filtroGraduandos.current;
+          destino?.focus({ preventScroll: true });
+        }}>
           <DialogHeader>
             <DialogTitle>{modo === "corregir" ? "Corregir vinculación" : "Revisar identidades"}</DialogTitle>
             <DialogDescription>
